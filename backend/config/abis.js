@@ -1,13 +1,8 @@
 // TokenFactory ABI (Stylus contract)
 const FACTORY_ABI = [
-  "function initialize(address implementation) external",
-  "function create_token(string name, string symbol, uint256 decimals, uint256 initial_supply) external returns (address)",
-  "function get_implementation() external view returns (address)",
-  "function get_token_count() external view returns (uint256)",
-  "function get_token_by_id(uint256 token_id) external view returns (address)",
-  "function get_token_id(address token_address) external view returns (uint256)",
-  "function get_tokens(uint256 start, uint256 count) external view returns (address[])",
-  "event TokenCreated(address indexed creator, address indexed token_address, string name, string symbol, uint256 initial_supply, uint256 token_id)"
+  "function createToken(bytes32 name, bytes32 symbol, uint256 decimals, uint256 initial_supply) external returns (uint256)",
+  "function getTokenCount() external view returns (uint256)",
+  "function getTokenInfo(uint256 token_id) external view returns (bytes32 name, bytes32 symbol, uint256 decimals, uint256 totalSupply, address creator)"
 ];
 
 // NFTFactory ABI (Stylus contract)
@@ -23,22 +18,16 @@ const NFT_FACTORY_ABI = [
 ];
 
 // ERC20 Token ABI (for interacting with deployed tokens from Stylus factory)
+// Note: This is the TokenFactory contract itself - tokens are identified by token_id
 const ERC20_TOKEN_ABI = [
-  "function initialize(string name, string symbol, uint256 decimals, uint256 initialSupply, address creator) external",
-  "function creator() external view returns (address)",
-  "function name() external view returns (string)",
-  "function symbol() external view returns (string)",
-  "function decimals() external view returns (uint256)",
-  "function total_supply() external view returns (uint256)",
-  "function balance_of(address account) external view returns (uint256)",
-  "function transfer(address to, uint256 amount) external returns (bool)",
-  "function allowance(address owner, address spender) external view returns (uint256)",
-  "function approve(address spender, uint256 amount) external returns (bool)",
-  "function transfer_from(address from, address to, uint256 amount) external returns (bool)",
-  "function increase_allowance(address spender, uint256 added_value) external returns (bool)",
-  "function decrease_allowance(address spender, uint256 subtracted_value) external returns (bool)",
-  "event Transfer(address indexed from, address indexed to, uint256 value)",
-  "event Approval(address indexed owner, address indexed spender, uint256 value)"
+  "function balanceOf(uint256 token_id, address account) external view returns (uint256)",
+  "function transfer(uint256 token_id, address to, uint256 amount) external returns (bool)",
+  "function transfer(uint256 token_id, address from, address to, uint256 amount) external",
+  "function allowance(uint256 token_id, address owner, address spender) external view returns (uint256)",
+  "function approve(uint256 token_id, address spender, uint256 amount) external returns (bool)",
+  "function transferFrom(uint256 token_id, address from, address to, uint256 amount) external returns (bool)",
+  "function getTokenInfo(uint256 token_id) external view returns (bytes32 name, bytes32 symbol, uint256 decimals, uint256 totalSupply, address creator)",
+  "function getTokenCount() external view returns (uint256)"
 ];
 
 // ERC721 Collection ABI (Stylus contract)

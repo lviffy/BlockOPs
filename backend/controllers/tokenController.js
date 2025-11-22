@@ -47,6 +47,10 @@ async function deployToken(req, res) {
     // Connect to factory
     const factory = getContract(FACTORY_ADDRESS, FACTORY_ABI, wallet);
 
+    // Convert name and symbol to bytes32
+    const nameBytes32 = ethers.encodeBytes32String(name);
+    const symbolBytes32 = ethers.encodeBytes32String(symbol);
+
     // Convert values to BigInt
     const decimalsBigInt = BigInt(decimals.toString());
     const initialSupplyBigInt = BigInt(initialSupply.toString());
@@ -55,7 +59,7 @@ async function deployToken(req, res) {
     let gasEstimate;
     let estimatedCost = null;
     try {
-      gasEstimate = await factory.create_token.estimateGas(name, symbol, decimalsBigInt, initialSupplyBigInt);
+      gasEstimate = await factory.createToken.estimateGas(nameBytes32, symbolBytes32, decimalsBigInt, initialSupplyBigInt);
       
       const feeData = await provider.getFeeData();
       if (feeData.gasPrice) {
@@ -80,8 +84,8 @@ async function deployToken(req, res) {
 
     // Create token
     const tx = gasEstimate 
-      ? await factory.create_token(name, symbol, decimalsBigInt, initialSupplyBigInt, { gasLimit: gasEstimate * 12n / 10n })
-      : await factory.create_token(name, symbol, decimalsBigInt, initialSupplyBigInt);
+      ? await factory.createToken(nameBytes32, symbolBytes32, decimalsBigInt, initialSupplyBigInt, { gasLimit: gasEstimate * 12n / 10n })
+      : await factory.createToken(nameBytes32, symbolBytes32, decimalsBigInt, initialSupplyBigInt);
 
     console.log('Transaction sent:', tx.hash);
 
@@ -89,26 +93,25 @@ async function deployToken(req, res) {
     const receipt = await tx.wait();
     console.log('Transaction confirmed in block:', receipt.blockNumber);
 
-    // Parse event to get token address
-    const factoryInterface = new ethers.Interface(FACTORY_ABI);
-    const eventArgs = parseEventFromReceipt(receipt, factoryInterface, 'TokenCreated');
+    // The createToken function returns the token_id
+    // We need to decode it from the transaction result
+    const tokenId = receipt.logs && receipt.logs.length > 0 
+      ? await factory.getTokenCount() - 1n // Get the last created token ID
+      : 0n;
     
-    if (!eventArgs) {
-      throw new Error('Failed to parse TokenCreated event from receipt');
-    }
+    console.log('Token created with ID:', tokenId.toString());
 
-    const newTokenAddress = eventArgs.token_address;
-    console.log('Token created at:', newTokenAddress);
-
-    // Get token info
-    const tokenContract = getContract(newTokenAddress, ERC20_TOKEN_ABI, provider);
+    // Get token info using getTokenInfo
     let tokenInfo = { name, symbol, decimals, totalSupply: initialSupply };
-
     try {
-      const creatorAddress = await tokenContract.creator();
-      const actualSupply = await tokenContract.total_supply();
-      tokenInfo.creator = creatorAddress;
-      tokenInfo.actualTotalSupply = actualSupply.toString();
+      const [nameBytes, symbolBytes, decimalsResult, totalSupply, creator] = await factory.getTokenInfo(tokenId);
+      tokenInfo = {
+        name: ethers.decodeBytes32String(nameBytes),
+        symbol: ethers.decodeBytes32String(symbolBytes),
+        decimals: Number(decimalsResult),
+        totalSupply: totalSupply.toString(),
+        creator: creator
+      };
     } catch (error) {
       console.warn('Could not fetch token info:', error.message);
     }
@@ -116,14 +119,15 @@ async function deployToken(req, res) {
     return res.json(
       successResponse({
         message: 'Token deployed successfully via Stylus TokenFactory',
-        tokenAddress: newTokenAddress,
+        tokenId: tokenId.toString(),
+        factoryAddress: FACTORY_ADDRESS,
         transactionHash: receipt.hash,
         blockNumber: receipt.blockNumber,
         gasUsed: receipt.gasUsed.toString(),
         estimatedCost: estimatedCost,
         creator: wallet.address,
         tokenInfo: tokenInfo,
-        explorerUrl: getAddressExplorerUrl(newTokenAddress),
+        explorerUrl: getAddressExplorerUrl(FACTORY_ADDRESS),
         transactionUrl: getTxExplorerUrl(receipt.hash)
       })
     );
@@ -141,19 +145,19 @@ async function deployToken(req, res) {
  */
 async function getTokenInfo(req, res) {
   try {
-    const { tokenAddress } = req.params;
+    const { tokenId } = req.params;
     const provider = getProvider();
-    const tokenContract = getContract(tokenAddress, ERC20_TOKEN_ABI, provider);
+    const factory = getContract(FACTORY_ADDRESS, FACTORY_ABI, provider);
     
-    const name = await tokenContract.name();
-    const symbol = await tokenContract.symbol();
-    const decimals = await tokenContract.decimals();
-    const totalSupply = await tokenContract.total_supply();
-    const creator = await tokenContract.creator();
+    const [nameBytes, symbolBytes, decimals, totalSupply, creator] = await factory.getTokenInfo(BigInt(tokenId));
+    
+    const name = ethers.decodeBytes32String(nameBytes);
+    const symbol = ethers.decodeBytes32String(symbolBytes);
     
     return res.json(
       successResponse({
-        tokenAddress: tokenAddress,
+        tokenId: tokenId,
+        factoryAddress: FACTORY_ADDRESS,
         name: name,
         symbol: symbol,
         decimals: Number(decimals),
@@ -173,15 +177,17 @@ async function getTokenInfo(req, res) {
  */
 async function getTokenBalance(req, res) {
   try {
-    const { tokenAddress, ownerAddress } = req.params;
+    const { tokenId, ownerAddress } = req.params;
     const provider = getProvider();
-    const tokenContract = getContract(tokenAddress, ERC20_TOKEN_ABI, provider);
+    const factory = getContract(FACTORY_ADDRESS, ERC20_TOKEN_ABI, provider);
     
-    const balance = await tokenContract.balance_of(ownerAddress);
+    const tokenIdBigInt = BigInt(tokenId);
+    const balance = await factory.balanceOf(tokenIdBigInt, ownerAddress);
+    
+    // Get decimals from token info
     let decimals = 18;
-    
     try {
-      const decimalsResult = await tokenContract.decimals();
+      const [, , decimalsResult] = await factory.getTokenInfo(tokenIdBigInt);
       decimals = Number(decimalsResult);
     } catch (e) {
       console.log('Could not get decimals, using 18');
@@ -189,7 +195,8 @@ async function getTokenBalance(req, res) {
     
     return res.json(
       successResponse({
-        tokenAddress: tokenAddress,
+        tokenId: tokenId,
+        factoryAddress: FACTORY_ADDRESS,
         ownerAddress: ownerAddress,
         balance: ethers.formatUnits(balance, decimals),
         balanceRaw: balance.toString(),

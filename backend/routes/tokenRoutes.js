@@ -7,9 +7,9 @@ const router = express.Router();
 router.post('/deploy', deployToken);
 
 // Token information
-router.get('/info/:tokenAddress', getTokenInfo);
+router.get('/info/:tokenId', getTokenInfo);
 
 // Token balance
-router.get('/balance/:tokenAddress/:ownerAddress', getTokenBalance);
+router.get('/balance/:tokenId/:ownerAddress', getTokenBalance);
 
 module.exports = router;

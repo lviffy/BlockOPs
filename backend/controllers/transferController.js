@@ -14,7 +14,7 @@ const {
  */
 async function transfer(req, res) {
   try {
-    const { privateKey, toAddress, amount, tokenAddress } = req.body;
+    const { privateKey, toAddress, amount, tokenId } = req.body;
 
     // Validate required fields
     const validationError = validateRequiredFields(req.body, ['privateKey', 'toAddress', 'amount']);
@@ -25,9 +25,9 @@ async function transfer(req, res) {
     const provider = getProvider();
     const wallet = getWallet(privateKey, provider);
 
-    // If tokenAddress is provided, transfer ERC20 tokens
-    if (tokenAddress) {
-      return await transferERC20(res, wallet, tokenAddress, toAddress, amount);
+    // If tokenId is provided, transfer ERC20 tokens
+    if (tokenId !== undefined && tokenId !== null) {
+      return await transferERC20(res, wallet, tokenId, toAddress, amount);
     }
 
     // Transfer native ETH
@@ -44,24 +44,31 @@ async function transfer(req, res) {
 /**
  * Transfer ERC20 tokens
  */
-async function transferERC20(res, wallet, tokenAddress, toAddress, amount) {
-  logTransaction('Transfer ERC20', { tokenAddress, toAddress, amount });
+async function transferERC20(res, wallet, tokenId, toAddress, amount) {
+  const { FACTORY_ADDRESS } = require('../config/constants');
   
-  const tokenContract = getContract(tokenAddress, ERC20_TOKEN_ABI, wallet);
+  logTransaction('Transfer ERC20', { tokenId, toAddress, amount });
   
-  // Get token decimals
+  const factory = getContract(FACTORY_ADDRESS, ERC20_TOKEN_ABI, wallet);
+  const tokenIdBigInt = BigInt(tokenId);
+  
+  // Get token info and decimals
   let decimals = 18;
+  let tokenName = 'Unknown';
+  let tokenSymbol = 'UNKNOWN';
   try {
-    const decimalsResult = await tokenContract.decimals();
+    const [nameBytes, symbolBytes, decimalsResult] = await factory.getTokenInfo(tokenIdBigInt);
     decimals = Number(decimalsResult);
+    tokenName = ethers.decodeBytes32String(nameBytes);
+    tokenSymbol = ethers.decodeBytes32String(symbolBytes);
   } catch (error) {
-    console.log('Could not get decimals, defaulting to 18');
+    console.log('Could not get token info, defaulting to 18 decimals');
   }
   
   const amountInWei = ethers.parseUnits(amount.toString(), decimals);
   
   // Check balance
-  const balance = await tokenContract.balance_of(wallet.address);
+  const balance = await factory.balanceOf(tokenIdBigInt, wallet.address);
   console.log('Token balance:', ethers.formatUnits(balance, decimals));
   
   if (balance < amountInWei) {
@@ -74,20 +81,10 @@ async function transferERC20(res, wallet, tokenAddress, toAddress, amount) {
   }
   
   // Execute transfer
-  const tx = await tokenContract.transfer(toAddress, amountInWei);
+  const tx = await factory.transfer(tokenIdBigInt, toAddress, amountInWei);
   console.log('Transaction sent:', tx.hash);
   
   const receipt = await tx.wait();
-  
-  // Get token info
-  let tokenName = 'Unknown';
-  let tokenSymbol = 'UNKNOWN';
-  try {
-    tokenName = await tokenContract.name();
-    tokenSymbol = await tokenContract.symbol();
-  } catch (error) {
-    console.log('Could not fetch token info');
-  }
   
   return res.json(
     successResponse({
@@ -96,7 +93,8 @@ async function transferERC20(res, wallet, tokenAddress, toAddress, amount) {
       from: wallet.address,
       to: toAddress,
       amount: amount,
-      tokenAddress: tokenAddress,
+      tokenId: tokenId,
+      factoryAddress: FACTORY_ADDRESS,
       tokenName: tokenName,
       tokenSymbol: tokenSymbol,
       blockNumber: receipt.blockNumber,
