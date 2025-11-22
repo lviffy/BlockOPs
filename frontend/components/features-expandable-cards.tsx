@@ -69,13 +69,13 @@ export default function FeaturesExpandableCards() {
             <motion.div
               layoutId={`card-${active.title}-${id}`}
               ref={ref}
-              className="w-full max-w-[500px] h-full md:h-fit md:max-h-[90%] flex flex-col bg-white dark:bg-neutral-900 sm:rounded-3xl overflow-hidden shadow-2xl"
+              className="w-full max-w-[500px] h-full md:h-fit md:max-h-[90%] flex flex-col bg-white dark:bg-neutral-900 sm:rounded-xl overflow-hidden shadow-2xl"
             >
               <div className="p-8">
                 <div className="flex items-center gap-4 mb-6">
                   <motion.div
                     layoutId={`icon-${active.title}-${id}`}
-                    className="w-16 h-16 bg-slate-900 rounded-xl flex items-center justify-center flex-shrink-0"
+                    className="w-16 h-16 bg-slate-900 rounded-lg flex items-center justify-center flex-shrink-0"
                   >
                     {active.icon}
                   </motion.div>
@@ -119,15 +119,12 @@ export default function FeaturesExpandableCards() {
             layoutId={`card-${card.title}-${id}`}
             key={`card-${card.title}-${id}`}
             onClick={() => setActive(card)}
-            className="group relative bg-white p-10 rounded-3xl border border-slate-200 cursor-pointer"
+            className="group relative bg-white p-10 rounded-xl border border-slate-200 cursor-pointer"
           >
-            <div className="absolute top-6 right-6 text-7xl font-bold text-slate-50 select-none">
-              {card.number}
-            </div>
             <div className="relative z-10">
               <motion.div
                 layoutId={`icon-${card.title}-${id}`}
-                className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center mb-8"
+                className="w-16 h-16 bg-slate-900 rounded-lg flex items-center justify-center mb-8"
               >
                 {card.icon}
               </motion.div>
@@ -186,7 +183,6 @@ export const CloseIcon = () => {
 
 const cards = [
   {
-    number: "01",
     title: "Visual Workflow Builder",
     description: "Drag-and-drop interface for complex automation",
     icon: <Workflow className="w-7 h-7 text-white" />,
@@ -225,7 +221,6 @@ const cards = [
     },
   },
   {
-    number: "02",
     title: "Secure Wallet Integration",
     description: "Connect Web3 wallets and execute transactions",
     icon: <Wallet className="w-7 h-7 text-white" />,
@@ -264,7 +259,6 @@ const cards = [
     },
   },
   {
-    number: "03",
     title: "Smart Contract Explorer",
     description: "Test and interact with any smart contract",
     icon: <Shield className="w-7 h-7 text-white" />,
@@ -303,7 +297,6 @@ const cards = [
     },
   },
   {
-    number: "04",
     title: "AI-Powered Assistance",
     description: "Intelligent suggestions for blockchain interactions",
     icon: <Sparkles className="w-7 h-7 text-white" />,
@@ -342,7 +335,6 @@ const cards = [
     },
   },
   {
-    number: "05",
     title: "Real-time Monitoring",
     description: "Track performance with instant notifications",
     icon: <Activity className="w-7 h-7 text-white" />,
@@ -381,7 +373,6 @@ const cards = [
     },
   },
   {
-    number: "06",
     title: "Multi-Chain Support",
     description: "Deploy agents across multiple blockchains",
     icon: <Network className="w-7 h-7 text-white" />,

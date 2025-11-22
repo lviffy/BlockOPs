@@ -4,12 +4,12 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth"
-import { ArrowRight, Bot } from "lucide-react"
+import { ArrowRight, Bot, Loader2 } from "lucide-react"
 import { UserProfile } from "@/components/user-profile"
 import FeaturesExpandableCards from "@/components/features-expandable-cards"
 import { Modal, ModalBody, ModalContent, ModalFooter, ModalTrigger } from "@/components/ui/animated-modal"
 import { motion, useInView, useSpring } from "motion/react"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -76,13 +76,18 @@ function NumberTicker({
 
 export default function Home() {
   const { ready, authenticated, login, loading, logout } = useAuth()
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
+  const [loadingLink, setLoadingLink] = useState<string | null>(null)
 
   const handleGetStarted = async () => {
     console.log('Get Started clicked!')
+    setIsLoggingIn(true)
     try {
       await login()
     } catch (error) {
       console.error('Login failed:', error)
+    } finally {
+      setIsLoggingIn(false)
     }
   }
 
@@ -99,6 +104,16 @@ export default function Home() {
 
   return (
     <div className="relative min-h-screen bg-white">
+      {/* Loading Overlay */}
+      {loadingLink && (
+        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-60 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-slate-900 mx-auto mb-4" />
+            <p className="text-slate-600">Loading...</p>
+          </div>
+        </div>
+      )}
+
       {/* Glowing Blue Orb - Half Visible at Top */}
       <div className="absolute -top-[500px] left-1/2 -translate-x-1/2 w-[1000px] h-[1000px] pointer-events-none z-0">
         <div className="absolute inset-0 bg-blue-400 rounded-full blur-3xl opacity-20"></div>
@@ -130,17 +145,27 @@ export default function Home() {
 
             {/* Nav Links */}
             <div className="hidden md:flex items-center gap-8">
-              <Link href="#features" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+              <Link 
+                href="#features" 
+                onClick={() => setLoadingLink('#features')}
+                className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+              >
                 Features
               </Link>
-              <Link href="#integrations" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-                Integrations
-              </Link>
-              <Link href="/api-docs" prefetch className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+              <Link 
+                href="/api-docs" 
+                prefetch 
+                onClick={() => setLoadingLink('/api-docs')}
+                className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+              >
                 API Docs
               </Link>
-              <Link href="#about" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-                About us
+              <Link 
+                href="/contract-explorer" 
+                onClick={() => setLoadingLink('/contract-explorer')}
+                className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+              >
+                Contract Explorer
               </Link>
             </div>
 
@@ -150,9 +175,17 @@ export default function Home() {
                 onClick={handleGetStarted}
                 variant="outline" 
                 size="sm"
+                disabled={isLoggingIn}
                 className="text-slate-900 border-slate-200 hover:bg-slate-50 font-medium"
               >
-                Connect Wallet
+                {isLoggingIn ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Connecting
+                  </>
+                ) : (
+                  "Connect Wallet"
+                )}
               </Button>
             ) : (
               <UserProfile onLogout={logout} />
@@ -217,9 +250,17 @@ export default function Home() {
                 <Button 
                   onClick={handleGetStarted}
                   size="lg" 
+                  disabled={isLoggingIn}
                   className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-8 rounded-lg"
                 >
-                  Get Started
+                  {isLoggingIn ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    "Get Started"
+                  )}
                 </Button>
               </>
             )}
@@ -282,7 +323,7 @@ export default function Home() {
               },
               { 
                 title: "NFT Operations", 
-                description: "Monitor collections, snipe rare mints, and automate royalty distributions instantly.",
+                description: "Automate collections, snipe rare mints, and automate royalty distributions instantly.",
                 icon: (
                   <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -399,9 +440,9 @@ export default function Home() {
               <div className="w-14 h-14 bg-slate-900 text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-6">
                 3
               </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-3">Deploy & Monitor</h3>
+              <h3 className="text-lg font-semibold text-slate-900 mb-3">Deploy & Automate</h3>
               <p className="text-slate-600 text-sm leading-relaxed">
-                Deploy your agent to the blockchain and monitor its performance in real-time.
+                Deploy your agent to the blockchain and automate its performance in real-time.
               </p>
             </motion.div>
           </div>
@@ -439,16 +480,27 @@ export default function Home() {
                 <Button 
                   onClick={handleGetStarted}
                   size="lg" 
+                  disabled={isLoggingIn}
                   className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-8 rounded-lg"
                 >
-                  Get Started Free
+                  {isLoggingIn ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    "Get Started Free"
+                  )}
                 </Button>
                 <Button 
+                  asChild
                   size="lg" 
                   variant="outline"
                   className="border-slate-300 text-slate-700 hover:bg-white font-medium px-8 rounded-lg"
                 >
-                  View Documentation
+                  <Link href="/api-docs">
+                    View Documentation
+                  </Link>
                 </Button>
               </>
             )}
@@ -488,10 +540,10 @@ export default function Home() {
             <motion.div variants={itemVariants}>
               <h4 className="font-semibold mb-4 text-sm">Product</h4>
               <ul className="space-y-3">
-                <li><Link href="/features" className="text-slate-400 hover:text-white transition-colors text-sm">Features</Link></li>
-                <li><Link href="/integrations" className="text-slate-400 hover:text-white transition-colors text-sm">Integrations</Link></li>
-                <li><Link href="/pricing" className="text-slate-400 hover:text-white transition-colors text-sm">Pricing</Link></li>
+                <li><Link href="/agent-builder" className="text-slate-400 hover:text-white transition-colors text-sm">Agent Builder</Link></li>
+                <li><Link href="/my-agents" className="text-slate-400 hover:text-white transition-colors text-sm">My Agents</Link></li>
                 <li><Link href="/contract-explorer" className="text-slate-400 hover:text-white transition-colors text-sm">Contract Explorer</Link></li>
+                <li><Link href="/api-docs" className="text-slate-400 hover:text-white transition-colors text-sm">API Docs</Link></li>
               </ul>
             </motion.div>
 
@@ -499,10 +551,8 @@ export default function Home() {
             <motion.div variants={itemVariants}>
               <h4 className="font-semibold mb-4 text-sm">Resources</h4>
               <ul className="space-y-3">
-                <li><Link href="/docs" className="text-slate-400 hover:text-white transition-colors text-sm">Documentation</Link></li>
-                <li><Link href="/tutorials" className="text-slate-400 hover:text-white transition-colors text-sm">Tutorials</Link></li>
-                <li><Link href="/blog" className="text-slate-400 hover:text-white transition-colors text-sm">Blog</Link></li>
-                <li><Link href="/community" className="text-slate-400 hover:text-white transition-colors text-sm">Community</Link></li>
+                <li><Link href="/api-docs" className="text-slate-400 hover:text-white transition-colors text-sm">API Documentation</Link></li>
+                <li><a href="https://github.com" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors text-sm">GitHub</a></li>
               </ul>
             </motion.div>
 
@@ -510,10 +560,7 @@ export default function Home() {
             <motion.div variants={itemVariants}>
               <h4 className="font-semibold mb-4 text-sm">Company</h4>
               <ul className="space-y-3">
-                <li><Link href="/about" className="text-slate-400 hover:text-white transition-colors text-sm">About</Link></li>
-                <li><Link href="/careers" className="text-slate-400 hover:text-white transition-colors text-sm">Careers</Link></li>
-                <li><Link href="/contact" className="text-slate-400 hover:text-white transition-colors text-sm">Contact</Link></li>
-                <li><Link href="/privacy" className="text-slate-400 hover:text-white transition-colors text-sm">Privacy</Link></li>
+                <li><a href="mailto:contact@blockops.com" className="text-slate-400 hover:text-white transition-colors text-sm">Contact</a></li>
               </ul>
             </motion.div>
           </div>
