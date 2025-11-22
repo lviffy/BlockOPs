@@ -388,10 +388,7 @@ export default function AgentChatPage() {
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-              <h1 className="text-base font-medium tracking-tight">{agent.name}</h1>
-            </div>
+            <h1 className="text-base font-medium tracking-tight">{agent.name}</h1>
           </div>
           <UserProfile onLogout={() => {
             logout()
