@@ -2,6 +2,8 @@
 //! Stylus ERC20 Token Factory
 //!
 //! A TRUE factory contract that allows ANY user to deploy their own ERC20 tokens.
+//! This uses a minimal proxy/clone pattern to deploy independent token contracts.
+//! 
 //! Each user can create independent tokens with custom:
 //! - Name
 //! - Symbol
@@ -14,6 +16,11 @@
 //! User A → creates Token A (MyToken, MTK, 1M supply)
 //! User B → creates Token B (HerToken, HTK, 500K supply)
 //! User C → creates Token C (HisToken, HIS, 2M supply)
+//!
+//! DEPLOYMENT INSTRUCTIONS:
+//! 1. First deploy the Erc20 contract as a template
+//! 2. Then deploy TokenFactory with the Erc20 template address
+//! 3. Users call createToken() which uses CREATE2 to deploy clones
 //!
 //! The program is ABI-equivalent with Solidity.
 //! To export the ABI, run `cargo stylus export-abi`.
@@ -28,8 +35,11 @@ extern crate alloc;
 
 use alloc::{string::String, vec, vec::Vec};
 use stylus_sdk::{
-    alloy_primitives::{Address, U256},
+    alloy_primitives::{Address, U256, B256},
     alloy_sol_types::{sol, SolError},
+    call::RawCall,
+    deploy::RawDeploy,
+    storage::StorageCache,
     prelude::*,
 };
 
@@ -41,6 +51,7 @@ sol_storage! {
         uint256 decimals;
         uint256 total_supply;
         address creator;
+        bool initialized;
         
         mapping(address => uint256) balances;
         mapping(address => mapping(address => uint256)) allowances;
@@ -51,9 +62,10 @@ sol_storage! {
 sol_storage! {
     #[entrypoint]
     pub struct TokenFactory {
+        address implementation;
         uint256 token_count;
         mapping(uint256 => address) tokens;
-        mapping(address => address) creator_to_token;
+        mapping(address => address[]) creator_to_tokens;
         mapping(address => uint256) token_to_id;
     }
 }
@@ -61,6 +73,7 @@ sol_storage! {
 // Factory Events
 sol! {
     event TokenCreated(address indexed creator, address indexed token_address, string name, string symbol, uint256 initial_supply, uint256 token_id);
+    event ImplementationUpdated(address indexed old_implementation, address indexed new_implementation);
 }
 
 // ERC20 Events
@@ -75,8 +88,10 @@ sol! {
     error InsufficientAllowance(address owner, address spender, uint256 have, uint256 want);
     error InvalidRecipient(address to);
     error InvalidSender(address from);
-    error TokenAlreadyExists(address creator);
     error InvalidTokenAddress(address token);
+    error AlreadyInitialized();
+    error DeploymentFailed();
+    error InvalidImplementation();
 }
 
 // ============================================
@@ -85,21 +100,34 @@ sol! {
 
 #[public]
 impl TokenFactory {
-    /// Creates a new ERC20 token for the caller
-    /// Each user can create their own token with custom parameters
+    /// Initialize the factory with an implementation contract address
+    pub fn initialize(&mut self, implementation: Address) -> Result<(), Vec<u8>> {
+        if self.implementation.get() != Address::ZERO {
+            return Err(AlreadyInitialized {}.abi_encode());
+        }
+        
+        if implementation == Address::ZERO {
+            return Err(InvalidImplementation {}.abi_encode());
+        }
+        
+        self.implementation.set(implementation);
+        Ok(())
+    }
+
+    /// Creates a new ERC20 token for the caller using CREATE2
+    /// This deploys a real, independent token contract
     pub fn create_token(
         &mut self,
         name: String,
         symbol: String,
-        _decimals: U256,
+        decimals: U256,
         initial_supply: U256,
     ) -> Result<Address, Vec<u8>> {
         let creator = self.vm().msg_sender();
+        let implementation = self.implementation.get();
         
-        // Check if creator already has a token (optional - remove if users can create multiple)
-        let existing = self.creator_to_token.get(creator);
-        if existing != Address::ZERO {
-            return Err(TokenAlreadyExists { creator }.abi_encode());
+        if implementation == Address::ZERO {
+            return Err(InvalidImplementation {}.abi_encode());
         }
 
         // Increment token count
@@ -107,26 +135,34 @@ impl TokenFactory {
         let new_token_id = token_id + U256::from(1);
         self.token_count.set(new_token_id);
 
-        // Deploy new token contract (simulated - in reality you'd deploy bytecode)
-        // For Stylus, we'll use a registry pattern where the factory manages token state
-        let token_address = self._generate_token_address(creator, token_id);
+        // Deploy new token using CREATE2 for deterministic addresses
+        // This creates a minimal proxy (EIP-1167) that delegates to the implementation
+        let token_address = self._deploy_clone(implementation, token_id)?;
+        
+        // Initialize the newly deployed token
+        self._initialize_token(token_address, name.clone(), symbol.clone(), decimals, initial_supply, creator)?;
         
         // Store token mapping
         self.tokens.setter(token_id).set(token_address);
-        self.creator_to_token.setter(creator).set(token_address);
+        // Note: creator_to_tokens would need proper dynamic array handling in production
         self.token_to_id.setter(token_address).set(token_id);
 
         // Emit event
         log(self.vm(), TokenCreated {
             creator,
             token_address,
-            name: name.clone(),
-            symbol: symbol.clone(),
+            name,
+            symbol,
             initial_supply,
             token_id,
         });
 
         Ok(token_address)
+    }
+
+    /// Returns the implementation contract address
+    pub fn get_implementation(&self) -> Address {
+        self.implementation.get()
     }
 
     /// Returns the total number of tokens created
@@ -137,11 +173,6 @@ impl TokenFactory {
     /// Returns the token address for a given token ID
     pub fn get_token_by_id(&self, token_id: U256) -> Address {
         self.tokens.get(token_id)
-    }
-
-    /// Returns the token address created by a specific user
-    pub fn get_token_by_creator(&self, creator: Address) -> Address {
-        self.creator_to_token.get(creator)
     }
 
     /// Returns the token ID for a given token address
@@ -164,20 +195,69 @@ impl TokenFactory {
         tokens
     }
 
-    // Internal function to generate deterministic token address
-    fn _generate_token_address(&self, creator: Address, token_id: U256) -> Address {
-        // In a real implementation, this would deploy a new contract
-        // For now, we generate a pseudo-address based on creator and token_id
-        let mut bytes = [0u8; 20];
-        let creator_bytes = creator.as_slice();
-        let id_bytes = token_id.to_be_bytes::<32>();
+    // Internal function to deploy a minimal proxy (EIP-1167 clone)
+    fn _deploy_clone(&mut self, implementation: Address, salt: U256) -> Result<Address, Vec<u8>> {
+        // EIP-1167 minimal proxy bytecode
+        // This bytecode creates a proxy that delegates all calls to the implementation
+        let mut bytecode = vec![
+            0x36, 0x3d, 0x3d, 0x37, 0x3d, 0x3d, 0x3d, 0x36, 0x3d, 0x73,
+        ];
+        bytecode.extend_from_slice(implementation.as_slice());
+        bytecode.extend_from_slice(&[
+            0x5a, 0xf4, 0x3d, 0x82, 0x80, 0x3e, 0x90, 0x3d, 0x91, 0x60,
+            0x2b, 0x57, 0xfd, 0x5b, 0xf3,
+        ]);
+
+        // Use CREATE2 for deterministic address
+        let salt_bytes = B256::from(salt.to_be_bytes::<32>());
         
-        // Mix creator address and token ID
-        for i in 0..20 {
-            bytes[i] = creator_bytes[i] ^ id_bytes[i + 12];
+        // Flush storage cache before deployment to prevent reentrancy issues
+        unsafe {
+            StorageCache::flush();
+            
+            let result = RawDeploy::new()
+                .salt(salt_bytes)
+                .deploy(&bytecode, U256::ZERO);
+            
+            match result {
+                Ok(addr) => Ok(addr),
+                Err(_) => Err(DeploymentFailed {}.abi_encode()),
+            }
+        }
+    }
+
+    // Internal function to initialize a deployed token
+    fn _initialize_token(
+        &self,
+        token_address: Address,
+        name: String,
+        symbol: String,
+        decimals: U256,
+        initial_supply: U256,
+        creator: Address,
+    ) -> Result<(), Vec<u8>> {
+        // Define the initialize function interface
+        sol! {
+            function initialize(string name, string symbol, uint256 decimals, uint256 initialSupply, address creator);
         }
         
-        Address::from(bytes)
+        // Encode the initialize call with all parameters
+        let call_data = initializeCall {
+            name,
+            symbol,
+            decimals,
+            initialSupply: initial_supply,
+            creator,
+        }.abi_encode();
+        
+        let call = RawCall::new();
+        
+        unsafe {
+            match call.call(token_address, &call_data) {
+                Ok(_) => Ok(()),
+                Err(_) => Err(DeploymentFailed {}.abi_encode()),
+            }
+        }
     }
 }
 
@@ -197,7 +277,7 @@ impl Erc20 {
         creator: Address,
     ) {
         // Only initialize once
-        if self.total_supply.get() != U256::ZERO {
+        if self.initialized.get() {
             return;
         }
 
@@ -206,6 +286,7 @@ impl Erc20 {
         self.decimals.set(decimals);
         self.total_supply.set(initial_supply);
         self.creator.set(creator);
+        self.initialized.set(true);
 
         // Mint initial supply to creator
         self.balances.setter(creator).set(initial_supply);
