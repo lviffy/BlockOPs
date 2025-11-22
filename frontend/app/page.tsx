@@ -20,7 +20,7 @@ export default function Home() {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-foreground mx-auto"></div>
           <p className="mt-4 text-muted-foreground">Loading...</p>
         </div>
       </main>
@@ -40,7 +40,7 @@ export default function Home() {
       <div className="flex flex-col items-center justify-center gap-8 px-4 text-center w-full">
         <div className="space-y-4 flex flex-col items-center justify-center text-center w-full">
           <h1 className="text-5xl font-bold tracking-tight sm:text-6xl flex flex-col items-center justify-center">
-            <span className="bg-gradient-to-r from-[#AD00FF] to-[#333BFF] text-transparent bg-clip-text">
+            <span className="bg-gradient-to-r from-foreground to-foreground/70 text-transparent bg-clip-text">
               Somnia
             </span>
             <span className="block mt-2">

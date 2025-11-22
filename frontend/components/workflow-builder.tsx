@@ -443,7 +443,7 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
                     onClick={() => setIsAIChatOpen(true)}
                     size="lg"
                     variant="default"
-                    className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg font-semibold"
+                    className="bg-foreground text-background hover:bg-foreground/90 shadow-lg font-semibold"
                   >
                     Create with AI
                   </Button>
@@ -522,7 +522,7 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmExit}
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              className="bg-foreground text-background hover:bg-foreground/90"
             >
               Exit
             </AlertDialogAction>

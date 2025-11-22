@@ -22,7 +22,7 @@ function AgentBuilderContent() {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+          <Loader2 className="h-12 w-12 animate-spin text-foreground mx-auto" />
           <p className="mt-4 text-muted-foreground">Loading...</p>
         </div>
       </main>
@@ -48,7 +48,7 @@ export default function AgentBuilder() {
       fallback={
         <main className="flex min-h-screen flex-col items-center justify-center">
           <div className="text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+            <Loader2 className="h-12 w-12 animate-spin text-foreground mx-auto" />
             <p className="mt-4 text-muted-foreground">Loading...</p>
           </div>
         </main>

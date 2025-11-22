@@ -38,9 +38,10 @@ import { toast } from "@/components/ui/use-toast"
 interface AgentWalletModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  hideButton?: boolean
 }
 
-export function AgentWalletModal({ open, onOpenChange }: AgentWalletModalProps) {
+export function AgentWalletModal({ open, onOpenChange, hideButton = false }: AgentWalletModalProps) {
   const { user, dbUser, syncUser, loading } = useAuth()
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showImportDialog, setShowImportDialog] = useState(false)
@@ -211,32 +212,34 @@ export function AgentWalletModal({ open, onOpenChange }: AgentWalletModalProps) 
   return (
     <>
       {/* Wallet Button - Shows in header */}
-      <Button
-        variant="outline"
-        size="lg"
-        onClick={() => onOpenChange(true)}
-        className="gap-2"
-      >
-        {hasWallet ? (
-          <>
-            <div className="relative w-5 h-5 shrink-0">
-              <Image
-                src="/stt-logo.png"
-                alt="STT"
-                fill
-                className="object-contain"
-                unoptimized
-              />
-            </div>
-            <span className="font-semibold">{displayBalance} STT</span>
-          </>
-        ) : (
-          <>
-            <Wallet className="h-5 w-5" />
-            <span className="font-semibold">Add Wallet</span>
-          </>
-        )}
-      </Button>
+      {!hideButton && (
+        <Button
+          variant="outline"
+          size="lg"
+          onClick={() => onOpenChange(true)}
+          className="gap-2"
+        >
+          {hasWallet ? (
+            <>
+              <div className="relative w-5 h-5 shrink-0">
+                <Image
+                  src="/stt-logo.png"
+                  alt="STT"
+                  fill
+                  className="object-contain"
+                  unoptimized
+                />
+              </div>
+              <span className="font-semibold">{displayBalance} STT</span>
+            </>
+          ) : (
+            <>
+              <Wallet className="h-5 w-5" />
+              <span className="font-semibold">Add Wallet</span>
+            </>
+          )}
+        </Button>
+      )}
 
       {/* Main Wallet Modal */}
       <Dialog open={open && !showCreateDialog && !showImportDialog && !newPrivateKey} onOpenChange={onOpenChange}>
@@ -258,7 +261,7 @@ export function AgentWalletModal({ open, onOpenChange }: AgentWalletModalProps) 
                     {dbUser.wallet_address}
                   </code>
                   <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={copyAddress} title="Copy address">
-                    {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    {copied ? <Check className="h-4 w-4 text-foreground" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
               </div>
@@ -377,7 +380,7 @@ export function AgentWalletModal({ open, onOpenChange }: AgentWalletModalProps) 
                     }}
                   >
                     {copied ? (
-                      <Check className="h-4 w-4 text-green-500" />
+                      <Check className="h-4 w-4 text-foreground" />
                     ) : (
                       <Copy className="h-4 w-4" />
                     )}

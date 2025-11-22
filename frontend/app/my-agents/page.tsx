@@ -37,7 +37,7 @@ import {
 
 export default function MyAgents() {
   const router = useRouter()
-  const { ready, authenticated, user, logout, loading: authLoading } = useAuth()
+  const { ready, authenticated, user, logout, loading: authLoading, isWalletLogin } = useAuth()
   const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -97,7 +97,7 @@ export default function MyAgents() {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+          <Loader2 className="h-12 w-12 animate-spin text-foreground mx-auto" />
           <p className="mt-4 text-muted-foreground">Loading...</p>
         </div>
       </main>
@@ -115,20 +115,20 @@ export default function MyAgents() {
         <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
-              <span className="bg-gradient-to-r from-[#AD00FF] to-[#333BFF] text-transparent bg-clip-text block md:inline">My Agents</span>
+              <span className="bg-gradient-to-r from-foreground to-foreground/70 text-transparent bg-clip-text block md:inline">My Agents</span>
             </h1>
             <p className="text-muted-foreground mt-2">
               Manage and interact with your N8NRollUPagents
             </p>
           </div>
           <div className="flex gap-2">
-            <Button asChild size="lg" className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg font-semibold">
+            <Button asChild size="lg" className="bg-foreground text-background hover:bg-foreground/90 shadow-lg font-semibold">
               <Link href="/agent-builder">
                 <Plus className="h-5 w-5 mr-2" />
                 Create New Agent
               </Link>
             </Button>
-            <AgentWalletModal open={walletModalOpen} onOpenChange={setWalletModalOpen} />
+            <AgentWalletModal open={walletModalOpen} onOpenChange={setWalletModalOpen} hideButton={isWalletLogin} />
             <Button onClick={logout} variant="outline" size="lg">
               <LogOut className="h-5 w-5 mr-2" />
               Logout
@@ -139,20 +139,20 @@ export default function MyAgents() {
         {/* Agents Grid */}
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <Loader2 className="h-8 w-8 animate-spin text-foreground" />
           </div>
         ) : agents.length > 0 ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {agents.map((agent) => (
               <Card
                 key={agent.id}
-                className="transition-all hover:shadow-md hover:border-primary/50"
+                className="transition-all hover:shadow-md hover:border-foreground/30"
               >
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3 flex-1">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                        <Bot className="h-5 w-5 text-primary" />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground/10">
+                        <Bot className="h-5 w-5 text-foreground" />
                       </div>
                       <div className="flex-1">
                         <CardTitle className="text-lg">{agent.name}</CardTitle>
@@ -254,7 +254,7 @@ export default function MyAgents() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-primary text-primary-foreground">
+            <AlertDialogAction onClick={confirmDelete} className="bg-foreground text-background hover:bg-foreground/90">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -292,7 +292,7 @@ export default function MyAgents() {
                   }}
                 >
                   {copiedItem === "api_key" ? (
-                    <Check className="h-3 w-3 text-green-500" />
+                    <Check className="h-3 w-3 text-foreground" />
                   ) : (
                     <Copy className="h-3 w-3" />
                   )}
@@ -348,7 +348,7 @@ export default function MyAgents() {
                 >
                   {copiedItem === "curl" ? (
                     <>
-                      <Check className="h-4 w-4 mr-2 text-green-500" />
+                      <Check className="h-4 w-4 mr-2 text-foreground" />
                       Copied
                     </>
                   ) : (
@@ -409,7 +409,7 @@ console.log(data);`
                 >
                   {copiedItem === "javascript" ? (
                     <>
-                      <Check className="h-4 w-4 mr-2 text-green-500" />
+                      <Check className="h-4 w-4 mr-2 text-foreground" />
                       Copied
                     </>
                   ) : (

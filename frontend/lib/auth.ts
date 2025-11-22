@@ -10,6 +10,9 @@ export function useAuth() {
   const [dbUser, setDbUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Check if user logged in via wallet
+  const isWalletLogin = authenticated && wallets && wallets.length > 0
+
   useEffect(() => {
     if (ready && authenticated && user) {
       syncUser()
@@ -113,5 +116,6 @@ export function useAuth() {
     login: connectMetaMask,
     logout,
     syncUser,
+    isWalletLogin,
   }
 }
