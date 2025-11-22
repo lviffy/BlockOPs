@@ -8,12 +8,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, Search, Wallet, AlertCircle, CheckCircle2, ExternalLink } from "lucide-react"
+import { Loader2, Search, Wallet, AlertCircle, CheckCircle2, ExternalLink, MessageSquare, Send } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { ethers } from "ethers"
 import { useAuth } from "@/lib/auth"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 
 // Extend Window interface for ethereum
 declare global {
@@ -56,6 +57,11 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
   const [functionParams, setFunctionParams] = useState<Record<string, string[]>>({})
   const [executingFunction, setExecutingFunction] = useState<string | null>(null)
   const [functionResults, setFunctionResults] = useState<Record<string, any>>({})
+  
+  // AI Chat states
+  const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant', content: string }>>([])
+  const [chatInput, setChatInput] = useState("")
+  const [isChatLoading, setIsChatLoading] = useState(false)
 
   const isValidAddress = (address: string) => {
     return ethers.isAddress(address)
@@ -99,33 +105,59 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
       }
 
       console.log("Contract exists! Fetching ABI from Etherscan...")
-      // Try to fetch ABI from Etherscan API
-      const explorerUrl = process.env.NEXT_PUBLIC_EXPLORER_API || "https://api-sepolia.etherscan.io/api"
+      // Use Etherscan API V2 with chainid for Sepolia
       const apiKey = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || "YourApiKeyToken"
-      const apiUrl = `${explorerUrl}?module=contract&action=getabi&address=${contractAddress}&apikey=${apiKey}`
+      // For Sepolia, use mainnet API endpoint with chainid=11155111
+      const apiUrl = `https://api.etherscan.io/v2/api?chainid=11155111&module=contract&action=getabi&address=${contractAddress}&apikey=${apiKey}`
       console.log("API URL:", apiUrl)
+      console.log("Using API Key:", apiKey.substring(0, 5) + "...")
       
       const response = await fetch(apiUrl)
+      console.log("Response status:", response.status, response.statusText)
+      
       const data = await response.json()
+      console.log("Etherscan API V2 Response:", data)
       
-      console.log("Etherscan API Response:", data) // Debug log
-      
-      if (data.status === "1" && data.result && data.result !== "Contract source code not verified") {
-        console.log("ABI found! Parsing...")
-        const abi = JSON.parse(data.result)
-        setContractABI(abi)
-        parseFunctions(abi)
-        toast({
-          title: "Contract Loaded ✓",
-          description: `Contract verified and loaded successfully`,
-        })
+      // V2 API response format
+      if (data.status === "1" && data.result) {
+        console.log("Result received, parsing ABI...")
+        
+        try {
+          // V2 API returns result as string containing JSON array
+          const abi = JSON.parse(data.result)
+          console.log("ABI parsed successfully! Functions found:", abi.length)
+          
+          setContractABI(abi)
+          parseFunctions(abi)
+          toast({
+            title: "Contract Loaded ✓",
+            description: `Successfully loaded ${abi.length} contract functions`,
+          })
+        } catch (parseError) {
+          console.error("Failed to parse ABI:", parseError)
+          setShowManualABI(true)
+          toast({
+            title: "Error Parsing ABI",
+            description: "The ABI format is invalid. Please paste it manually below.",
+            variant: "destructive",
+          })
+        }
       } else {
-        // If ABI not verified, show manual input option
-        console.log("Contract not verified. Response:", data)
+        // If ABI not verified or other error
+        console.log("Contract not verified or error. Full response:", data)
         setShowManualABI(true)
+        
+        let errorMessage = "Contract found but not verified on Etherscan."
+        if (data.message && data.message !== "OK") {
+          errorMessage = data.message
+        }
+        if (data.result && typeof data.result === "string" && !data.result.startsWith("[")) {
+          errorMessage += ` ${data.result}`
+        }
+        
         toast({
           title: "Contract Not Verified",
-          description: "Contract found but not verified. You can paste the ABI manually below.",
+          description: errorMessage + " Please paste ABI manually below.",
           variant: "destructive",
         })
       }
@@ -317,30 +349,55 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
     }
   }
 
+  const handleAIChatSubmit = async () => {
+    if (!chatInput.trim() || !contractABI) return
+
+    const userMessage = chatInput.trim()
+    setChatInput("")
+    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }])
+    setIsChatLoading(true)
+
+    try {
+      // TODO: Replace with actual AI API call
+      // For now, just echo back with function suggestions
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      const response = `I understand you want to interact with the contract. Here are the available functions:\n\n` +
+        `Read Functions: ${functions.read.map(f => f.name).join(', ')}\n\n` +
+        `Write Functions: ${functions.write.map(f => f.name).join(', ')}\n\n` +
+        `Please specify which function you'd like to call and with what parameters.`
+      
+      setChatMessages(prev => [...prev, { role: 'assistant', content: response }])
+    } catch (error) {
+      setChatMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: 'Sorry, I encountered an error processing your request.' 
+      }])
+    } finally {
+      setIsChatLoading(false)
+    }
+  }
+
   const renderFunctionCard = (func: ContractFunction, isWrite: boolean) => {
     const result = functionResults[func.name]
     const isExecuting = executingFunction === func.name
     const hasWallet = dbUser?.private_key || (isWalletLogin && privyWalletAddress)
 
     return (
-      <Card key={func.name} className="mb-4">
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div>
-              <CardTitle className="text-lg flex items-center gap-2">
-                {func.name}
-                <Badge variant={isWrite ? "destructive" : "secondary"}>
-                  {isWrite ? "Write" : "Read"}
-                </Badge>
-              </CardTitle>
-              <CardDescription className="mt-1">
-                {func.stateMutability}
-              </CardDescription>
-            </div>
+      <AccordionItem key={func.name} value={func.name}>
+        <AccordionTrigger className="hover:no-underline">
+          <div className="flex items-center gap-2 text-left">
+            <span className="font-semibold">{func.name}</span>
+            <Badge variant={isWrite ? "destructive" : "secondary"} className="text-xs">
+              {isWrite ? "Write" : "Read"}
+            </Badge>
+            <Badge variant="outline" className="text-xs">
+              {func.stateMutability}
+            </Badge>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        </AccordionTrigger>
+        <AccordionContent>
+          <div className="space-y-4 pt-2">
             {func.inputs.length > 0 && (
               <div className="space-y-3">
                 <Label className="text-sm font-semibold">Input Parameters</Label>
@@ -430,8 +487,8 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </AccordionContent>
+      </AccordionItem>
     )
   }
 
@@ -526,48 +583,135 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
       )}
 
       {contractABI && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Contract Functions</CardTitle>
-            <CardDescription>
-              {functions.read.length + functions.write.length} functions found
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="read" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="read">
-                  Read Functions ({functions.read.length})
-                </TabsTrigger>
-                <TabsTrigger value="write">
-                  Write Functions ({functions.write.length})
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="read">
-                <ScrollArea className="h-[600px] pr-4">
-                  {functions.read.length > 0 ? (
-                    functions.read.map((func) => renderFunctionCard(func, false))
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No read functions found
-                    </div>
-                  )}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Functions Panel */}
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Contract Functions</CardTitle>
+                <CardDescription>
+                  {functions.read.length + functions.write.length} functions found
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="read" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="read">
+                      Read Functions ({functions.read.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="write">
+                      Write Functions ({functions.write.length})
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="read">
+                    <ScrollArea className="h-[400px] pr-4">
+                      {functions.read.length > 0 ? (
+                        <Accordion type="single" collapsible className="w-full">
+                          {functions.read.map((func) => renderFunctionCard(func, false))}
+                        </Accordion>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          No read functions found
+                        </div>
+                      )}
+                    </ScrollArea>
+                  </TabsContent>
+                  <TabsContent value="write">
+                    <ScrollArea className="h-[400px] pr-4">
+                      {functions.write.length > 0 ? (
+                        <Accordion type="single" collapsible className="w-full">
+                          {functions.write.map((func) => renderFunctionCard(func, true))}
+                        </Accordion>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          No write functions found
+                        </div>
+                      )}
+                    </ScrollArea>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* AI Chat Panel */}
+          <div className="lg:col-span-1">
+            <Card className="h-full flex flex-col">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5" />
+                  AI Assistant
+                </CardTitle>
+                <CardDescription>
+                  Ask AI to help you interact with the contract
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1 flex flex-col min-h-0">
+                <ScrollArea className="flex-1 pr-4 mb-4 h-[300px]">
+                  <div className="space-y-4">
+                    {chatMessages.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground text-sm">
+                        <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                        <p>Ask me anything about this contract!</p>
+                        <p className="mt-2 text-xs">
+                          Examples:<br />
+                          "What functions are available?"<br />
+                          "How do I call the transfer function?"<br />
+                          "What parameters does the function need?"
+                        </p>
+                      </div>
+                    ) : (
+                      chatMessages.map((msg, idx) => (
+                        <div
+                          key={idx}
+                          className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div
+                            className={`max-w-[85%] rounded-lg px-4 py-2 ${
+                              msg.role === 'user'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted'
+                            }`}
+                          >
+                            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                    {isChatLoading && (
+                      <div className="flex justify-start">
+                        <div className="bg-muted rounded-lg px-4 py-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </ScrollArea>
-              </TabsContent>
-              <TabsContent value="write">
-                <ScrollArea className="h-[600px] pr-4">
-                  {functions.write.length > 0 ? (
-                    functions.write.map((func) => renderFunctionCard(func, true))
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No write functions found
-                    </div>
-                  )}
-                </ScrollArea>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+                <div className="flex gap-2 pt-4 border-t">
+                  <Input
+                    placeholder="Ask AI about the contract..."
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        handleAIChatSubmit()
+                      }
+                    }}
+                    disabled={isChatLoading}
+                  />
+                  <Button
+                    size="icon"
+                    onClick={handleAIChatSubmit}
+                    disabled={!chatInput.trim() || isChatLoading}
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       )}
     </div>
   )
