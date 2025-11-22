@@ -7,6 +7,7 @@ const nftRoutes = require('./routes/nftRoutes');
 const transferRoutes = require('./routes/transferRoutes');
 const healthRoutes = require('./routes/healthRoutes');
 const priceRoutes = require('./routes/priceRoutes');
+const nlExecutorRoutes = require('./routes/nlExecutorRoutes');
 
 // Initialize Express app
 const app = express();
@@ -35,6 +36,7 @@ app.use('/token', tokenRoutes);
 app.use('/nft', nftRoutes);
 app.use('/transfer', transferRoutes);
 app.use('/price', priceRoutes);
+app.use('/nl-executor', nlExecutorRoutes);
 
 // Legacy routes for backwards compatibility
 app.post('/deploy-token', require('./controllers/tokenController').deployToken);
@@ -88,6 +90,10 @@ const server = app.listen(PORT, () => {
   console.log('\n  Transfer Operations:');
   console.log('    POST /transfer');
   console.log('    GET  /transfer/balance/:address');
+  console.log('\n  Natural Language Executor:');
+  console.log('    GET  /nl-executor/discover/:contractAddress');
+  console.log('    POST /nl-executor/execute');
+  console.log('    POST /nl-executor/quick-execute');
   console.log('\n' + '='.repeat(50) + '\n');
 });
 

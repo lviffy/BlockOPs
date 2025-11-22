@@ -17,6 +17,11 @@ module.exports = {
   // API Keys
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
   GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
+  ETHERSCAN_API_KEY: process.env.ETHERSCAN_API_KEY || '',
   PINATA_API_KEY: process.env.PINATA_API_KEY || '',
-  PINATA_SECRET_KEY: process.env.PINATA_SECRET_KEY || ''
+  PINATA_SECRET_KEY: process.env.PINATA_SECRET_KEY || '',
+  
+  // Etherscan V2 API Configuration
+  ETHERSCAN_V2_BASE_URL: 'https://api.etherscan.io/v2/api',
+  ARBITRUM_SEPOLIA_CHAIN_ID: 421614
 };
