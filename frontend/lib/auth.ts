@@ -12,6 +12,17 @@ export function useAuth() {
 
   // Check if user logged in via wallet
   const isWalletLogin = authenticated && wallets && wallets.length > 0
+  
+  // Get the primary wallet address if available
+  const privyWalletAddress = wallets && wallets.length > 0 ? wallets[0].address : null
+
+  console.log('useAuth Debug:', { 
+    authenticated, 
+    walletsCount: wallets?.length, 
+    privyWalletAddress,
+    dbUserWallet: dbUser?.wallet_address,
+    isWalletLogin 
+  })
 
   useEffect(() => {
     if (ready && authenticated && user) {
@@ -117,5 +128,6 @@ export function useAuth() {
     logout,
     syncUser,
     isWalletLogin,
+    privyWalletAddress,
   }
 }

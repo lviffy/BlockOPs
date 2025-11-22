@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { toast } from "@/components/ui/use-toast"
+import { UserProfile } from "@/components/user-profile"
+import { useAuth } from "@/lib/auth"
 import { getAgentById } from "@/lib/agents"
 import type { Agent } from "@/lib/supabase"
 
@@ -38,6 +40,7 @@ export default function AgentChatPage() {
   const router = useRouter()
   const params = useParams()
   const agentId = params.agentId as string
+  const { logout } = useAuth()
   
   const [agent, setAgent] = useState<Agent | null>(null)
   const [loadingAgent, setLoadingAgent] = useState(true)
@@ -387,6 +390,10 @@ export default function AgentChatPage() {
             <h1 className="text-xl font-semibold">{agent.name}</h1>
           </div>
         </div>
+        <UserProfile onLogout={() => {
+          logout()
+          router.push("/")
+        }} />
       </div>
 
       {/* Messages area - scrollable */}

@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth"
 import { getAgentsByUserId, deleteAgent } from "@/lib/agents"
 import type { Agent } from "@/lib/supabase"
 import { AgentWalletModal } from "@/components/agent-wallet"
+import { UserProfile } from "@/components/user-profile"
 import { toast } from "@/components/ui/use-toast"
 import {
   AlertDialog,
@@ -121,7 +122,7 @@ export default function MyAgents() {
               Manage and interact with your N8NRollUPagents
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <Button asChild size="lg" className="bg-foreground text-background hover:bg-foreground/90 shadow-lg font-semibold">
               <Link href="/agent-builder">
                 <Plus className="h-5 w-5 mr-2" />
@@ -129,10 +130,7 @@ export default function MyAgents() {
               </Link>
             </Button>
             <AgentWalletModal open={walletModalOpen} onOpenChange={setWalletModalOpen} hideButton={isWalletLogin} />
-            <Button onClick={logout} variant="outline" size="lg">
-              <LogOut className="h-5 w-5 mr-2" />
-              Logout
-            </Button>
+            <UserProfile onLogout={logout} />
           </div>
         </div>
 

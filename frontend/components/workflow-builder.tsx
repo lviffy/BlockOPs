@@ -31,6 +31,7 @@ import { AgentNode } from "./nodes/agent-node"
 import { generateNodeId, createNode } from "@/lib/workflow-utils"
 import type { WorkflowNode } from "@/lib/types"
 import { AIChatModal } from "./ai-chat-modal"
+import { UserProfile } from "./user-profile"
 import { useAuth } from "@/lib/auth"
 import { createAgent, getAgentById, updateAgent } from "@/lib/agents"
 import { workflowToTools, toolsToWorkflow } from "@/lib/workflow-converter"
@@ -110,7 +111,7 @@ const createAgentNode = (): Node => ({
 
 export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
   const router = useRouter()
-  const { user, authenticated } = useAuth()
+  const { user, authenticated, logout } = useAuth()
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const [nodes, setNodes, onNodesChange] = useNodesState([createAgentNode()])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
@@ -450,10 +451,16 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
                 </div>
               </Panel>
               <Panel position="top-right">
-                <Button onClick={handleSaveClick} size="lg" variant="outline" disabled={loadingAgent}>
-                  <Save className="h-5 w-5 mr-2" />
-                  {agentId ? "Update Agent" : "Save Agent"}
-                </Button>
+                <div className="flex gap-2 items-center">
+                  <Button onClick={handleSaveClick} size="lg" variant="outline" disabled={loadingAgent}>
+                    <Save className="h-5 w-5 mr-2" />
+                    {agentId ? "Update Agent" : "Save Agent"}
+                  </Button>
+                  <UserProfile onLogout={() => {
+                    logout()
+                    router.push("/")
+                  }} />
+                </div>
               </Panel>
             </ReactFlow>
           </ReactFlowProvider>
