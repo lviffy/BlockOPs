@@ -119,7 +119,7 @@ export default function MyAgents() {
               <span className="text-foreground block md:inline">My Agents</span>
             </h1>
             <p className="text-muted-foreground mt-2">
-              Manage and interact with your N8NRollUPagents
+              Manage and interact with your BlockOps agents
             </p>
           </div>
           <div className="flex gap-2 items-center flex-wrap">
@@ -230,7 +230,7 @@ export default function MyAgents() {
             <Bot className="h-16 w-16 text-muted-foreground mb-4" />
             <h3 className="text-xl font-semibold mb-2">No agents yet</h3>
             <p className="text-muted-foreground mb-6 max-w-md">
-              Create your first N8NRollUPagent to get started with workflow automation
+              Create your first BlockOps agent to get started with workflow automation
             </p>
             <Button asChild size="lg">
               <Link href="/agent-builder">

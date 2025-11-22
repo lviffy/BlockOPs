@@ -1,10 +1,10 @@
-# N8NRollUP
+# BlockOps
 
 ## Introduction
 
-**N8NRollUP** is a no-code platform frontend that enables users to build, deploy, and interact with AI-powered blockchain agents on the N8NRollUPtestnet. The platform provides a visual drag-and-drop workflow builder interface where users can create sophisticated blockchain automation workflows without writing code.
+**BlockOps** is a no-code platform frontend that enables users to build, deploy, and interact with AI-powered blockchain agents on the BlockOps testnet. The platform provides a visual drag-and-drop workflow builder interface where users can create sophisticated blockchain automation workflows without writing code.
 
-The platform supports 10 blockchain tools including **token transfers, swaps, token/NFT deployment, DAO creation, airdrops, yield calculations, price fetching, and wallet analytics**. All tools interact with smart contracts deployed on the N8NRollUPtestnet.
+The platform supports 10 blockchain tools including **token transfers, swaps, token/NFT deployment, DAO creation, airdrops, yield calculations, price fetching, and wallet analytics**. All tools interact with smart contracts deployed on the BlockOps testnet.
 
 > **Note:** This repository contains only the frontend application. Backend services and smart contracts are referenced but not included.
 
@@ -16,14 +16,14 @@ The platform supports 10 blockchain tools including **token transfers, swaps, to
   
 ### Deployed Tool Contracts
 
-All smart contracts are deployed on the N8NRollUPShannon testnet. View them on the Explorer:
+All smart contracts are deployed on the BlockOps Shannon testnet. View them on the Explorer:
 
 
 ---
 
 ## How to Use
 
-Getting started with N8NRollUP is simple! Follow these steps:
+Getting started with BlockOps is simple! Follow these steps:
 
 1. **Visit** [https://somnia-agent-builder.vercel.app](https://somnia-agent-builder.vercel.app)
 2. **Get Started** with just a Google sign in.
@@ -49,7 +49,7 @@ Getting started with N8NRollUP is simple! Follow these steps:
 
    <img width="1385" height="483" alt="Screenshot 2025-11-05 at 4 00 37 PM" src="https://github.com/user-attachments/assets/6dc16a6d-cbf8-4baa-9028-ae1b2fdd14cc" />
 
-That's it! You've created your first N8NRollUPagent without any programming knowledge, as simple as that!
+That's it! You've created your first BlockOps agent without any programming knowledge, as simple as that!
 
 ---
 
@@ -100,14 +100,14 @@ graph TB
         Backend[Backend API<br/>Express.js<br/>Blockchain Operations]
     end
     
-    subgraph "Blockchain Layer - N8NRollUPTestnet"
+    subgraph "Blockchain Layer - BlockOps Testnet"
         TokenFactory[TokenFactory Contract<br/>0x19Fae13F4C2fac0539b5E0baC8Ad1785f1C7dEE1]
         NFTFactory[NFTFactory Contract<br/>0x83B831848eE0A9a2574Cf62a13c23d8eDCa84E9F]
         DAOFactory[DAOFactory Contract<br/>0xc6D49E765576134495ee49e572d5cBCb83a330Dc]
         Airdrop[Airdrop Contract<br/>0x70F3147fa7971033312911a59579f18Ff0FE26F9]
         YieldCalc[YieldCalculator Contract<br/>0x9bb2363810156f7b32b255677e8C1852AC1F95E6]
         SwapRouter[Swap Router<br/>0x6aac14f090a35eea150705f72d90e4cdc4a49b2c]
-        SomniaAPI[N8NRollUPSubgraph API<br/>Token Balance Queries]
+        SomniaAPI[BlockOps Subgraph API<br/>Token Balance Queries]
     end
     
     subgraph "External Services"
@@ -203,7 +203,7 @@ sequenceDiagram
 - OpenAI SDK
 
 **Network:**
-- N8NRollUPTestnet RPC: `https://dream-rpc.somnia.network`
+- BlockOps Testnet RPC: `https://dream-rpc.somnia.network`
 - Explorer: `https://shannon-explorer.somnia.network`
 
 **Key Responsibilities:**
@@ -212,7 +212,7 @@ sequenceDiagram
 - Token/NFT/DAO creation via factory contracts
 - IPFS metadata upload for NFTs
 - Token price fetching via OpenAI search
-- Wallet balance queries via N8NRollUPAPI
+- Wallet balance queries via BlockOps API
 
 **Port:** 3000 (default)
 
@@ -324,7 +324,7 @@ Transfers native STT tokens or ERC-20 tokens from one wallet to another. Support
 **Endpoint:** `POST /swap`
 
 **Description:**
-Swaps one ERC-20 token for another using Uniswap V2/V3 compatible router on N8NRollUPtestnet.
+Swaps one ERC-20 token for another using Uniswap V2/V3 compatible router on BlockOps testnet.
 
 **Request Body:**
 ```json
@@ -1272,4 +1272,4 @@ MIT License
 
 ---
 
-**Built for the N8NRollUPTestnet** 🌙
+**Built for the BlockOps Testnet** 🌙

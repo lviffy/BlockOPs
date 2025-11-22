@@ -40,7 +40,7 @@ export default function Home() {
             </span>
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Build your own N8NRollUPagents with ease. Create powerful workflows and automate your tasks.
+            Build your own BlockOps agents with ease. Create powerful workflows and automate your tasks.
           </p>
         </div>
         <div className="flex flex-col gap-4 sm:flex-row">

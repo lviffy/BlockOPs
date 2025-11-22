@@ -1,4 +1,4 @@
-# N8NRollUP - Product Requirements Document (PRD)
+# BlockOps - Product Requirements Document (PRD)
 ## Complete System Design & Architecture
 
 **Version:** 1.0  
@@ -26,7 +26,7 @@
 
 ## 1. Executive Summary
 
-**N8NRollUP** is a no-code platform that enables users to build, deploy, and interact with AI-powered blockchain agents on the N8NRollUP testnet. Users can create sophisticated blockchain automation workflows through a visual drag-and-drop interface without writing any code.
+**BlockOps** is a no-code platform that enables users to build, deploy, and interact with AI-powered blockchain agents on the BlockOps testnet. Users can create sophisticated blockchain automation workflows through a visual drag-and-drop interface without writing any code.
 
 ### Key Value Propositions
 - **No-Code Solution**: Build blockchain agents visually
@@ -113,7 +113,7 @@
 ┌─────────────────────────────────────────────────────────────┐
 │              BLOCKCHAIN & EXTERNAL SERVICES                   │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │ N8NRollUP    │  │ OpenAI API   │  │ Pinata IPFS  │      │
+│  │ BlockOps     │  │ OpenAI API   │  │ Pinata IPFS  │      │
 │  │ Testnet      │  │ (GPT-4o)     │  │              │      │
 │  │              │  │              │  │              │      │
 │  │ - Factories  │  │ - Chat       │  │ - Metadata   │      │
@@ -477,7 +477,7 @@ agents (1) ──< (many) api_usage
 - **Frontend Hosting**: Vercel (recommended)
 - **Backend Hosting**: Railway / Render / AWS
 - **Database**: Supabase
-- **Blockchain**: N8NRollUP Testnet
+- **Blockchain**: BlockOps Testnet
 
 ---
 
@@ -541,7 +541,7 @@ NEXT_PUBLIC_PRIVY_APP_ID=
 #### Backend API (.env)
 ```env
 PORT=3000
-N8NROLLUP_RPC_URL=https://dream-rpc.somnia.network
+BLOCKOPS_RPC_URL=https://dream-rpc.somnia.network
 PINATA_API_KEY=
 PINATA_SECRET_KEY=
 OPENAI_API_KEY=

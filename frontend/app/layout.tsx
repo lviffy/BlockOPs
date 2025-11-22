@@ -18,8 +18,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "N8NRollUPAgent Builder",
-  description: "Build your own N8NRollUPagents with ease.",
+  title: "BlockOps Agent Builder",
+  description: "Build your own BlockOps agents with ease.",
 };
 
 export default function RootLayout({

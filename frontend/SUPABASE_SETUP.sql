@@ -1,5 +1,5 @@
 -- ============================================
--- Supabase Setup for N8NRollUP (Quick Setup)
+-- Supabase Setup for BlockOps (Quick Setup)
 -- Run this in Supabase SQL Editor
 -- 
 -- NOTE: For complete schema with all optional tables,

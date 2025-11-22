@@ -93,7 +93,7 @@ export async function removeWalletFromUser(userId: string): Promise<void> {
 }
 
 /**
- * Fetch STT token balance (native token of N8NRollUPtestnet)
+ * Fetch STT token balance (native token of BlockOps testnet)
  * @param address - The wallet address
  * @returns STT token balance as string
  */

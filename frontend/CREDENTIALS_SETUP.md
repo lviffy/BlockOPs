@@ -1,6 +1,6 @@
 # 🔐 Credentials Setup Guide
 
-Your N8NRollUP frontend requires **3 environment variables** to work properly. Follow the steps below to get each credential.
+Your BlockOps frontend requires **3 environment variables** to work properly. Follow the steps below to get each credential.
 
 ## Required Environment Variables
 
@@ -27,7 +27,7 @@ NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id_here
 2. **Create a New Project** (if you don't have one)
    - Click "New Project"
    - Choose an organization
-   - Enter project name (e.g., "n8nrollup")
+   - Enter project name (e.g., "blockops")
    - Set a database password (save it!)
    - Choose a region
    - Click "Create new project"
@@ -107,7 +107,7 @@ CREATE POLICY "Users can delete own agents" ON agents
 
 2. **Create a New App**
    - Click "Create App" or "New App"
-   - Enter app name (e.g., "N8NRollUP")
+   - Enter app name (e.g., "BlockOps")
    - Choose your environment (Development for local dev)
 
 3. **Get Your App ID**

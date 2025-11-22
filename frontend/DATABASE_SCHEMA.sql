@@ -1,5 +1,5 @@
 -- ============================================
--- N8NRollUP Complete Database Schema
+-- BlockOps Complete Database Schema
 -- Supabase PostgreSQL Database
 -- ============================================
 

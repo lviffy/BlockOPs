@@ -1,8 +1,8 @@
-# N8NRollUP - FrontendThis is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BlockOps - FrontendThis is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 
 
-This is the frontend application for the N8NRollUP, built with [Next.js](https://nextjs.org).## Getting Started
+This is the frontend application for BlockOps, built with [Next.js](https://nextjs.org).## Getting Started
 
 
 
@@ -14,7 +14,7 @@ This is the frontend application for the N8NRollUP, built with [Next.js](https:/
 
 - 🤖 **AI-Powered Agent Generation** - Generate agents using AI based on your requirementsnpm run dev
 
-- 🔗 **Blockchain Integration** - Interact with N8NRollUPtestnet smart contracts# or
+- 🔗 **Blockchain Integration** - Interact with BlockOps testnet smart contracts# or
 
 - 🛠️ **10+ Blockchain Tools** - Token transfers, swaps, NFT/Token deployment, DAO creation, airdrops, and moreyarn dev
 
@@ -116,7 +116,7 @@ frontend/
 
 - [Next.js Documentation](https://nextjs.org/docs)
 - [React Flow Documentation](https://reactflow.dev)
-- [N8NRollUPNetwork](https://somnia.network)
+- [BlockOps Network](https://somnia.network)
 
 ## Deploy on Vercel
 
