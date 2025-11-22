@@ -21,13 +21,15 @@ backend/
 ├── controllers/                # Business logic
 │   ├── tokenController.js      # Token operations logic
 │   ├── nftController.js        # NFT operations logic
-│   └── transferController.js   # Transfer operations logic
+│   ├── transferController.js   # Transfer operations logic
+│   └── priceController.js      # AI-powered token price fetching
 │
 ├── routes/                     # API route definitions
 │   ├── tokenRoutes.js          # Token endpoints
 │   ├── nftRoutes.js            # NFT endpoints
 │   ├── transferRoutes.js       # Transfer endpoints
-│   └── healthRoutes.js         # Health check endpoint
+│   ├── healthRoutes.js         # Health check endpoint
+│   └── priceRoutes.js          # Token price endpoints
 │
 ├── utils/                      # Utility functions
 │   ├── blockchain.js           # Blockchain helper functions
@@ -89,6 +91,13 @@ backend/
 - `transferNative(res, wallet, ...)` - Internal native ETH transfer logic
 - `getBalance(req, res)` - Get native ETH balance
 
+#### `priceController.js`
+**Functions:**
+- `getTokenPrice(req, res)` - Get token prices using natural language queries via Google Gemini AI
+  - Uses Gemini 2.0 Flash with Google Search grounding for real-time web data
+  - Supports queries like "bitcoin price", "show me ethereum and solana prices"
+  - Returns formatted price information with sources
+
 ### Routes (`routes/`)
 
 #### `tokenRoutes.js`
@@ -96,6 +105,11 @@ backend/
 POST   /token/deploy
 GET    /token/info/:tokenAddress
 GET    /token/balance/:tokenAddress/:ownerAddress
+```
+
+#### `priceRoutes.js`
+```
+POST   /price/token
 ```
 
 #### `nftRoutes.js`
@@ -236,6 +250,20 @@ curl -X POST http://localhost:3000/token/deploy \
 curl http://localhost:3000/token/info/0xTokenAddress
 ```
 
+#### Get Token Price (AI-Powered)
+```bash
+curl -X POST http://localhost:3000/price/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "bitcoin price"
+  }'
+
+# More examples:
+# "show me ethereum and solana prices"
+# "what is dogecoin worth"
+# "prices for BTC, ETH, and BNB"
+```
+
 #### Deploy NFT Collection
 ```bash
 curl -X POST http://localhost:3000/nft/deploy-collection \
@@ -272,8 +300,54 @@ NFT_FACTORY_ADDRESS=0x...
 
 # Optional
 OPENAI_API_KEY=
+GEMINI_API_KEY=your_gemini_api_key_here
 PINATA_API_KEY=
 PINATA_SECRET_KEY=
+```
+
+## New Feature: AI-Powered Token Price Fetching
+
+The backend now includes an AI-powered token price endpoint using **Google Gemini 2.0 Flash** with Google Search grounding. This provides real-time cryptocurrency price data through natural language queries.
+
+### Features:
+- 🤖 Natural language query support (e.g., "bitcoin price", "show me ethereum and solana")
+- 🌐 Real-time web search via Google Search grounding
+- 📊 Accurate price data from reliable sources (CoinMarketCap, CoinGecko, Binance)
+- 🔗 Source attribution with URLs
+- 💡 Understands various query formats
+
+### Setup:
+1. Get a Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Add to your `.env` file:
+   ```
+   GEMINI_API_KEY=your_api_key_here
+   ```
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+### Usage Example:
+```bash
+curl -X POST http://localhost:3000/price/token \
+  -H "Content-Type: application/json" \
+  -d '{"query": "bitcoin and ethereum prices"}'
+```
+
+### Response:
+```json
+{
+  "success": true,
+  "query": "bitcoin and ethereum prices",
+  "priceInfo": "Bitcoin (BTC): $45,234.56 USD (+2.3% 24h)\nEthereum (ETH): $2,987.12 USD (+1.8% 24h)",
+  "sources": [
+    {
+      "title": "Bitcoin Price - CoinMarketCap",
+      "url": "https://coinmarketcap.com/currencies/bitcoin/"
+    }
+  ],
+  "model": "gemini-2.0-flash-exp"
+}
 ```
 
 ## Best Practices

@@ -6,6 +6,7 @@ const tokenRoutes = require('./routes/tokenRoutes');
 const nftRoutes = require('./routes/nftRoutes');
 const transferRoutes = require('./routes/transferRoutes');
 const healthRoutes = require('./routes/healthRoutes');
+const priceRoutes = require('./routes/priceRoutes');
 
 // Initialize Express app
 const app = express();
@@ -33,6 +34,7 @@ app.use('/health', healthRoutes);
 app.use('/token', tokenRoutes);
 app.use('/nft', nftRoutes);
 app.use('/transfer', transferRoutes);
+app.use('/price', priceRoutes);
 
 // Legacy routes for backwards compatibility
 app.post('/deploy-token', require('./controllers/tokenController').deployToken);
