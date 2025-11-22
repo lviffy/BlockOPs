@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  n8n-agent-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: n8n-agent-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - BACKEND_URL=${BACKEND_URL:-http://localhost:3000}
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
