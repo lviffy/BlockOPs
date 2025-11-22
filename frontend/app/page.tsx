@@ -11,6 +11,29 @@ import { Modal, ModalBody, ModalContent, ModalFooter, ModalTrigger } from "@/com
 import { motion, useInView, useSpring } from "motion/react"
 import { useEffect, useRef } from "react"
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.1,
+    },
+  },
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: {
+      duration: 0.5,
+      ease: "easeOut" as const
+    }
+  },
+}
+
 function NumberTicker({ 
   value, 
   direction = "up", 
@@ -84,15 +107,23 @@ export default function Home() {
       </div>
 
       {/* Navigation */}
-      <nav className="sticky top-4 z-50 px-6">
+      <motion.nav 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="sticky top-4 z-50 px-6"
+      >
         <div className="container mx-auto max-w-6xl bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200 shadow-lg shadow-slate-900/5">
           <div className="px-6 py-4 flex items-center justify-between">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-9 h-9 bg-slate-900 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2L12 12M12 12L22 12M12 12L12 22M12 12L2 12" stroke="white" strokeWidth="3" strokeLinecap="round"/>
-                </svg>
+              <div className="w-9 h-9 relative rounded-lg overflow-hidden transition-transform group-hover:scale-105">
+                <Image 
+                  src="/logo.jpeg" 
+                  alt="BlockOps Logo" 
+                  fill
+                  className="object-cover"
+                />
               </div>
               <span className="text-xl font-semibold text-slate-900">BlockOps</span>
             </Link>
@@ -128,36 +159,41 @@ export default function Home() {
             )}
           </div>
         </div>
-      </nav>
+      </motion.nav>
 
       {/* Hero Section */}
       <main className="relative container mx-auto px-6 pt-24 pb-16 max-w-6xl">
-        <div className="relative flex flex-col items-center text-center">
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="relative flex flex-col items-center text-center"
+        >
           {/* Social Proof Badge */}
-          <div className="mb-10 inline-flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-4 py-2">
+          <motion.div variants={itemVariants} className="mb-10 inline-flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-4 py-2">
             <div className="flex -space-x-1.5">
-              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 border-2 border-white"></div>
-              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 border-2 border-white"></div>
-              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 border-2 border-white"></div>
+              <div className="w-6 h-6 rounded-full bg-linear-to-br from-blue-400 to-blue-600 border-2 border-white"></div>
+              <div className="w-6 h-6 rounded-full bg-linear-to-br from-purple-400 to-purple-600 border-2 border-white"></div>
+              <div className="w-6 h-6 rounded-full bg-linear-to-br from-pink-400 to-pink-600 border-2 border-white"></div>
             </div>
             <span className="text-sm text-slate-700">17,000 people have been helped</span>
             <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-          </div>
+          </motion.div>
 
           {/* Main Heading */}
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6 max-w-4xl mt-4">
+          <motion.h1 variants={itemVariants} className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6 max-w-4xl mt-4">
             <span className="text-slate-900">Build AI agents that</span>
             <br />
             <span className="text-blue-500">automate blockchain</span>
-          </h1>
+          </motion.h1>
 
           {/* Subheading */}
-          <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed">
+          <motion.p variants={itemVariants} className="text-lg text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed">
             At BlockOps, we believe automation should be simple, scalable, and accessible—creating a experience where ideas thrive and boundaries fade.
-          </p>
+          </motion.p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center gap-4 mb-16">
+          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center gap-4 mb-16">
             {authenticated ? (
               <>
                 <Button 
@@ -241,10 +277,10 @@ export default function Home() {
                 </Modal>
               </>
             )}
-          </div>
+          </motion.div>
 
           {/* Hero Image */}
-          <div className="w-full max-w-5xl mx-auto">
+          <motion.div variants={itemVariants} className="w-full max-w-3xl mx-auto">
             <Image
               src="/hero.avif"
               alt="BlockOps Platform"
@@ -253,8 +289,8 @@ export default function Home() {
               className="w-full h-auto"
               priority
             />
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </main>
 
       {/* By the Numbers Section */}
@@ -302,7 +338,7 @@ export default function Home() {
                 title: "NFT Operations", 
                 description: "Monitor collections, snipe rare mints, and automate royalty distributions instantly.",
                 icon: (
-                  <svg className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 )
@@ -311,7 +347,7 @@ export default function Home() {
                 title: "Smart Alerts", 
                 description: "Get notified via Discord, Telegram, or Email when specific on-chain events occur.",
                 icon: (
-                  <svg className="w-6 h-6 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                   </svg>
                 )
@@ -320,7 +356,7 @@ export default function Home() {
                 title: "Cross-Chain", 
                 description: "Bridge assets and sync state between Ethereum, L2s, and other chains automatically.",
                 icon: (
-                  <svg className="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                   </svg>
                 )
@@ -349,35 +385,49 @@ export default function Home() {
 
       {/* Features Section */}
       <section className="bg-slate-50 py-24">
-        <div className="container mx-auto px-6 max-w-6xl">
-          <div className="text-center mb-20">
+        <motion.div 
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={containerVariants}
+          className="container mx-auto px-6 max-w-6xl"
+        >
+          <motion.div variants={itemVariants} className="text-center mb-20">
             <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
               Everything you need
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
               Build, deploy, and manage AI agents for blockchain automation
             </p>
-          </div>
+          </motion.div>
 
-          <FeaturesExpandableCards />
-        </div>
+          <motion.div variants={itemVariants}>
+            <FeaturesExpandableCards />
+          </motion.div>
+        </motion.div>
       </section>
 
       {/* How It Works Section */}
       <section className="bg-white py-24">
-        <div className="container mx-auto px-6 max-w-6xl">
-          <div className="text-center mb-16">
+        <motion.div 
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={containerVariants}
+          className="container mx-auto px-6 max-w-6xl"
+        >
+          <motion.div variants={itemVariants} className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
               How it works
             </h2>
             <p className="text-lg text-slate-600">
               Get started in three simple steps
             </p>
-          </div>
+          </motion.div>
 
           <div className="grid md:grid-cols-3 gap-12">
             {/* Step 1 */}
-            <div className="text-center">
+            <motion.div variants={itemVariants} className="text-center">
               <div className="w-14 h-14 bg-slate-900 text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-6">
                 1
               </div>
@@ -385,10 +435,10 @@ export default function Home() {
               <p className="text-slate-600 text-sm leading-relaxed">
                 Use our visual builder to create your first AI agent. Choose from templates or start from scratch.
               </p>
-            </div>
+            </motion.div>
 
             {/* Step 2 */}
-            <div className="text-center">
+            <motion.div variants={itemVariants} className="text-center">
               <div className="w-14 h-14 bg-slate-900 text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-6">
                 2
               </div>
@@ -396,10 +446,10 @@ export default function Home() {
               <p className="text-slate-600 text-sm leading-relaxed">
                 Set up your automation workflows by connecting nodes and configuring triggers.
               </p>
-            </div>
+            </motion.div>
 
             {/* Step 3 */}
-            <div className="text-center">
+            <motion.div variants={itemVariants} className="text-center">
               <div className="w-14 h-14 bg-slate-900 text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-6">
                 3
               </div>
@@ -407,21 +457,27 @@ export default function Home() {
               <p className="text-slate-600 text-sm leading-relaxed">
                 Deploy your agent to the blockchain and monitor its performance in real-time.
               </p>
-            </div>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* CTA Section */}
       <section className="bg-slate-50 py-24 border-t border-slate-200">
-        <div className="container mx-auto px-6 max-w-4xl text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
+        <motion.div 
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={containerVariants}
+          className="container mx-auto px-6 max-w-4xl text-center"
+        >
+          <motion.h2 variants={itemVariants} className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
             Ready to get started?
-          </h2>
-          <p className="text-lg text-slate-600 mb-10 max-w-2xl mx-auto">
+          </motion.h2>
+          <motion.p variants={itemVariants} className="text-lg text-slate-600 mb-10 max-w-2xl mx-auto">
             Join thousands of users building the future of blockchain automation.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          </motion.p>
+          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-4">
             {authenticated ? (
               <Button 
                 asChild
@@ -450,31 +506,40 @@ export default function Home() {
                 </Button>
               </>
             )}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </section>
 
       {/* Footer */}
       <footer className="bg-slate-900 text-white py-16">
-        <div className="container mx-auto px-6 max-w-6xl">
+        <motion.div 
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          variants={containerVariants}
+          className="container mx-auto px-6 max-w-6xl"
+        >
           <div className="grid md:grid-cols-4 gap-12 mb-12">
             {/* Company Info */}
-            <div>
+            <motion.div variants={itemVariants}>
               <Link href="/" className="flex items-center gap-2 mb-4 group">
-                <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center transition-transform group-hover:scale-105">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2L12 12M12 12L22 12M12 12L12 22M12 12L2 12" stroke="#1e293b" strokeWidth="3" strokeLinecap="round"/>
-                  </svg>
+                <div className="w-9 h-9 relative rounded-lg overflow-hidden transition-transform group-hover:scale-105">
+                  <Image 
+                    src="/logo.jpeg" 
+                    alt="BlockOps Logo" 
+                    fill
+                    className="object-cover"
+                  />
                 </div>
                 <span className="text-lg font-semibold">BlockOps</span>
               </Link>
               <p className="text-slate-400 text-sm leading-relaxed">
                 Building the future of blockchain automation.
               </p>
-            </div>
+            </motion.div>
 
             {/* Product */}
-            <div>
+            <motion.div variants={itemVariants}>
               <h4 className="font-semibold mb-4 text-sm">Product</h4>
               <ul className="space-y-3">
                 <li><Link href="/features" className="text-slate-400 hover:text-white transition-colors text-sm">Features</Link></li>
@@ -482,10 +547,10 @@ export default function Home() {
                 <li><Link href="/pricing" className="text-slate-400 hover:text-white transition-colors text-sm">Pricing</Link></li>
                 <li><Link href="/contract-explorer" className="text-slate-400 hover:text-white transition-colors text-sm">Contract Explorer</Link></li>
               </ul>
-            </div>
+            </motion.div>
 
             {/* Resources */}
-            <div>
+            <motion.div variants={itemVariants}>
               <h4 className="font-semibold mb-4 text-sm">Resources</h4>
               <ul className="space-y-3">
                 <li><Link href="/docs" className="text-slate-400 hover:text-white transition-colors text-sm">Documentation</Link></li>
@@ -493,10 +558,10 @@ export default function Home() {
                 <li><Link href="/blog" className="text-slate-400 hover:text-white transition-colors text-sm">Blog</Link></li>
                 <li><Link href="/community" className="text-slate-400 hover:text-white transition-colors text-sm">Community</Link></li>
               </ul>
-            </div>
+            </motion.div>
 
             {/* Company */}
-            <div>
+            <motion.div variants={itemVariants}>
               <h4 className="font-semibold mb-4 text-sm">Company</h4>
               <ul className="space-y-3">
                 <li><Link href="/about" className="text-slate-400 hover:text-white transition-colors text-sm">About</Link></li>
@@ -504,11 +569,11 @@ export default function Home() {
                 <li><Link href="/contact" className="text-slate-400 hover:text-white transition-colors text-sm">Contact</Link></li>
                 <li><Link href="/privacy" className="text-slate-400 hover:text-white transition-colors text-sm">Privacy</Link></li>
               </ul>
-            </div>
+            </motion.div>
           </div>
 
           {/* Bottom Bar */}
-          <div className="border-t border-slate-800 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <motion.div variants={itemVariants} className="border-t border-slate-800 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-slate-400 text-sm">
               © 2025 BlockOps. All rights reserved.
             </p>
@@ -529,8 +594,8 @@ export default function Home() {
                 </svg>
               </a>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </footer>
     </div>
   )
