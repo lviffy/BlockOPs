@@ -8,6 +8,48 @@ import { ArrowRight } from "lucide-react"
 import { UserProfile } from "@/components/user-profile"
 import FeaturesExpandableCards from "@/components/features-expandable-cards"
 import { Modal, ModalBody, ModalContent, ModalFooter, ModalTrigger } from "@/components/ui/animated-modal"
+import { motion, useInView, useSpring } from "motion/react"
+import { useEffect, useRef } from "react"
+
+function NumberTicker({ 
+  value, 
+  direction = "up", 
+  delay = 0, 
+  className, 
+  decimalPlaces = 0 
+}: { 
+  value: number, 
+  direction?: "up" | "down", 
+  delay?: number, 
+  className?: string, 
+  decimalPlaces?: number 
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const motionValue = useSpring(direction === "down" ? value : 0, {
+    damping: 60,
+    stiffness: 100,
+  });
+  const isInView = useInView(ref, { once: true, margin: "-100px" });
+
+  useEffect(() => {
+    if (isInView) {
+      const timeout = setTimeout(() => {
+        motionValue.set(direction === "down" ? 0 : value);
+      }, delay * 1000);
+      return () => clearTimeout(timeout);
+    }
+  }, [isInView, motionValue, direction, value, delay]);
+
+  useEffect(() => {
+    return motionValue.on("change", (latest) => {
+      if (ref.current) {
+        ref.current.textContent = latest.toFixed(decimalPlaces);
+      }
+    });
+  }, [motionValue, decimalPlaces]);
+
+  return <span className={className} ref={ref} />;
+}
 
 export default function Home() {
   const { ready, authenticated, login, loading, logout } = useAuth()
@@ -35,10 +77,10 @@ export default function Home() {
   return (
     <div className="relative min-h-screen bg-white">
       {/* Glowing Blue Orb - Half Visible at Top */}
-      <div className="absolute -top-96 left-1/2 -translate-x-1/2 w-[800px] h-[800px] pointer-events-none z-0">
-        <div className="absolute inset-0 bg-blue-500 rounded-full blur-3xl opacity-20"></div>
+      <div className="absolute -top-[500px] left-1/2 -translate-x-1/2 w-[1000px] h-[1000px] pointer-events-none z-0">
+        <div className="absolute inset-0 bg-blue-400 rounded-full blur-3xl opacity-20"></div>
         <div className="absolute inset-8 bg-blue-400 rounded-full blur-2xl opacity-30"></div>
-        <div className="absolute inset-16 bg-blue-300 rounded-full blur-xl opacity-40"></div>
+        <div className="absolute inset-[490px] bg-blue-500 rounded-full blur-xl opacity-40"></div>
       </div>
 
       {/* Navigation */}
@@ -111,7 +153,7 @@ export default function Home() {
 
           {/* Subheading */}
           <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed">
-            At BlockOps, we believe automation should be simple, scalable, and accessible to everyone.
+            At BlockOps, we believe automation should be simple, scalable, and accessible—creating a experience where ideas thrive and boundaries fade.
           </p>
 
           {/* CTA Buttons */}
@@ -141,13 +183,10 @@ export default function Home() {
             ) : (
               <>
                 <Modal>
-                  <ModalTrigger className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-8 py-3 rounded-lg text-base group/modal-btn">
-                    <span className="group-hover/modal-btn:translate-x-40 text-center transition duration-500">
+                  <ModalTrigger className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-8 py-3 rounded-lg text-base">
+                    <span className="text-center">
                       Get Started
                     </span>
-                    <div className="-translate-x-40 group-hover/modal-btn:translate-x-0 flex items-center justify-center absolute inset-0 transition duration-500 text-white z-20">
-                      🚀
-                    </div>
                   </ModalTrigger>
                   <ModalBody>
                     <ModalContent>
@@ -217,6 +256,96 @@ export default function Home() {
           </div>
         </div>
       </main>
+
+      {/* By the Numbers Section */}
+      <section className="bg-black min-h-screen flex items-center justify-center relative overflow-hidden">
+        {/* Grid Background */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-size-[64px_64px] mask-[radial-gradient(ellipse_80%_50%_at_50%_50%,black,transparent)]"></div>
+        
+        <div className="container mx-auto px-6 max-w-6xl relative z-10 py-16">
+          {/* Section Header */}
+          <div className="mb-16">
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              className="text-white/50 text-sm font-medium mb-4 tracking-wide"
+            >
+              Limitless Possibilities
+            </motion.p>
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 max-w-4xl"
+            >
+              Automate anything on-chain{" "}
+              <span className="text-white/50">with powerful, composable blocks.</span>
+            </motion.h2>
+          </div>
+
+          {/* Use Cases Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { 
+                title: "DeFi Automation", 
+                description: "Auto-compound yields, manage liquidity positions, and execute limit orders across any DEX.",
+                icon: (
+                  <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                )
+              },
+              { 
+                title: "NFT Operations", 
+                description: "Monitor collections, snipe rare mints, and automate royalty distributions instantly.",
+                icon: (
+                  <svg className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                )
+              },
+              { 
+                title: "Smart Alerts", 
+                description: "Get notified via Discord, Telegram, or Email when specific on-chain events occur.",
+                icon: (
+                  <svg className="w-6 h-6 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                )
+              },
+              { 
+                title: "Cross-Chain", 
+                description: "Bridge assets and sync state between Ethereum, L2s, and other chains automatically.",
+                icon: (
+                  <svg className="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                )
+              },
+            ].map((item, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
+                className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 flex flex-col h-full"
+              >
+                <div className="mb-6 p-3 bg-white/5 rounded-xl w-fit border border-white/10">
+                  {item.icon}
+                </div>
+                <h3 className="text-xl font-bold text-white mb-3">{item.title}</h3>
+                <p className="text-white/60 text-sm leading-relaxed">
+                  {item.description}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* Features Section */}
       <section className="bg-slate-50 py-24">
