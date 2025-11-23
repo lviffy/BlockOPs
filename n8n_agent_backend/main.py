@@ -255,12 +255,14 @@ INSTRUCTIONS:
     system_prompt += """
 IMPORTANT RULES:
 - Only use the tools that are available to you
-- Always ask for required parameters before making tool calls
+- If ALL required parameters are provided (either in the user message or in the context), execute the tool IMMEDIATELY without asking for confirmation
+- ONLY ask for parameters that are missing or unclear - DO NOT ask for confirmation if you have all required information
+- If a privateKey is needed and provided in the context, use it automatically
 - Be conversational and helpful
-- If a privateKey is needed and provided in the context, use it
 - Provide transaction hashes and explorer links when available
 - Explain what each operation does in simple terms
 - For sequential executions, complete the ENTIRE chain before responding
+- DO NOT ask "Do you want to proceed?" if you have all the required parameters
 """
     
     return system_prompt
