@@ -3,14 +3,10 @@
 import type React from "react"
 import {
   ArrowRightLeft,
-  RefreshCw,
   Wallet,
   Coins,
   Image as ImageIcon,
-  Users,
-  Gift,
   TrendingUp,
-  PiggyBank,
   BarChart3,
 } from "lucide-react"
 
@@ -20,12 +16,6 @@ const toolTypes = [
     label: "Transfer",
     description: "Transfer tokens or assets",
     icon: ArrowRightLeft,
-  },
-  {
-    type: "swap",
-    label: "Swap",
-    description: "Swap tokens",
-    icon: RefreshCw,
   },
   {
     type: "get_balance",
@@ -46,28 +36,10 @@ const toolTypes = [
     icon: ImageIcon,
   },
   {
-    type: "create_dao",
-    label: "Create DAO",
-    description: "Create a new DAO",
-    icon: Users,
-  },
-  {
-    type: "airdrop",
-    label: "Airdrop",
-    description: "Airdrop tokens to addresses",
-    icon: Gift,
-  },
-  {
     type: "fetch_price",
     label: "Fetch Price",
     description: "Fetch token price",
     icon: TrendingUp,
-  },
-  {
-    type: "deposit_yield",
-    label: "Deposit Yield",
-    description: "Deposit to yield farming",
-    icon: PiggyBank,
   },
   {
     type: "wallet_analytics",

@@ -35,6 +35,7 @@ import { UserProfile } from "./user-profile"
 import { useAuth } from "@/lib/auth"
 import { createAgent, getAgentById, updateAgent } from "@/lib/agents"
 import { workflowToTools, toolsToWorkflow } from "@/lib/workflow-converter"
+import AIQuotaCompact from "./payment/ai-quota-compact"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -401,8 +402,15 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
 
   return (
     <div className="flex h-screen">
-      <div className="w-64 border-r border-gray-200 p-4 bg-gray-50">
-        <NodeLibrary />
+      <div className="w-64 border-r border-gray-200 flex flex-col bg-gray-50">
+        <div className="flex-1 p-4 overflow-y-auto">
+          <NodeLibrary />
+        </div>
+        
+        {/* AI Quota at bottom of sidebar */}
+        <div className="border-t border-gray-200 p-3">
+          <AIQuotaCompact />
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col">

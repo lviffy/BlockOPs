@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useState, useRef, useEffect } from "react"
 import { Send, Bot, User, CheckCircle } from "lucide-react"
+import { usePrivy } from "@privy-io/react-auth"
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,7 @@ interface AIChatModalProps {
 }
 
 export function AIChatModal({ open, onOpenChange, onApplyWorkflow }: AIChatModalProps) {
+  const { user, authenticated } = usePrivy()
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -58,6 +60,37 @@ export function AIChatModal({ open, onOpenChange, onApplyWorkflow }: AIChatModal
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return
+    
+    // Check authentication and quota first
+    if (!authenticated || !user?.id) {
+      const aiMessage: Message = {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: "Please connect your wallet to use AI generation.",
+        timestamp: new Date(),
+      }
+      setMessages((prev) => [...prev, aiMessage])
+      return
+    }
+
+    // Check quota before generating
+    try {
+      const quotaResponse = await fetch(`/api/payments/ai-quota?userId=${user.id}`)
+      const quota = await quotaResponse.json()
+      
+      if (!quota.canGenerate) {
+        const aiMessage: Message = {
+          id: Date.now().toString(),
+          role: "assistant",
+          content: "You've used all 3 free AI generations for today. Please use a paid generation to continue.",
+          timestamp: new Date(),
+        }
+        setMessages((prev) => [...prev, aiMessage])
+        return
+      }
+    } catch (error) {
+      console.error('Error checking quota:', error)
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -93,6 +126,17 @@ export function AIChatModal({ open, onOpenChange, onApplyWorkflow }: AIChatModal
 
       // Check if it's a valid workflow response
       if (isValidAIWorkflowResponse(data)) {
+        // Increment usage count after successful generation
+        try {
+          await fetch('/api/payments/ai-quota', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.id, isPaid: false })
+          })
+        } catch (error) {
+          console.error('Error incrementing AI usage:', error)
+        }
+
         setCurrentAIResponse(data)
         const aiMessage: Message = {
           id: (Date.now() + 1).toString(),

@@ -154,6 +154,14 @@ export default function Home() {
                 Features
               </Link>
               <Link 
+                href="/payment-demo" 
+                prefetch 
+                onClick={() => setLoadingLink('/payment-demo')}
+                className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+              >
+                💳 Payment Demo
+              </Link>
+              <Link 
                 href="/api-docs" 
                 prefetch 
                 onClick={() => setLoadingLink('/api-docs')}
