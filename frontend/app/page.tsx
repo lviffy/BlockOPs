@@ -154,14 +154,6 @@ export default function Home() {
                 Features
               </Link>
               <Link 
-                href="/payment-demo" 
-                prefetch 
-                onClick={() => setLoadingLink('/payment-demo')}
-                className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
-              >
-                💳 Payment Demo
-              </Link>
-              <Link 
                 href="/api-docs" 
                 prefetch 
                 onClick={() => setLoadingLink('/api-docs')}
@@ -292,7 +284,12 @@ export default function Home() {
       {/* By the Numbers Section */}
       <section id="features" className="bg-black min-h-screen flex items-center justify-center relative overflow-hidden">
         {/* Grid Background */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-size-[64px_64px] mask-[radial-gradient(ellipse_80%_50%_at_50%_50%,black,transparent)]"></div>
+        <div className="absolute inset-0" style={{
+          backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+          backgroundSize: '64px 64px',
+          mask: 'radial-gradient(ellipse 80% 50% at 50% 50%, black, transparent)',
+          WebkitMask: 'radial-gradient(ellipse 80% 50% at 50% 50%, black, transparent)'
+        }}></div>
         
         <div className="container mx-auto px-6 max-w-6xl relative z-10 py-16">
           {/* Section Header */}
@@ -551,6 +548,7 @@ export default function Home() {
               <ul className="space-y-3">
                 <li><Link href="/agent-builder" className="text-slate-400 hover:text-white transition-colors text-sm">Agent Builder</Link></li>
                 <li><Link href="/my-agents" className="text-slate-400 hover:text-white transition-colors text-sm">My Agents</Link></li>
+                <li><Link href="/orbit-builder" className="text-slate-400 hover:text-white transition-colors text-sm">Orbit L3 Builder</Link></li>
                 <li><Link href="/contract-explorer" className="text-slate-400 hover:text-white transition-colors text-sm">Contract Explorer</Link></li>
                 <li><Link href="/api-docs" className="text-slate-400 hover:text-white transition-colors text-sm">API Docs</Link></li>
               </ul>
@@ -601,7 +599,6 @@ export default function Home() {
       </footer>
 
       {/* Private Key Setup Modal */}
-      {console.log('Home Page - Modal Props:', { authenticated, hasUser: !!user, showPrivateKeySetup })}
       {authenticated && user && (
         <PrivateKeySetupModal
           open={showPrivateKeySetup}

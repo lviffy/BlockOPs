@@ -8,6 +8,7 @@ const transferRoutes = require('./routes/transferRoutes');
 const healthRoutes = require('./routes/healthRoutes');
 const priceRoutes = require('./routes/priceRoutes');
 const nlExecutorRoutes = require('./routes/nlExecutorRoutes');
+const orbitRoutes = require('./routes/orbitRoutes');
 
 // Initialize Express app
 const app = express();
@@ -40,6 +41,7 @@ app.use('/nft', nftRoutes);
 app.use('/transfer', transferRoutes);
 app.use('/price', priceRoutes);
 app.use('/nl-executor', nlExecutorRoutes);
+app.use('/api/orbit', orbitRoutes);
 
 // Legacy routes for backwards compatibility
 app.post('/deploy-token', require('./controllers/tokenController').deployToken);
@@ -97,6 +99,12 @@ const server = app.listen(PORT, () => {
   console.log('    GET  /nl-executor/discover/:contractAddress');
   console.log('    POST /nl-executor/execute');
   console.log('    POST /nl-executor/quick-execute');
+  console.log('\n  Arbitrum Orbit L3:');
+  console.log('    POST /api/orbit/config          - Create L3 config');
+  console.log('    GET  /api/orbit/config/:id      - Get config');
+  console.log('    GET  /api/orbit/configs         - List all configs');
+  console.log('    POST /api/orbit/deploy          - Deploy L3 chain');
+  console.log('    GET  /api/orbit/deploy/status/:id - Check deployment');
   console.log('\n' + '='.repeat(50) + '\n');
 });
 

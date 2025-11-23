@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
-import { Bot, MessageCircle, Plus, LogOut, Loader2, MoreVertical, Download, Copy, Check, FileCode } from "lucide-react"
+import { Bot, MessageCircle, Plus, LogOut, Loader2, MoreVertical, Download, Copy, Check, FileCode, Layers } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import { getAgentsByUserId, deleteAgent } from "@/lib/agents"
 import type { Agent } from "@/lib/supabase"
@@ -124,6 +124,12 @@ export default function MyAgents() {
             </p>
           </div>
           <div className="flex gap-2 items-center flex-wrap">
+            <Button asChild size="lg" variant="outline" className="font-semibold border-2 hover:bg-accent/50 transition-all shadow-sm">
+              <Link href="/orbit-builder">
+                <Layers className="h-5 w-5 mr-2" />
+                Orbit L3 Builder
+              </Link>
+            </Button>
             <Button asChild size="lg" variant="outline" className="font-semibold border-2 hover:bg-accent/50 transition-all shadow-sm">
               <Link href="/contract-explorer">
                 <FileCode className="h-5 w-5 mr-2" />
