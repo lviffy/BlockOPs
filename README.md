@@ -2,22 +2,26 @@
 
 ## Introduction
 
-**BlockOps** is a no-code platform frontend that enables users to build, deploy, and interact with AI-powered blockchain agents on the BlockOps testnet. The platform provides a visual drag-and-drop workflow builder interface where users can create sophisticated blockchain automation workflows without writing code.
+**BlockOps** is a no-code AI-powered platform that enables users to build, deploy, and interact with blockchain agents on Arbitrum Sepolia. The platform combines a visual drag-and-drop workflow builder with AI-powered natural language processing, allowing users to create sophisticated blockchain automation workflows without writing any code.
 
-The platform supports 10 blockchain tools including **token transfers, swaps, token/NFT deployment, DAO creation, airdrops, yield calculations, price fetching, and wallet analytics**. All tools interact with smart contracts deployed on the BlockOps testnet.
+The platform supports blockchain operations including **ERC-20 token deployment, ERC-721 NFT collection deployment, token transfers, and more**. All operations are powered by Arbitrum Stylus smart contracts and integrated with Gemini 2.0 Flash AI for intelligent agent interactions.
 
-> **Note:** This repository contains only the frontend application. Backend services and smart contracts are referenced but not included.
+> **Note:** This is a complete full-stack application including frontend (Next.js), backend API (Express.js), AI agent services (FastAPI), and smart contracts (Rust/Stylus).
 
 ## Resources
 
-* **Pitch Deck** : [View Here](https://www.canva.com/design/DAG31cRK5wY/FolpicleXo_Cw4IrpTAKAQ/view?utm_content=DAG31cRK5wY&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h90251dbeda#1)
-* **Demo Video** : [View Here](https://youtu.be/jbIAx5w-S90)
-* **Live Demo** : [View Here](https://somnia-agent-builder.vercel.app)
-  
-### Deployed Tool Contracts
+* **Live Demo**: [https://blockops.vercel.app/](https://blockops.vercel.app/)
+* **Demo Video**: [Watch on Google Drive](https://drive.google.com/drive/folders/137-DEv4MkspcmfuAN-ETsxpGMqzmZeZl?usp=sharing)
+* **Payment Contract**: [View on Arbiscan](https://sepolia.arbiscan.io/address/0x185eba222e50dedae23a411bbbe5197ed9097381)
 
-All smart contracts are deployed on the BlockOps Shannon testnet. View them on the Explorer:
+### Key Technologies
 
+- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS, React Flow
+- **Backend**: Express.js, ethers.js v6
+- **AI Services**: FastAPI, Google Gemini 2.0 Flash
+- **Blockchain**: Arbitrum Sepolia, Stylus (Rust WASM contracts)
+- **Authentication**: Privy Auth
+- **Database**: Supabase (PostgreSQL)
 
 ---
 
@@ -25,31 +29,35 @@ All smart contracts are deployed on the BlockOps Shannon testnet. View them on t
 
 Getting started with BlockOps is simple! Follow these steps:
 
-1. **Visit** [https://somnia-agent-builder.vercel.app](https://somnia-agent-builder.vercel.app)
-2. **Get Started** with just a Google sign in.
-3. **Create an Agent Wallet** or Import your own wallet from private key.
+1. **Visit** [https://blockops.vercel.app/](https://blockops.vercel.app/)
+2. **Sign In** with Web3 wallet using Privy authentication
+3. **Create or Import Agent Wallet** 
+   - Create a new agent wallet (automatically generated)
+   - Or import your own wallet using a private key
+
+4. **Build Your Agent** - Choose your preferred method:
    
-   <img width="1470" height="913" alt="Screenshot 2025-11-05 at 3 55 35 PM" src="https://github.com/user-attachments/assets/6949d8b9-380b-468c-8be4-6c13df0430a0" />
-
-4. **Create Your First Agent** by just drag-dropping the tools you need!
+   **Option A: AI-Powered Generation**
+   - Describe your agent in natural language
+   - Gemini 2.0 Flash AI generates the complete workflow for you
+   - AI automatically selects and configures the right tools
    
-   <img width="1470" height="919" alt="Screenshot 2025-11-05 at 3 57 10 PM" src="https://github.com/user-attachments/assets/b402548a-9509-4e36-8a50-3e168616744f" />
+   **Option B: Visual Builder**
+   - Drag and drop blockchain tools onto the canvas
+   - Connect tools to create your workflow
+   - Configure parameters for each tool
+   - Use React Flow for visual workflow management
 
-5. **You Can Also AI Generate Your Agent!** just ask our AI to generate your agent with the right tools.
-   
-   <img width="1470" height="919" alt="Screenshot 2025-11-05 at 3 58 19 PM" src="https://github.com/user-attachments/assets/6e660f4d-0c49-439b-87f8-ab8bce482a5c" />
+5. **Save Your Agent** to your Supabase database
 
-6. **Save your agent**.
+6. **Interact with Your Agent**:
+   - **UI Chat Interface**: Chat with your agent using natural language
+   - **API Integration**: Use REST API calls with your unique API key
+   - For premium features, payments are handled via x402 protocol with USDC escrow
 
-   <img width="1470" height="919" alt="Screenshot 2025-11-05 at 3 57 43 PM" src="https://github.com/user-attachments/assets/f877450d-9bd4-428b-8cbe-f35af87d4752" />
+7. **Execute Blockchain Actions** seamlessly on Arbitrum Sepolia
 
-7. **Interact with it** in the UI or with curl requests by using your api key.
-   
-   <img width="1470" height="918" alt="Screenshot 2025-11-05 at 7 11 58 PM" src="https://github.com/user-attachments/assets/bcba568e-381e-4f1b-bdf5-224b837d8b5b" />
-
-   <img width="1385" height="483" alt="Screenshot 2025-11-05 at 4 00 37 PM" src="https://github.com/user-attachments/assets/6dc16a6d-cbf8-4baa-9028-ae1b2fdd14cc" />
-
-That's it! You've created your first BlockOps agent without any programming knowledge, as simple as that!
+That's it! You've created your first BlockOps agent without writing a single line of code!
 
 ---
 
@@ -59,25 +67,13 @@ That's it! You've created your first BlockOps agent without any programming know
 2. [System Components](#system-components)
    - [Frontend](#frontend)
    - [Backend API](#backend-api)
-   - [Agent Service](#agent-service)
-   - [Workflow Builder](#workflow-builder)
-3. [Blockchain Tools](#blockchain-tools)
-   - [Transfer Tool](#1-transfer-tool)
-   - [Swap Tool](#2-swap-tool)
-   - [Balance Fetch Tool](#3-balance-fetch-tool)
-   - [ERC-20 Token Deployment](#4-erc-20-token-deployment)
-   - [ERC-721 NFT Collection Deployment](#5-erc-721-nft-collection-deployment)
-   - [DAO Creation](#6-dao-creation)
-   - [Airdrop Tool](#7-airdrop-tool)
-   - [Token Price Fetching](#8-token-price-fetching)
-   - [Yield Calculator](#9-yield-calculator)
-   - [Wallet Analytics](#10-wallet-analytics)
+   - [AI Agent Service](#ai-agent-service)
+   - [Workflow Generator](#workflow-generator)
+3. [Available Blockchain Tools](#available-blockchain-tools)
 4. [Smart Contract Implementations](#smart-contract-implementations)
-   - [TokenFactory & MyToken](#tokenfactory--mytoken)
-   - [NFTFactory & MyNFT](#nftfactory--mynft)
-   - [DAOFactory & DAO](#daofactory--dao)
-   - [Airdrop Contract](#airdrop-contract)
-   - [YieldCalculator Contract](#yieldcalculator-contract)
+5. [Setup & Installation](#setup--installation)
+6. [Environment Configuration](#environment-configuration)
+7. [API Documentation](#api-documentation)
 
 ---
 
@@ -87,82 +83,70 @@ That's it! You've created your first BlockOps agent without any programming know
 
 ```mermaid
 graph TB
-    subgraph "User Interface Layer"
-        UI[Frontend - Next.js<br/>Visual Workflow Builder]
+    subgraph "User Layer"
+        U[👤 User Browser]
+        UI[🖥️ Next.js Frontend<br/>Port: 3000]
     end
     
-    subgraph "AI Services Layer"
-        Agent[Agent Service<br/>FastAPI<br/>AI Agent Orchestration]
-        WBuilder[Workflow Builder<br/>FastAPI<br/>Natural Language Processing]
+    subgraph "Authentication & Database"
+        PRIVY[🔐 Privy Auth]
+        SUPA[🗄️ Supabase Database]
     end
     
-    subgraph "API Layer"
-        Backend[Backend API<br/>Express.js<br/>Blockchain Operations]
+    subgraph "Backend Services"
+        AI[🤖 AI Agent Backend<br/>FastAPI - Port 8000]
+        BK[⚙️ Blockchain Backend<br/>Express - Port 3000]
+        WF[🔄 Workflow Generator<br/>FastAPI - Port 8001]
     end
     
-    subgraph "Blockchain Layer - BlockOps Testnet"
-        TokenFactory[TokenFactory Contract<br/>0x19Fae13F4C2fac0539b5E0baC8Ad1785f1C7dEE1]
-        NFTFactory[NFTFactory Contract<br/>0x83B831848eE0A9a2574Cf62a13c23d8eDCa84E9F]
-        DAOFactory[DAOFactory Contract<br/>0xc6D49E765576134495ee49e572d5cBCb83a330Dc]
-        Airdrop[Airdrop Contract<br/>0x70F3147fa7971033312911a59579f18Ff0FE26F9]
-        YieldCalc[YieldCalculator Contract<br/>0x9bb2363810156f7b32b255677e8C1852AC1F95E6]
-        SwapRouter[Swap Router<br/>0x6aac14f090a35eea150705f72d90e4cdc4a49b2c]
-        SomniaAPI[BlockOps Subgraph API<br/>Token Balance Queries]
+    subgraph "Blockchain Layer"
+        ARB[🔗 Arbitrum Sepolia<br/>Chain ID: 421614]
     end
     
-    subgraph "External Services"
-        OpenAI[OpenAI API<br/>GPT-4o / GPT-4o-search]
-        IPFS[Pinata IPFS<br/>NFT Metadata Storage]
+    subgraph "Smart Contracts"
+        TF[📝 Token Factory<br/>Stylus Contract]
+        NF[🎨 NFT Factory<br/>Stylus Contract]
+        PE[💰 Payment Escrow<br/>x402 Protocol]
+        USDC[💵 USDC Token]
     end
     
-    UI -->|HTTP Requests| Agent
-    UI -->|HTTP Requests| WBuilder
-    Agent -->|HTTP Requests| Backend
-    WBuilder -->|HTTP Requests| Backend
-    Backend -->|RPC Calls| TokenFactory
-    Backend -->|RPC Calls| NFTFactory
-    Backend -->|RPC Calls| DAOFactory
-    Backend -->|RPC Calls| Airdrop
-    Backend -->|RPC Calls| YieldCalc
-    Backend -->|RPC Calls| SwapRouter
-    Backend -->|HTTP Requests| SomniaAPI
-    Agent -->|API Calls| OpenAI
-    Backend -->|API Calls| IPFS
-    Backend -->|API Calls| OpenAI
+    U -->|User Actions| UI
+    UI <-->|Authentication| PRIVY
+    UI <-->|Data Storage| SUPA
+    UI -->|AI Chat/Generate| AI
+    UI -->|Workflow Build| WF
+    AI -->|Tool Execution| BK
+    BK -->|Deploy/Transfer| ARB
+    ARB -->|Token Deploy| TF
+    ARB -->|NFT Deploy| NF
+    ARB -->|Payments| PE
+    PE -->|USDC Escrow| USDC
 ```
 
 ### Data Flow Diagram
 
 ```mermaid
 sequenceDiagram
-    participant User
+    actor User
     participant Frontend
-    participant WorkflowBuilder
-    participant Agent
+    participant AI
     participant Backend
     participant Blockchain
     
-    User->>Frontend: Describe workflow in natural language
-    Frontend->>WorkflowBuilder: POST /create-workflow
-    WorkflowBuilder->>OpenAI: Convert to workflow JSON
-    OpenAI-->>WorkflowBuilder: Structured workflow
-    WorkflowBuilder-->>Frontend: Workflow structure
+    User->>Frontend: Describe workflow
+    Frontend->>AI: POST /agent/chat
+    AI->>AI: Process with Gemini 2.0
+    AI->>AI: Identify tools & parameters
     
-    User->>Frontend: Connect tools visually
-    Frontend->>Agent: POST /agent/chat (with tool connections)
-    Agent->>OpenAI: Generate tool calls based on user message
-    OpenAI-->>Agent: Tool calls with parameters
-    
-    loop For each tool call
-        Agent->>Backend: Execute tool endpoint
-        Backend->>Blockchain: Smart contract interaction
-        Blockchain-->>Backend: Transaction receipt
-        Backend-->>Agent: Tool result
+    loop For each tool
+        AI->>Backend: Execute tool endpoint
+        Backend->>Blockchain: Sign & send transaction
+        Blockchain-->>Backend: Transaction confirmed
+        Backend-->>AI: Tool result
     end
     
-    Agent->>OpenAI: Summarize results
-    OpenAI-->>Agent: Final response
-    Agent-->>Frontend: Complete response with results
+    AI->>AI: Format response
+    AI-->>Frontend: Results with transaction hashes
     Frontend-->>User: Display results
 ```
 
@@ -176,8 +160,9 @@ sequenceDiagram
 - Next.js 15 (React 19)
 - TypeScript
 - React Flow (visual workflow builder)
-- Tailwind CSS
-- Radix UI components
+- Tailwind CSS + Radix UI components
+- Privy for authentication
+- Supabase client for database
 
 **Key Features:**
 - Visual drag-and-drop workflow builder
@@ -185,1091 +170,738 @@ sequenceDiagram
 - Real-time AI chat interface
 - Workflow saving and loading
 - Agent management dashboard
+- x402 protocol payment integration
 
-**Main Components:**
-- `workflow-builder.tsx` - Main workflow canvas with React Flow
-- `node-library.tsx` - Tool palette for dragging tools onto canvas
-- `node-config-panel.tsx` - Configuration panel for selected nodes
-- `ai-chat-modal.tsx` - Chat interface for interacting with agents
-- Custom node types: Input, Output, Process, Conditional, Code
+**Main Pages:**
+- `/` - Landing page
+- `/agent-builder` - Visual workflow builder
+- `/my-agents` - Agent management
+- `/agent/:id` - Agent interaction interface
+- `/payment-demo` - Payment testing interface
+
+**Port:** 3000 (development)
 
 ### Backend API
 
 **Technology Stack:**
 - Express.js
-- ethers.js v6
-- Solidity compiler (solc)
+- ethers.js v6 for Ethereum interactions
 - Axios for HTTP requests
-- OpenAI SDK
+- OpenAI/Gemini SDK for AI features
 
 **Network:**
-- BlockOps Testnet RPC: `https://dream-rpc.somnia.network`
-- Explorer: `https://shannon-explorer.somnia.network`
+- Arbitrum Sepolia RPC: `https://sepolia-rollup.arbitrum.io/rpc`
+- Explorer: `https://sepolia.arbiscan.io`
+- Chain ID: 421614
 
 **Key Responsibilities:**
 - Blockchain interaction via ethers.js
 - Smart contract deployment and interaction
-- Token/NFT/DAO creation via factory contracts
-- IPFS metadata upload for NFTs
-- Token price fetching via OpenAI search
-- Wallet balance queries via BlockOps API
+- Token/NFT creation via Stylus factory contracts
+- Transaction signing and broadcasting
+- Contract ABI management
+
+**Main Endpoints:**
+- `/health` - Health check
+- `/token/*` - ERC-20 token operations
+- `/nft/*` - ERC-721 NFT operations
+- `/transfer` - Token transfer operations
+- `/price` - Token price fetching
 
 **Port:** 3000 (default)
 
-### Agent Service
+### AI Agent Service
 
 **Technology Stack:**
-- FastAPI
-- OpenAI GPT-4o
-- Python requests library
+- FastAPI (Python)
+- Google Gemini 2.0 Flash
+- httpx for async HTTP requests
 
 **Key Features:**
+- Natural language to blockchain action conversion
 - Dynamic tool configuration based on workflow
-- Sequential tool execution support
-- Function calling with OpenAI
+- Function calling with Gemini AI
 - Context-aware tool selection
-- Private key management for transactions
+- Sequential execution support
 
-**Endpoints:**
-- `POST /agent/chat` - Main chat endpoint with tool execution
-- `GET /tools` - List all available tools
+**Main Endpoints:**
+- `POST /agent/chat` - Process natural language messages
+- `GET /tools` - List available tools
 - `GET /health` - Health check
 
 **Port:** 8000 (default)
 
-### Workflow Builder
+### Workflow Generator
 
 **Technology Stack:**
-- FastAPI
-- OpenAI GPT-4o-2024-08-06 (structured outputs)
+- FastAPI (Python)
+- Google Gemini 2.0 Flash
 
 **Key Features:**
 - Natural language to workflow conversion
 - Structured JSON output with tool connections
-- Sequential execution detection
-- Tool type validation
+- Tool validation and suggestion
+- Sequential execution planning
 
-**Endpoints:**
-- `POST /create-workflow` - Convert natural language to workflow
+**Main Endpoints:**
+- `POST /create-workflow` - Generate workflow from description
 - `GET /available-tools` - List available tools
 - `GET /health` - Health check
 
-**Port:** 8000 (default, different from agent service in production)
+**Port:** 8001 (default)
 
 ---
 
-## Blockchain Tools
+## Available Blockchain Tools
 
-### 1. Transfer Tool
+### 1. ERC-20 Token Deployment
+
+**Description:** Deploy custom ERC-20 tokens on Arbitrum Sepolia using Stylus contracts written in Rust.
+
+**Endpoint:** `POST /token/deploy`
+
+**Parameters:**
+- `name` - Token name (e.g., "MyToken")
+- `symbol` - Token symbol (e.g., "MTK")
+- `decimals` - Number of decimals (typically 18)
+- `initialSupply` - Initial token supply
+- `privateKey` - Deployer's private key
+
+**Implementation:**
+- Uses TokenFactory Stylus contract
+- Deploys optimized WASM bytecode
+- Automatically initializes token
+- Returns token address and transaction hash
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "tokenAddress": "0x...",
+  "transactionHash": "0x...",
+  "explorerUrl": "https://sepolia.arbiscan.io/tx/0x..."
+}
+```
+
+### 2. ERC-721 NFT Collection Deployment
+
+**Description:** Create NFT collections with customizable metadata and automatic IPFS integration.
+
+**Endpoint:** `POST /nft/deploy-collection`
+
+**Parameters:**
+- `name` - Collection name
+- `symbol` - Collection symbol
+- `baseUri` - Base URI for metadata
+- `privateKey` - Deployer's private key
+
+**Implementation:**
+- Uses NFTFactory Stylus contract
+- Supports batch minting
+- IPFS metadata storage via Pinata
+- Built with Rust for gas efficiency
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "collectionAddress": "0x...",
+  "transactionHash": "0x...",
+  "explorerUrl": "https://sepolia.arbiscan.io/address/0x..."
+}
+```
+
+### 3. Token Transfer
+
+**Description:** Transfer native ETH or ERC-20 tokens between addresses.
 
 **Endpoint:** `POST /transfer`
 
-**Description:**
-Transfers native STT tokens or ERC-20 tokens from one wallet to another. Supports both native token transfers and ERC-20 token transfers.
-
-**Request Body:**
-```json
-{
-  "privateKey": "0x...",
-  "toAddress": "0x...",
-  "amount": "0.01",
-  "tokenAddress": "0x..." // Optional: if provided, transfers ERC-20 tokens
-}
-```
-
-**Implementation Details:**
-
-**For Native Token Transfer:**
-1. Validates wallet balance
-2. Creates transaction with `ethers.parseEther(amount)`
-3. Sends transaction via `wallet.sendTransaction()`
-4. Waits for confirmation
-5. Returns transaction hash and explorer link
-
-**For ERC-20 Token Transfer:**
-1. Connects to token contract using ERC-20 ABI
-2. Fetches token decimals
-3. Parses amount with proper decimals: `ethers.parseUnits(amount, decimals)`
-4. Checks token balance using `balanceOf()`
-5. Calls `transfer()` function on token contract
-6. Waits for transaction confirmation
-7. Returns token info, transaction hash, and explorer link
-
-**Response:**
-```json
-{
-  "success": true,
-  "type": "native" | "ERC20",
-  "transactionHash": "0x...",
-  "from": "0x...",
-  "to": "0x...",
-  "amount": "0.01",
-  "blockNumber": 217915266,
-  "gasUsed": "421000",
-  "explorerUrl": "https://shannon-explorer.somnia.network/tx/..."
-}
-```
-
-**Contract Interaction:**
-- Uses standard ERC-20 interface: `transfer(address to, uint256 amount)`
-- No smart contract deployment needed (uses existing token contracts)
-
-**Example:**
-- [Transfer transaction](https://shannon-explorer.somnia.network/tx/0x0af995d10c82abe5a56f7356d51970fc576fa8a50825348357336f31527251a6)
-
----
-
-### 2. Swap Tool
-
-**Endpoint:** `POST /swap`
-
-**Description:**
-Swaps one ERC-20 token for another using Uniswap V2/V3 compatible router on BlockOps testnet.
-
-**Request Body:**
-```json
-{
-  "privateKey": "0x...",
-  "tokenIn": "0x...",
-  "tokenOut": "0x...",
-  "amountIn": "10",
-  "slippageTolerance": 3,
-  "poolFee": 500,
-  "routerType": "uniswap_v3"
-}
-```
-
-**Implementation Details:**
-
-1. **Token Approval:**
-   - Checks current allowance
-   - If insufficient, calls `approve()` on tokenIn contract
-   - Approves swap router address: `0x6aac14f090a35eea150705f72d90e4cdc4a49b2c`
-
-2. **Amount Calculation:**
-   - Parses input amount with token decimals
-   - Calculates minimum output: `amountIn * (100 - slippageTolerance) / 100`
-   - Parses output amount with output token decimals
-
-3. **Swap Execution:**
-   - **Uniswap V3:** Uses `exactInputSingle()` with pool fee
-   - **Uniswap V2:** Uses `swapExactTokensForTokens()` with deadline
-   - Estimates gas and adds 50% buffer
-   - Executes swap transaction
-
-4. **Transaction Confirmation:**
-   - Waits for transaction receipt
-   - Returns approval and swap transaction hashes
-
-**Response:**
-```json
-{
-  "success": true,
-  "wallet": "0x...",
-  "tokenIn": "0x...",
-  "tokenOut": "0x...",
-  "amountIn": "10",
-  "slippageTolerance": 3,
-  "routerType": "uniswap_v3",
-  "approveTxHash": "0x...",
-  "swapTxHash": "0x...",
-  "blockNumber": 218000000,
-  "gasUsed": "150000",
-  "explorerUrl": "https://shannon-explorer.somnia.network/tx/..."
-}
-```
-
-**Contract Interaction:**
-- **Swap Router:** `0x6aac14f090a35eea150705f72d90e4cdc4a49b2c`
-- **Uniswap V3 Router ABI:** `exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))`
-- **Uniswap V2 Router ABI:** `swapExactTokensForTokens(uint256,uint256,address[],address,uint256)`
-
----
-
-### 3. Balance Fetch Tool
-
-**Endpoint:** `GET /balance/:address` or `GET /balance/:address/:token`
-
-**Description:**
-Fetches native STT balance or ERC-20 token balance for a wallet address.
-
-**Implementation Details:**
-
-**Native Balance:**
-1. Uses `provider.getBalance(address)`
-2. Formats using `ethers.formatEther()`
-3. Returns balance in STT and wei
-
-**ERC-20 Balance:**
-1. Connects to token contract
-2. Calls `balanceOf(address)`
-3. Fetches `decimals()`, `symbol()`, `name()`
-4. Formats balance using `ethers.formatUnits(balance, decimals)`
-5. Returns token info and balance
-
-**Response:**
-```json
-{
-  "address": "0x...",
-  "token": "0x...",
-  "name": "Token Name",
-  "symbol": "TKN",
-  "balance": "1000.0",
-  "balanceWei": "1000000000000000000000",
-  "decimals": 18
-}
-```
-
-**Contract Interaction:**
-- Standard ERC-20 interface: `balanceOf(address)`, `decimals()`, `symbol()`, `name()`
-
----
-
-### 4. ERC-20 Token Deployment
-
-**Endpoint:** `POST /deploy-token`
-
-**Description:**
-Deploys a new ERC-20 token using the TokenFactory contract. Creates a customizable token with minting, burning, and pause capabilities.
-
-**Request Body:**
-```json
-{
-  "privateKey": "0x...",
-  "name": "SuperCoin",
-  "symbol": "SUC",
-  "initialSupply": "100000"
-}
-```
-
-**Implementation Details:**
-
-1. **Factory Contract Interaction:**
-   - Factory Address: `0x19Fae13F4C2fac0539b5E0baC8Ad1785f1C7dEE1`
-   - Calls `createToken(name, symbol, initialSupply)`
-   - Estimates gas and adds 20% buffer
-   - Sends transaction
-
-2. **Event Parsing:**
-   - Parses `TokenCreated` event from transaction receipt
-   - Extracts new token address from event
-
-3. **Token Transfer:**
-   - Checks if creator is token owner
-   - If owner, mints tokens to creator using `mint()` function
-   - This increases total supply but ensures creator has tokens
-
-4. **Token Info Retrieval:**
-   - Calls factory `getTokenInfo(tokenAddress)`
-   - Returns token metadata, creator, owner, supply info
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Token created successfully via TokenFactory",
-  "contractAddress": "0x...",
-  "tokenInfo": {
-    "name": "SuperCoin",
-    "symbol": "SUC",
-    "initialSupply": "100000",
-    "currentSupply": "200000.0",
-    "creator": "0x...",
-    "owner": "0x...",
-    "deployedAt": "2025-11-04T09:53:46.000Z"
-  },
-  "transactionHash": "0x...",
-  "explorerUrl": "https://shannon-explorer.somnia.network/tx/..."
-}
-```
-
-**Contract Interaction Diagram:**
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Backend
-    participant TokenFactory
-    participant MyToken
-    
-    User->>Backend: POST /deploy-token
-    Backend->>TokenFactory: createToken(name, symbol, supply)
-    TokenFactory->>MyToken: new MyToken(...)
-    MyToken-->>TokenFactory: Token Address
-    TokenFactory->>MyToken: transferOwnership(creator)
-    TokenFactory-->>Backend: TokenCreated Event
-    Backend->>MyToken: owner()
-    Backend->>MyToken: mint(creator, supply)
-    MyToken-->>Backend: Mint Confirmation
-    Backend-->>User: Token Address & Info
-```
-
-**Example:**
-- [Deployed ERC-20 Test Token](https://shannon-explorer.somnia.network/token/0x93c343D5C94Eac8089F1963fA75b874Db2C9f6FB)
-
----
-
-### 5. ERC-721 NFT Collection Deployment
-
-**Endpoint:** `POST /create-nft-collection`
-
-**Description:**
-Creates a new ERC-721 NFT collection with automatic IPFS metadata upload and mints the first NFT.
-
-**Request Body:**
-```json
-{
-  "privateKey": "0x...",
-  "name": "Bat Collection",
-  "symbol": "BAC"
-}
-```
-
-**Implementation Details:**
-
-1. **Metadata Generation:**
-   - Creates JSON metadata for first NFT
-   - Includes name, description, image, attributes
-   - Uses placeholder image initially
-
-2. **IPFS Upload:**
-   - Uploads metadata to Pinata IPFS
-   - Requires `PINATA_API_KEY` and `PINATA_SECRET_KEY`
-   - Returns IPFS hash: `ipfs://QmXxx...`
-
-3. **Base URI Creation:**
-   - Creates IPFS directory structure
-   - Uploads base directory metadata
-   - Returns baseURI: `ipfs://QmXxx/`
-
-4. **Collection Creation:**
-   - Factory Address: `0x83B831848eE0A9a2574Cf62a13c23d8eDCa84E9F`
-   - Calls `createCollection(name, symbol, baseURI)`
-   - Parses `CollectionCreated` event
-
-5. **First NFT Minting:**
-   - Connects to NFT collection contract
-   - Calls `mintWithURI(creator, metadataURI)`
-   - Returns token ID and metadata info
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "NFT collection created and first NFT minted successfully",
-  "collection": {
-    "address": "0x...",
-    "name": "Bat Collection",
-    "symbol": "BAC",
-    "baseURI": "ipfs://QmXxx/"
-  },
-  "firstNFT": {
-    "tokenId": "1",
-    "owner": "0x...",
-    "metadataURI": "ipfs://QmXxx...",
-    "metadata": {...}
-  },
-  "transactions": {
-    "collectionCreation": "0x...",
-    "minting": "0x..."
-  }
-}
-```
-
-**Contract Interaction Diagram:**
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Backend
-    participant NFTFactory
-    participant MyNFT
-    participant Pinata
-    
-    User->>Backend: POST /create-nft-collection
-    Backend->>Backend: Generate metadata JSON
-    Backend->>Pinata: Upload metadata to IPFS
-    Pinata-->>Backend: IPFS hash
-    Backend->>Pinata: Create baseURI directory
-    Pinata-->>Backend: Base URI
-    Backend->>NFTFactory: createCollection(name, symbol, baseURI)
-    NFTFactory->>MyNFT: new MyNFT(...)
-    MyNFT-->>NFTFactory: Collection Address
-    NFTFactory-->>Backend: CollectionCreated Event
-    Backend->>MyNFT: mintWithURI(creator, metadataURI)
-    MyNFT-->>Backend: Token ID
-    Backend-->>User: Collection & NFT Info
-```
-
-**Example:**
-- [NFT Collection](https://shannon-explorer.somnia.network/token/0x2Feaba0eD96df2190dF47b2427C880FF8056AB2a)
-
----
-
-### 6. DAO Creation
-
-**Endpoint:** `POST /create-dao`
-
-**Description:**
-Creates a new Decentralized Autonomous Organization (DAO) with customizable voting period and quorum percentage.
-
-**Request Body:**
-```json
-{
-  "privateKey": "0x...",
-  "name": "My COOL DAO",
-  "votingPeriod": "604800",
-  "quorumPercentage": "51"
-}
-```
-
-**Implementation Details:**
-
-1. **Validation:**
-   - Validates voting period > 0 (in seconds)
-   - Validates quorum percentage (0-100)
-
-2. **DAO Creation:**
-   - Factory Address: `0xc6D49E765576134495ee49e572d5cBCb83a330Dc`
-   - Calls `createDAO(name, votingPeriod, quorumPercentage)`
-   - Factory deploys new DAO contract
-   - Creator is automatically added as first member with voting power 1
-
-3. **DAO Info Retrieval:**
-   - Connects to created DAO contract
-   - Fetches: name, owner, memberCount, votingPeriod, quorumPercentage, proposalCount, totalVotingPower
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "DAO created successfully via DAOFactory",
-  "dao": {
-    "address": "0x...",
-    "name": "My COOL DAO",
-    "owner": "0x...",
-    "memberCount": "1",
-    "votingPeriod": {
-      "seconds": "604800",
-      "days": "7.00"
-    },
-    "quorumPercentage": "51",
-    "proposalCount": "0",
-    "totalVotingPower": "1"
-  },
-  "transactionHash": "0x...",
-  "explorerUrl": "https://shannon-explorer.somnia.network/tx/..."
-}
-```
-
-**Contract Interaction Diagram:**
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Backend
-    participant DAOFactory
-    participant DAO
-    
-    User->>Backend: POST /create-dao
-    Backend->>DAOFactory: createDAO(name, period, quorum)
-    DAOFactory->>DAO: new DAO(name, creator, period, quorum)
-    DAO->>DAO: Add creator as member (votingPower=1)
-    DAO-->>DAOFactory: DAO Address
-    DAOFactory-->>Backend: DAOCreated Event
-    Backend->>DAO: Get DAO info (name, members, etc.)
-    DAO-->>Backend: DAO Information
-    Backend-->>User: DAO Address & Info
-```
-
-**Example:**
-- [Created DAO with members and votes](https://shannon-explorer.somnia.network/address/0x473CA2787ef8d3d57BB6930D3F6f2Ab91CCA2954?tab=index)
-
----
-
-### 7. Airdrop Tool
-
-**Endpoint:** `POST /airdrop`
-
-**Description:**
-Batch transfers native STT tokens to multiple addresses in a single transaction using the Airdrop contract.
-
-**Request Body:**
-```json
-{
-  "privateKey": "0x...",
-  "recipients": ["0x...", "0x...", "0x..."],
-  "amount": "0.01"
-}
-```
-
-**Implementation Details:**
-
-1. **Validation:**
-   - Validates recipients array is non-empty
-   - Validates all addresses are valid Ethereum addresses
-   - Validates amount > 0
-
-2. **Balance Check:**
-   - Calculates total amount: `amount * recipients.length`
-   - Checks wallet balance >= total amount
-
-3. **Airdrop Execution:**
-   - Contract Address: `0x70F3147fa7971033312911a59579f18Ff0FE26F9`
-   - Calls `airdrop(recipients, amountPerRecipient)`
-   - Sends total amount as `msg.value`
-   - Contract distributes tokens to all recipients
-
-4. **Event Parsing:**
-   - Parses `AirdropExecuted` event
-   - Extracts executor, recipients, total amount, timestamp
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Airdrop executed successfully",
-  "airdrop": {
-    "from": "0x...",
-    "recipientsCount": 3,
-    "recipients": ["0x...", "0x...", "0x..."],
-    "amountPerRecipient": "0.01",
-    "totalAmount": "0.03"
-  },
-  "transaction": {
-    "hash": "0x...",
-    "blockNumber": 218174401,
-    "gasUsed": "133488"
-  },
-  "event": {
-    "executor": "0x...",
-    "totalAmount": "30000000000000000",
-    "timestamp": "2025-11-02T11:31:42.000Z"
-  }
-}
-```
-
-**Contract Interaction Diagram:**
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Backend
-    participant AirdropContract
-    participant Recipient1
-    participant Recipient2
-    participant Recipient3
-    
-    User->>Backend: POST /airdrop (3 recipients, 0.01 each)
-    Backend->>Backend: Validate addresses & balance
-    Backend->>AirdropContract: airdrop(recipients[], 0.01) + 0.03 STT
-    AirdropContract->>Recipient1: transfer(0.01 STT)
-    AirdropContract->>Recipient2: transfer(0.01 STT)
-    AirdropContract->>Recipient3: transfer(0.01 STT)
-    AirdropContract-->>Backend: AirdropExecuted Event
-    Backend-->>User: Transaction hash & results
-```
-
-**Example:**
-- [Airdrop transaction to 3 addresses](https://shannon-explorer.somnia.network/tx/0x9a1e13e1b57df033f5cc1c5b99e18dd70d0e7287ca816c5d8b6ad9aeecddb2cf)
-
----
-
-### 8. Token Price Fetching
-
-**Endpoint:** `POST /token-price`
-
-**Description:**
-Fetches current cryptocurrency prices with natural language queries.
-
-**Request Body:**
-```json
-{
-  "query": "bitcoin current price"
-}
-```
-
-**Implementation Details:**
-
-1. **Query Processing:**
-   - System prompt instructs model to:
-     - Parse natural language queries
-     - Identify cryptocurrency symbols
-     - Search for current prices
-     - Return structured price information
-
-**Response:**
-```json
-{
-  "success": true,
-  "query": "bitcoin current price",
-  "response": "As of November 2, 2025, Bitcoin (BTC) is trading at approximately $110,957 USD...",
-  "timestamp": "2025-11-02T12:24:30.862Z",
-}
-```
-
----
-
-### 9. Yield Calculator
-
-**Endpoint:** `POST /yield`
-
-**Description:**
-Creates a deposit with yield prediction using any ERC-20 token. Calculates yield based on APY and time period.
-
-**Request Body:**
-```json
-{
-  "privateKey": "0x...",
-  "tokenAddress": "0x...",
-  "depositAmount": "0.1",
-  "apyPercent": 5
-}
-```
-
-**Implementation Details:**
-
-1. **Token Approval:**
-   - Checks token balance
-   - Checks allowance for YieldCalculator contract
-   - Approves if needed: `approve(contractAddress, MaxUint256)`
-
-2. **Deposit Creation:**
-   - Contract Address: `0x9bb2363810156f7b32b255677e8C1852AC1F95E6` (or from `YIELD_CALCULATOR_ADDRESS` env var)
-   - Calls `createDeposit(tokenAddress, amount, apy)`
-   - APY converted to basis points: `apyPercent * 100`
-   - Tokens transferred from user to contract
-
-3. **Yield Projections:**
-   - Calculates yield for multiple periods: 7, 30, 60, 90, 180, 365 days
-   - Uses formula: `amount * (apy / 10000) * (timeInSeconds / 31536000)`
-   - Returns projections with total value (principal + yield)
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Deposit created successfully",
-  "deposit": {
-    "depositId": "2",
-    "tokenAddress": "0x...",
-    "tokenName": "SuperCoin",
-    "tokenSymbol": "SUC",
-    "depositAmount": "0.1",
-    "apyPercent": 5,
-    "principal": "0.1",
-    "currentYield": "0.000000000158548959",
-    "totalAmount": "0.100000000158548959",
-    "daysPassed": "0.00",
-    "active": true
-  },
-  "projections": [
-    {
-      "days": 7,
-      "yieldAmount": "0.000095890410958904",
-      "principal": "0.1",
-      "totalValue": "0.100096",
-      "tokenSymbol": "SUC"
-    },
-    ...
-  ]
-}
-```
-
-**Contract Interaction Diagram:**
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Backend
-    participant TokenContract
-    participant YieldCalculator
-    
-    User->>Backend: POST /yield
-    Backend->>TokenContract: balanceOf(user)
-    TokenContract-->>Backend: Balance
-    Backend->>TokenContract: allowance(user, yieldContract)
-    TokenContract-->>Backend: Allowance
-    alt Insufficient Allowance
-        Backend->>TokenContract: approve(yieldContract, MaxUint256)
-        TokenContract-->>Backend: Approval Confirmed
-    end
-    Backend->>YieldCalculator: createDeposit(token, amount, apy)
-    YieldCalculator->>TokenContract: transferFrom(user, contract, amount)
-    TokenContract-->>YieldCalculator: Transfer Confirmed
-    YieldCalculator-->>Backend: DepositCreated Event
-    Backend->>YieldCalculator: calculateYield(depositId, days) [multiple times]
-    YieldCalculator-->>Backend: Yield amounts
-    Backend-->>User: Deposit ID & Projections
-```
-
-**Example:**
-- [Yield deposit transaction](https://shannon-explorer.somnia.network/tx/0xc742a02bc4765cf23fdab134c2b3a59bdd2b2f310c994c73aaab5080429c7ea0)
-
----
-
-### 10. Wallet Analytics
-
-**Endpoint:** `POST /api/balance/erc20`
-
-**Description:**
-Fetches all ERC-20 token balances for a wallet address using Somnia's subgraph API.
-
-**Request Body:**
-```json
-{
-  "address": "0x..."
-}
-```
-
-**Implementation Details:**
-
-1. **API Request:**
-   - Endpoint: `https://api.subgraph.somnia.network/public_api/data_api/somnia/v1/address/{address}/balance/erc20`
-   - Optional: Bearer token authentication (from `BEARER_TOKEN`, `ORMI_API_KEY`, or `PRIVATE_KEY` env vars)
-
-2. **Response Processing:**
-   - Returns all ERC-20 tokens with balances
-   - Includes token metadata: name, symbol, decimals, contract address
-   - Includes formatted balance and raw balance
-
-**Response:**
-```json
-{
-  "success": true,
-  "address": "0x...",
-  "data": {
-    "cursor": "...",
-    "erc20TokenBalances": [
-      {
-        "balance": "50000",
-        "contract": {
-          "address": "0x...",
-          "decimals": 18,
-          "erc_type": "ERC-20",
-          "name": "SOMDER",
-          "symbol": "SOM"
-        },
-        "raw_balance": "50000000000000000000000"
-      }
-    ],
-    "resultCount": 1
-  },
-  "timestamp": "2025-11-02T12:00:00.000Z"
-}
-```
+**Parameters:**
+- `privateKey` - Sender's private key
+- `to` - Recipient address
+- `amount` - Amount to transfer
+- `tokenAddress` - (Optional) ERC-20 token address
+
+**Implementation:**
+- Native transfers use direct wallet transactions
+- ERC-20 transfers use token contract's `transfer()` function
+- Automatic gas estimation
+- Transaction confirmation waiting
+
+### 4. Token Price Fetching
+
+**Description:** Fetch real-time cryptocurrency prices using AI-powered search.
+
+**Endpoint:** `POST /price`
+
+**Parameters:**
+- `query` - Token symbol or natural language query
+
+**Implementation:**
+- Uses Gemini 2.0 with search capabilities
+- Returns current price and market data
+- Supports multiple cryptocurrencies
 
 ---
 
 ## Smart Contract Implementations
 
-### TokenFactory & MyToken
+### TokenFactory (Stylus - Rust)
 
-**Location:** [`backend/ERC-20/`](https://github.com/Marshal-AM/Somnia-No-Code-Agent-Builder/tree/main/backend/ERC-20)
+**Location:** `contract/token_factory/`
 
-#### TokenFactory Contract
+**Technology:** Arbitrum Stylus (Rust → WASM)
 
-**Address:** `0x19Fae13F4C2fac0539b5E0baC8Ad1785f1C7dEE1`
+**Key Features:**
+- Full ERC-20 standard implementation
+- Gas-optimized WASM execution
+- Factory pattern for easy deployment
+- Customizable token parameters
 
-**Key Functions:**
-- `createToken(string name, string symbol, uint256 initialSupply)` - Deploys new MyToken contract
-- `getTotalTokensDeployed()` - Returns total count
-- `getTokensByCreator(address creator)` - Returns tokens created by address
-- `getTokenInfo(address tokenAddress)` - Returns detailed token information
+**Main Functions:**
+```rust
+// Initialize new token
+pub fn initialize(&mut self, name: String, symbol: String, decimals: u8, initial_supply: U256)
 
-**Storage:**
-- `deployedTokens[]` - Array of all deployed token addresses
-- `creatorToTokens` - Mapping from creator to their tokens
-- `tokenInfo` - Mapping from token address to TokenInfo struct
+// Standard ERC-20 functions
+pub fn transfer(&mut self, to: Address, amount: U256) -> bool
+pub fn approve(&mut self, spender: Address, amount: U256) -> bool
+pub fn transfer_from(&mut self, from: Address, to: Address, amount: U256) -> bool
 
-**Events:**
-- `TokenCreated(address indexed tokenAddress, address indexed creator, string name, string symbol, uint256 initialSupply, uint256 timestamp)`
+// View functions
+pub fn balance_of(&self, account: Address) -> U256
+pub fn total_supply(&self) -> U256
+pub fn allowance(&self, owner: Address, spender: Address) -> U256
+```
 
-#### MyToken Contract
+**Build & Deploy:**
+```bash
+cd contract/token_factory
+cargo stylus check
+cargo stylus deploy --private-key=$PRIVATE_KEY
+```
 
-**Features:**
-- ERC-20 standard implementation
-- ERC20Burnable (tokens can be burned)
-- ERC20Permit (gasless approvals)
-- Ownable (owner-only functions)
-- Pausable transfers (owner can pause)
+### NFTFactory (Stylus - Rust)
 
-**Key Functions:**
-- `mint(address to, uint256 amount)` - Owner can mint new tokens
-- `burn(uint256 amount)` - Anyone can burn their tokens
-- `pause()` / `unpause()` - Owner can pause transfers
-- `transfer()` / `transferFrom()` - Standard ERC-20 transfers (respects pause)
+**Location:** `contract/nft_factory/`
 
-**Constructor:**
-- Mints initial supply to deployer
-- Sets deployer as owner
-- Sets pause state to false
+**Technology:** Arbitrum Stylus (Rust → WASM)
 
----
+**Key Features:**
+- Full ERC-721 standard implementation
+- Batch minting support
+- Custom metadata URIs
+- Gas-efficient WASM execution
 
-### NFTFactory & MyNFT
+**Main Functions:**
+```rust
+// Initialize collection
+pub fn initialize(&mut self, name: String, symbol: String, base_uri: String)
 
-**Location:** [`backend/ERC-721/`](https://github.com/Marshal-AM/Somnia-No-Code-Agent-Builder/tree/main/backend/ERC-721)
+// Minting
+pub fn mint(&mut self, to: Address) -> U256
+pub fn mint_batch(&mut self, to: Address, amount: U256)
 
-#### NFTFactory Contract
+// Standard ERC-721 functions
+pub fn transfer_from(&mut self, from: Address, to: Address, token_id: U256)
+pub fn approve(&mut self, to: Address, token_id: U256)
+pub fn set_approval_for_all(&mut self, operator: Address, approved: bool)
 
-**Address:** `0x83B831848eE0A9a2574Cf62a13c23d8eDCa84E9F`
+// View functions
+pub fn owner_of(&self, token_id: U256) -> Address
+pub fn balance_of(&self, owner: Address) -> U256
+pub fn token_uri(&self, token_id: U256) -> String
+```
 
-**Key Functions:**
-- `createCollection(string name, string symbol, string baseURI)` - Deploys new MyNFT collection
-- `getCollectionsByCreator(address creator)` - Returns collections by creator
-- `getCollectionInfo(address collectionAddress)` - Returns collection details
-- `getCollectionStats(address collectionAddress)` - Returns minting statistics
+**Build & Deploy:**
+```bash
+cd contract/nft_factory
+cargo stylus check
+cargo stylus deploy --private-key=$PRIVATE_KEY
+```
 
-**Storage:**
-- `deployedCollections[]` - Array of all collection addresses
-- `creatorToCollections` - Mapping from creator to collections
-- `collectionInfo` - Mapping from collection to CollectionInfo struct
+### PaymentEscrow (Solidity)
 
-**Events:**
-- `CollectionCreated(address indexed collectionAddress, address indexed creator, string name, string symbol, string baseURI, uint256 timestamp)`
+**Location:** `contract/payment-contracts/contracts/PaymentEscrow.sol`
 
-#### MyNFT Contract
+**Contract Address:** `0x185eba222e50dedae23a411bbbe5197ed9097381`
 
-**Features:**
-- ERC-721 standard implementation
-- ERC721URIStorage (custom token URIs)
-- ERC721Burnable (tokens can be burned)
-- Ownable (owner-only minting)
-- Pausable transfers
+**Technology:** Solidity + Hardhat
 
-**Key Functions:**
-- `mint(address to)` - Owner mints NFT with baseURI + tokenId
-- `mintWithURI(address to, string uri)` - Owner mints with custom URI
-- `mintBatch(address to, uint256 amount)` - Batch minting (max 100)
-- `setBaseURI(string baseURI)` - Owner updates base URI
-- `setTokenURI(uint256 tokenId, string uri)` - Owner sets custom URI
-- `pause()` / `unpause()` - Owner pauses transfers
-- `tokensOfOwner(address owner)` - Returns all token IDs owned by address
+**Key Features:**
+- x402 protocol implementation
+- USDC escrow for premium features
+- Automatic refunds on failure
+- Authorization for backend execution
+- Pausable functionality
 
-**Token ID System:**
-- Starts from 1
-- Auto-increments with each mint
-- `totalMinted()` returns count of minted tokens
-
----
-
-### DAOFactory & DAO
-
-**Location:** [`backend/DAO/`](https://github.com/Marshal-AM/Somnia-No-Code-Agent-Builder/tree/main/backend/DAO)
-
-#### DAOFactory Contract
-
-**Address:** `0xc6D49E765576134495ee49e572d5cBCb83a330Dc`
-
-**Key Functions:**
-- `createDAO(string _name, uint256 _votingPeriod, uint256 _quorumPercentage)` - Deploys new DAO
-- `getDAOCount()` - Returns total DAO count
-- `getCreatorDAOs(address _creator)` - Returns DAOs created by address
-- `getAllDAOs()` - Returns all DAO addresses
-
-**Storage:**
-- `allDAOs[]` - Array of all DAO addresses
-- `creatorDAOs` - Mapping from creator to their DAOs
-
-**Events:**
-- `DAOCreated(address indexed daoAddress, string name, address indexed creator, uint256 votingPeriod, uint256 quorumPercentage, uint256 timestamp)`
-
-#### DAO Contract
-
-**Features:**
-- Member management with voting power
-- Proposal creation and voting
-- Quorum-based execution
-- Time-based voting periods
-
-**Key Structures:**
+**Main Functions:**
 ```solidity
-struct Member {
-    bool isMember;
-    uint256 votingPower;
-    uint256 joinedAt;
-}
+// Create payment agreement
+function createPayment(
+    string memory agentId,
+    string memory toolName,
+    address token,
+    uint256 amount
+) external payable returns (bytes32)
 
-struct Proposal {
-    uint256 id;
-    string description;
-    address proposer;
-    uint256 forVotes;
-    uint256 againstVotes;
-    uint256 startTime;
-    uint256 endTime;
-    bool executed;
-    bool passed;
-    mapping(address => bool) hasVoted;
-}
+// Execute payment (backend only)
+function executePayment(bytes32 paymentId) external
+
+// Refund payment (backend only)
+function refundPayment(bytes32 paymentId) external
+
+// Admin functions
+function setSupportedToken(address token, bool supported) external onlyOwner
+function setAuthorizedBackend(address backend, bool authorized) external onlyOwner
 ```
 
-**Key Functions:**
-- `addMember(address _member, uint256 _votingPower)` - Only members can add members
-- `removeMember(address _member)` - Remove member (not creator)
-- `createProposal(string _description)` - Create new proposal
-- `vote(uint256 _proposalId, bool _support)` - Vote on proposal
-- `executeProposal(uint256 _proposalId)` - Execute proposal after voting period
-- `getTotalVotingPower()` - Returns sum of all member voting powers
-
-**Voting Logic:**
-- Quorum: `(totalVotes * 100) >= (totalVotingPower * quorumPercentage)`
-- Majority: `forVotes > againstVotes`
-- Proposal passes if quorum met AND majority for
-
-**Events:**
-- `MemberAdded(address indexed member, uint256 votingPower)`
-- `MemberRemoved(address indexed member)`
-- `ProposalCreated(uint256 indexed proposalId, string description, address proposer)`
-- `VoteCast(uint256 indexed proposalId, address indexed voter, bool support, uint256 weight)`
-- `ProposalExecuted(uint256 indexed proposalId, bool passed)`
+**Deploy:**
+```bash
+cd contract/payment-contracts
+npx hardhat run scripts/deploy.js --network arbitrumSepolia
+```
 
 ---
 
-### Airdrop Contract
+## Setup & Installation
 
-**Location:** [`backend/Air Drop/Airdrop.sol`](https://github.com/Marshal-AM/Somnia-No-Code-Agent-Builder/blob/main/backend/Air%20Drop/Airdrop.sol)
+### Prerequisites
 
-**Address:** `0x70F3147fa7971033312911a59579f18Ff0FE26F9`
+- Node.js 18+ 
+- Python 3.9+
+- Rust (for Stylus contracts)
+- npm or yarn
+- Git
 
-**Features:**
-- Gas-efficient batch transfers
-- Native token (STT) distribution
-- No contract storage needed (direct transfers)
+### Clone Repository
 
-**Key Functions:**
-- `airdrop(address[] recipients, uint256 amount)` - Distribute same amount to all recipients
-- `airdropWithAmounts(address[] recipients, uint256[] amounts)` - Distribute different amounts
-- `getBalance()` - Returns contract balance (should be 0 after airdrop)
-- `withdraw(address to)` - Owner emergency withdrawal
+```bash
+git clone <repository-url>
+cd n8nrollup
+```
 
-**Implementation:**
-- Uses low-level `call{value: amount}("")` for gas efficiency
-- Validates total amount matches `msg.value`
-- Validates all recipients are non-zero addresses
-- Emits `AirdropExecuted` event after completion
+### Frontend Setup
 
-**Security:**
-- Owner-only withdraw function
-- Validates all inputs
-- Reverts on transfer failures
+```bash
+cd frontend
+npm install
+cp .env.example .env.local
+# Edit .env.local with your configuration
+npm run dev
+```
+
+Frontend will run on `http://localhost:3000`
+
+### Backend Setup
+
+```bash
+cd backend
+npm install
+cp .env.example .env
+# Edit .env with your configuration
+npm run dev
+```
+
+Backend will run on `http://localhost:3000`
+
+### AI Agent Backend Setup
+
+```bash
+cd AI_workflow_backend
+pip install -r requirements.txt
+cp .env.example .env
+# Edit .env with your Gemini API key
+uvicorn main:app --reload --port 8000
+```
+
+AI Agent service will run on `http://localhost:8000`
+
+### Workflow Generator Setup
+
+```bash
+cd n8n_agent_backend
+pip install -r requirements.txt
+cp .env.example .env
+# Edit .env with your Gemini API key
+uvicorn main:app --reload --port 8001
+```
+
+Workflow Generator will run on `http://localhost:8001`
+
+### Smart Contract Deployment
+
+**Token Factory (Stylus):**
+```bash
+cd contract/token_factory
+cargo stylus check
+cargo stylus deploy --private-key-path=.env
+```
+
+**NFT Factory (Stylus):**
+```bash
+cd contract/nft_factory
+cargo stylus check
+cargo stylus deploy --private-key-path=.env
+```
+
+**Payment Contract (Solidity):**
+```bash
+cd contract/payment-contracts
+npm install
+npx hardhat run scripts/deploy.js --network arbitrumSepolia
+```
 
 ---
 
-### YieldCalculator Contract
+## Environment Configuration
 
-**Location:** [`backend/Yield/YieldCalculator.sol`](https://github.com/Marshal-AM/Somnia-No-Code-Agent-Builder/blob/main/backend/Yield/YieldCalculator.sol)
+### Frontend (.env.local)
 
-**Address:** `0x9bb2363810156f7b32b255677e8C1852AC1F95E6`
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_key
 
-**Features:**
-- Multi-token support (any ERC-20)
-- APY-based yield calculation
-- Time-based projections
-- Deposit tracking per user
+# Privy Authentication
+NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id
 
-**Key Structures:**
-```solidity
-struct Deposit {
-    address depositor;
-    address tokenAddress;
-    uint256 amount;
-    uint256 apy; // Basis points (10000 = 100%)
-    uint256 depositTime;
-    bool active;
+# Blockchain
+NEXT_PUBLIC_RPC_URL=https://sepolia-rollup.arbitrum.io/rpc
+NEXT_PUBLIC_CHAIN_ID=421614
+
+# Payment Contract
+NEXT_PUBLIC_PAYMENT_CONTRACT_ADDRESS=0x185eba222e50dedae23a411bbbe5197ed9097381
+NEXT_PUBLIC_USDC_ADDRESS=your_usdc_token_address
+
+# Backend URLs
+NEXT_PUBLIC_BACKEND_URL=http://localhost:3000
+NEXT_PUBLIC_AI_BACKEND_URL=http://localhost:8000
+NEXT_PUBLIC_WORKFLOW_BACKEND_URL=http://localhost:8001
+
+# Payment Backend
+PAYMENT_BACKEND_PRIVATE_KEY=your_backend_private_key
+JWT_SECRET=your_jwt_secret
+```
+
+### Backend (.env)
+
+```env
+# Server
+PORT=3000
+
+# Blockchain
+ARBITRUM_SEPOLIA_RPC=https://sepolia-rollup.arbitrum.io/rpc
+TOKEN_FACTORY_ADDRESS=your_token_factory_address
+NFT_FACTORY_ADDRESS=your_nft_factory_address
+
+# API Keys
+GEMINI_API_KEY=your_gemini_api_key
+OPENAI_API_KEY=your_openai_api_key
+ETHERSCAN_API_KEY=your_etherscan_api_key
+PINATA_API_KEY=your_pinata_api_key
+PINATA_SECRET_KEY=your_pinata_secret_key
+```
+
+### AI Services (.env)
+
+```env
+# Gemini AI
+GEMINI_API_KEY=your_gemini_api_key
+
+# Backend URL
+BACKEND_URL=http://localhost:3000
+```
+
+---
+
+## API Documentation
+
+### AI Agent Chat Endpoint
+
+**POST** `/agent/chat`
+
+Process natural language messages and execute blockchain actions.
+
+**Request:**
+```json
+{
+  "user_message": "Deploy a token called MyToken with symbol MTK",
+  "tools": ["deploy_erc20", "transfer", "mint_nft"],
+  "private_key": "0x..."
 }
 ```
 
-**Key Functions:**
-- `createDeposit(address tokenAddress, uint256 amount, uint256 apy)` - Create new deposit
-- `calculateYield(uint256 depositId, uint256 timeInSeconds)` - Calculate yield for time period
-- `getCurrentYield(uint256 depositId)` - Get current accrued yield
-- `getTotalAmount(uint256 depositId)` - Get principal + yield
-- `withdraw(uint256 depositId)` - Withdraw deposit (principal + yield)
-- `getUserDeposits(address user)` - Get all deposit IDs for user
-- `getDepositInfo(uint256 depositId)` - Get deposit details
+**Response:**
+```json
+{
+  "message": "Token deployed successfully!",
+  "results": {
+    "tokenAddress": "0x...",
+    "transactionHash": "0x...",
+    "explorerUrl": "https://sepolia.arbiscan.io/tx/0x..."
+  },
+  "tool_used": "deploy_erc20"
+}
+```
 
-**Security:**
-- Only depositor can withdraw their deposit
-- Validates deposit is active
-- Uses SafeERC20 for token transfers
-- Checks contract balance before withdrawal
+### Workflow Generation Endpoint
 
-**Events:**
-- `DepositCreated(address indexed depositor, uint256 depositId, address indexed tokenAddress, uint256 amount, uint256 apy)`
-- `YieldCalculated(address indexed depositor, uint256 depositId, uint256 yieldAmount)`
-- `Withdrawn(address indexed to, uint256 depositId, uint256 amount)`
+**POST** `/create-workflow`
+
+Generate workflow structure from natural language description.
+
+**Request:**
+```json
+{
+  "description": "Create a workflow that deploys a token and then transfers it to multiple addresses"
+}
+```
+
+**Response:**
+```json
+{
+  "workflow": {
+    "nodes": [
+      {
+        "id": "1",
+        "type": "agent",
+        "data": { "label": "Start" }
+      },
+      {
+        "id": "2",
+        "type": "tool",
+        "data": { 
+          "tool": "deploy_erc20",
+          "label": "Deploy Token"
+        }
+      },
+      {
+        "id": "3",
+        "type": "tool",
+        "data": { 
+          "tool": "transfer",
+          "label": "Transfer Tokens"
+        }
+      }
+    ],
+    "edges": [
+      { "source": "1", "target": "2" },
+      { "source": "2", "target": "3" }
+    ]
+  }
+}
+```
+
+### Token Deployment Endpoint
+
+**POST** `/token/deploy`
+
+Deploy a new ERC-20 token using Stylus.
+
+**Request:**
+```json
+{
+  "name": "MyToken",
+  "symbol": "MTK",
+  "decimals": 18,
+  "initialSupply": "1000000",
+  "privateKey": "0x..."
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "tokenAddress": "0x...",
+  "transactionHash": "0x...",
+  "explorerUrl": "https://sepolia.arbiscan.io/tx/0x...",
+  "tokenInfo": {
+    "name": "MyToken",
+    "symbol": "MTK",
+    "decimals": 18,
+    "totalSupply": "1000000000000000000000000"
+  }
+}
+```
+
+### NFT Collection Deployment Endpoint
+
+**POST** `/nft/deploy-collection`
+
+Deploy a new ERC-721 NFT collection using Stylus.
+
+**Request:**
+```json
+{
+  "name": "MyNFT Collection",
+  "symbol": "MNFT",
+  "baseUri": "ipfs://QmXxx/",
+  "privateKey": "0x..."
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "collectionAddress": "0x...",
+  "transactionHash": "0x...",
+  "explorerUrl": "https://sepolia.arbiscan.io/address/0x..."
+}
+```
 
 ---
 
-## Architecture Diagrams
+## Docker Support
 
-### Tool Execution Flow
+The project includes Docker Compose configuration for easy deployment.
 
-```mermaid
-graph LR
-    A[User Request] --> B{Agent Service}
-    B --> C[OpenAI Function Calling]
-    C --> D{Tool Selection}
-    D --> E[Backend API]
-    E --> F{Contract Type}
-    F --> G[Factory Contract]
-    F --> H[Direct Contract]
-    F --> I[External API]
-    G --> J[New Contract Deployed]
-    H --> K[Transaction Executed]
-    I --> L[Data Retrieved]
-    J --> M[Response to User]
-    K --> M
-    L --> M
+### Run All Services
+
+```bash
+docker-compose up -d
 ```
 
-### Contract Interaction Flow
+This will start:
+- Frontend (Next.js) on port 3000
+- Backend (Express) on port 3000
+- AI Agent Backend (FastAPI) on port 8000
+- Workflow Generator (FastAPI) on port 8001
 
-```mermaid
-graph TB
-    subgraph "User Actions"
-        U1[Deploy Token]
-        U2[Deploy NFT]
-        U3[Create DAO]
-        U4[Airdrop]
-        U5[Yield Deposit]
-    end
-    
-    subgraph "Factory Contracts"
-        F1[TokenFactory]
-        F2[NFTFactory]
-        F3[DAOFactory]
-    end
-    
-    subgraph "Deployed Contracts"
-        D1[MyToken]
-        D2[MyNFT]
-        D3[DAO]
-    end
-    
-    subgraph "Utility Contracts"
-        UU1[Airdrop]
-        UU2[YieldCalculator]
-    end
-    
-    U1 --> F1
-    F1 --> D1
-    U2 --> F2
-    F2 --> D2
-    U3 --> F3
-    F3 --> D3
-    U4 --> UU1
-    U5 --> UU2
+### Individual Services
+
+```bash
+# Frontend only
+docker-compose up frontend
+
+# Backend only
+docker-compose up backend
+
+# AI services
+docker-compose up ai-agent workflow-generator
 ```
+
+---
+
+## Project Structure
+
+```
+n8nrollup/
+├── frontend/                 # Next.js frontend application
+│   ├── app/                 # Next.js app directory
+│   │   ├── agent-builder/  # Visual workflow builder
+│   │   ├── my-agents/      # Agent management
+│   │   └── api/            # API routes
+│   ├── components/          # React components
+│   ├── lib/                # Utilities and helpers
+│   └── package.json
+│
+├── backend/                 # Express.js backend API
+│   ├── controllers/         # Request handlers
+│   ├── routes/             # API routes
+│   ├── config/             # Configuration files
+│   │   ├── abis.js        # Contract ABIs
+│   │   └── constants.js   # Network constants
+│   ├── utils/              # Utility functions
+│   └── package.json
+│
+├── AI_workflow_backend/     # FastAPI AI agent service
+│   ├── main.py             # Main FastAPI application
+│   └── requirements.txt
+│
+├── n8n_agent_backend/       # FastAPI workflow generator
+│   ├── main.py             # Main FastAPI application
+│   └── requirements.txt
+│
+├── contract/                # Smart contracts
+│   ├── token_factory/      # Stylus ERC-20 factory (Rust)
+│   ├── nft_factory/        # Stylus ERC-721 factory (Rust)
+│   └── payment-contracts/  # Payment escrow (Solidity)
+│
+├── docker-compose.yml       # Docker orchestration
+├── README.md               # This file
+└── WORKFLOW_DIAGRAM.md     # Detailed workflow diagrams
+```
+
+---
+
+## Key Features
+
+### 🤖 AI-Powered Workflow Generation
+- Describe your blockchain workflow in natural language
+- Gemini 2.0 Flash automatically generates the complete workflow
+- Intelligent tool selection and parameter configuration
+
+### 🎨 Visual Workflow Builder
+- Drag-and-drop interface powered by React Flow
+- Connect blockchain tools visually
+- Real-time workflow validation
+- Save and load workflows
+
+### 🔗 Blockchain Integration
+- Native support for Arbitrum Sepolia
+- Gas-optimized Stylus smart contracts (Rust → WASM)
+- ERC-20 and ERC-721 token deployment
+- Transaction signing and broadcasting
+
+### 💰 Payment System
+- x402 protocol integration
+- USDC escrow for premium features
+- Automatic refunds on transaction failure
+- Pay-per-use pricing model
+
+### 🔐 Security
+- Privy authentication (Web3 + Web2)
+- Encrypted private key storage in Supabase
+- Backend authorization for payment execution
+- Transaction verification before payment release
+
+### 📊 Agent Management
+- Create multiple agents with different workflows
+- API key generation for programmatic access
+- Chat interface for natural language interaction
+- Transaction history and analytics
+
+---
+
+## Contributing
+
+We welcome contributions! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ---
 
 ## License
 
-MIT License
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ---
 
-**Built for the BlockOps Testnet** 🌙
+## Support
+
+For support, please:
+- Open an issue on GitHub
+- Contact the development team
+- Check the documentation in `WORKFLOW_DIAGRAM.md`
+
+---
+
+## Acknowledgments
+
+- **Arbitrum** for Stylus technology
+- **Google** for Gemini AI
+- **Privy** for authentication infrastructure
+- **Supabase** for database and backend services
+- **Vercel** for hosting and deployment
+
+---
+
+**Built with ❤️ on Arbitrum Sepolia**
