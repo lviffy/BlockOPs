@@ -1,6 +1,6 @@
 # Backend Integration Architecture
 
-## System Architecture Diagram
+## System Architecture Diagram.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
