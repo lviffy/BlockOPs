@@ -1,10 +1,12 @@
 const { ethers } = require('ethers');
 const axios = require('axios');
+const Groq = require('groq-sdk');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { 
   ETHERSCAN_V2_BASE_URL, 
   ARBITRUM_SEPOLIA_CHAIN_ID, 
   ETHERSCAN_API_KEY,
+  GROQ_API_KEY,
   GEMINI_API_KEY,
   OPENAI_API_KEY 
 } = require('../config/constants');
@@ -16,6 +18,13 @@ const {
   getTxExplorerUrl,
   logTransaction 
 } = require('../utils/helpers');
+
+// Initialize AI clients
+let groqClient = null;
+if (GROQ_API_KEY) {
+  groqClient = new Groq({ apiKey: GROQ_API_KEY });
+  console.log('✓ Groq client initialized for NL Executor (Primary)');
+}
 
 /**
  * Fetch Contract ABI from Etherscan V2 API
@@ -129,15 +138,41 @@ Respond ONLY with the JSON object, no other text.`;
   try {
     let aiResponse;
 
-    // Try Gemini first, fallback to OpenAI
-    if (GEMINI_API_KEY) {
-      const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-      
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      aiResponse = response.text();
-    } else if (OPENAI_API_KEY) {
+    // Try Groq first (Primary)
+    if (groqClient) {
+      try {
+        const completion = await groqClient.chat.completions.create({
+          model: 'llama-3.3-70b-versatile',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.3,
+          max_tokens: 1000,
+          response_format: { type: 'json_object' }
+        });
+        
+        aiResponse = completion.choices[0].message.content;
+        console.log('AI response from Groq (Primary)');
+      } catch (groqError) {
+        console.error('Groq failed, trying fallbacks:', groqError.message);
+      }
+    }
+    
+    // Fallback to Gemini
+    if (!aiResponse && GEMINI_API_KEY) {
+      try {
+        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        aiResponse = response.text();
+        console.log('AI response from Gemini (Fallback)');
+      } catch (geminiError) {
+        console.error('Gemini failed:', geminiError.message);
+      }
+    }
+    
+    // Final fallback to OpenAI
+    if (!aiResponse && OPENAI_API_KEY) {
       const OpenAI = require('openai');
       const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
       
@@ -148,8 +183,11 @@ Respond ONLY with the JSON object, no other text.`;
       });
       
       aiResponse = completion.choices[0].message.content;
-    } else {
-      throw new Error('No AI API key configured. Please set GEMINI_API_KEY or OPENAI_API_KEY in environment variables.');
+      console.log('AI response from OpenAI (Fallback)');
+    }
+    
+    if (!aiResponse) {
+      throw new Error('No AI API key configured. Please set GROQ_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY in environment variables.');
     }
 
     // Parse AI response

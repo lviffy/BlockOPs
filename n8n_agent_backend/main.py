@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Optional
 import os
 from dotenv import load_dotenv
 import google.generativeai as genai
+from groq import Groq
 import json
 import requests
 import uvicorn
@@ -22,12 +23,22 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
-# Configure Google Gemini
+# Configure API Keys
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if not GEMINI_API_KEY:
-    raise ValueError("GEMINI_API_KEY not found in environment variables")
 
-genai.configure(api_key=GEMINI_API_KEY)
+# Initialize clients
+groq_client = None
+if GROQ_API_KEY:
+    groq_client = Groq(api_key=GROQ_API_KEY)
+    print("✓ Groq client initialized (Primary)")
+
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    print("✓ Gemini configured (Fallback)")
+
+if not GROQ_API_KEY and not GEMINI_API_KEY:
+    raise ValueError("At least one of GROQ_API_KEY or GEMINI_API_KEY must be set")
 
 # Backend URL - configurable via environment or defaults to localhost
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:3000")
@@ -358,144 +369,233 @@ def process_agent_conversation(
     private_key: Optional[str] = None,
     max_iterations: int = 10
 ) -> Dict[str, Any]:
-    """Process the conversation with the AI agent using Google Gemini"""
+    """
+    Process the conversation with the AI agent
+    Primary: Groq (llama-3.3-70b-versatile) with tool use
+    Fallback: Google Gemini
+    """
     
     # Add private key context if available
     if private_key:
         system_prompt += f"\n\nCONTEXT: User's private key is available: {private_key}"
     
-    # Build function declarations for Gemini
-    function_declarations = convert_to_gemini_tools(available_tools)
-
-    # Initialize Gemini model
-    # Prioritize Gemini 2.0 Flash (Stable) -> 1.5 Flash (Specific Versions) -> 1.5 Pro
-    model_names = [
-        'gemini-2.0-flash',          # Current stable fast model
-        'gemini-1.5-flash-002',      # Specific version of 1.5 Flash
-        'gemini-1.5-flash-001',      # Older version of 1.5 Flash
-        'gemini-1.5-flash'           # Generic alias (sometimes deprecated)
-    ]
-    model = None
-    last_error = None
-
-    # Configure tools structure
-    tools_configuration = [{"function_declarations": function_declarations}] if function_declarations else None
-
-    for name in model_names:
-        try:
-            print(f"Attempting to initialize model: {name}")
-            model = genai.GenerativeModel(
-                model_name=name,
-                tools=tools_configuration,
-                generation_config={
-                    "temperature": 0.7,
-                    "top_p": 0.8,
-                    "top_k": 40,
-                }
-            )
-            # Test if model works by starting chat (lazy init might not fail until use)
-            chat = model.start_chat(history=[])
-            print(f"Successfully initialized model: {name}")
-            break
-        except Exception as e:
-            print(f"Failed to initialize {name}: {str(e)}")
-            last_error = e
-            continue
-    
-    if not model:
-        # Fallback to Pro if Flash fails completely
-        try:
-            print("All Flash models failed. Falling back to Gemini 1.5 Pro...")
-            model = genai.GenerativeModel(
-                model_name='gemini-1.5-pro',
-                tools=tools_configuration,
-                generation_config={
-                    "temperature": 0.7,
-                    "top_p": 0.8,
-                    "top_k": 40,
-                }
-            )
-            chat = model.start_chat(history=[])
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to initialize any Gemini model. Last error: {str(last_error)}")
-
     all_tool_calls = []
     all_tool_results = []
     iteration = 0
     
-    # Initial message
-    full_prompt = f"{system_prompt}\n\nUser: {user_message}"
+    # Build OpenAI-compatible tools for Groq
+    openai_tools = get_openai_tools(available_tools)
     
-    while iteration < max_iterations:
-        iteration += 1
-        
+    # Try Groq first (Primary)
+    if groq_client:
         try:
-            # Send message to Gemini
-            response = chat.send_message(full_prompt)
-        except Exception as e:
-            # Handle potential API errors gracefully
-            if "429" in str(e):
-                return {
-                    "agent_response": "I'm currently experiencing high traffic (Rate Limit Exceeded). Please try again in a few moments.",
-                    "tool_calls": all_tool_calls,
-                    "results": all_tool_results,
-                    "conversation_history": []
-                }
-            raise e
-        
-        # Check if there are function calls
-        function_calls = []
-        if response.candidates and response.candidates[0].content.parts:
-            for part in response.candidates[0].content.parts:
-                if hasattr(part, 'function_call') and part.function_call:
-                    function_calls.append(part.function_call)
-        
-        # If no function calls, return final response
-        if not function_calls:
+            print("Attempting Groq API (Primary)...")
+            
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ]
+            
+            while iteration < max_iterations:
+                iteration += 1
+                
+                groq_response = groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=messages,
+                    tools=openai_tools if openai_tools else None,
+                    tool_choice="auto" if openai_tools else None,
+                    temperature=0.7,
+                    max_tokens=4096
+                )
+                
+                response_message = groq_response.choices[0].message
+                
+                # Check if there are tool calls
+                if response_message.tool_calls:
+                    messages.append(response_message)
+                    
+                    for tool_call in response_message.tool_calls:
+                        function_name = tool_call.function.name
+                        function_args = json.loads(tool_call.function.arguments)
+                        
+                        # Add private key if needed and available
+                        if private_key and function_name in TOOL_DEFINITIONS:
+                            tool_params = TOOL_DEFINITIONS[function_name]["parameters"]["properties"]
+                            if "privateKey" in tool_params and "privateKey" not in function_args:
+                                function_args["privateKey"] = private_key
+                        
+                        all_tool_calls.append({
+                            "tool": function_name,
+                            "parameters": function_args
+                        })
+                        
+                        # Execute the tool
+                        result = execute_tool(function_name, function_args)
+                        all_tool_results.append(result)
+                        
+                        # Add tool result to messages
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": json.dumps(result)
+                        })
+                        
+                        # Check if we need to continue with sequential tools
+                        if function_name in tool_flow:
+                            next_tool = tool_flow[function_name]
+                            messages.append({
+                                "role": "user",
+                                "content": f"Now immediately call the {next_tool} tool as it is next in the sequential flow."
+                            })
+                else:
+                    # No tool calls, return final response
+                    return {
+                        "agent_response": response_message.content,
+                        "tool_calls": all_tool_calls,
+                        "results": all_tool_results,
+                        "conversation_history": [],
+                        "provider": "Groq (llama-3.3-70b-versatile)"
+                    }
+            
+            # Max iterations reached with Groq
             return {
-                "agent_response": response.text,
+                "agent_response": "Maximum iterations reached. Please try again with a simpler request.",
                 "tool_calls": all_tool_calls,
                 "results": all_tool_results,
-                "conversation_history": []
+                "conversation_history": [],
+                "provider": "Groq (llama-3.3-70b-versatile)"
             }
-        
-        # Process function calls
-        for function_call in function_calls:
-            function_name = function_call.name
-            function_args = dict(function_call.args)
             
-            # Add private key if needed and available
-            if private_key and function_name in TOOL_DEFINITIONS:
-                tool_params = TOOL_DEFINITIONS[function_name]["parameters"]["properties"]
-                if "privateKey" in tool_params and "privateKey" not in function_args:
-                    function_args["privateKey"] = private_key
-            
-            all_tool_calls.append({
-                "tool": function_name,
-                "parameters": function_args
-            })
-            
-            # Execute the tool
-            result = execute_tool(function_name, function_args)
-            all_tool_results.append(result)
-            
-            # Send function response back to Gemini
-            full_prompt = f"Function {function_name} returned: {json.dumps(result)}"
-        
-        # Check if we need to continue with sequential tools
-        if all_tool_calls:
-            last_tool_executed = all_tool_calls[-1]["tool"]
-            if last_tool_executed in tool_flow:
-                next_tool = tool_flow[last_tool_executed]
-                full_prompt += f"\n\nIMPORTANT: You must now immediately call the {next_tool} tool as it is next in the sequential flow."
+        except Exception as groq_error:
+            print(f"Groq API failed: {str(groq_error)}, falling back to Gemini...")
+            # Reset for Gemini fallback
+            all_tool_calls = []
+            all_tool_results = []
+            iteration = 0
     
-    # Max iterations reached
-    return {
-        "agent_response": "Maximum iterations reached. Please try again with a simpler request.",
-        "tool_calls": all_tool_calls,
-        "results": all_tool_results,
-        "conversation_history": []
-    }
+    # Fallback to Gemini
+    if GEMINI_API_KEY:
+        print("Attempting Gemini API (Fallback)...")
+        
+        # Build function declarations for Gemini
+        function_declarations = convert_to_gemini_tools(available_tools)
+
+        # Initialize Gemini model with fallback chain
+        model_names = [
+            'gemini-2.0-flash',
+            'gemini-1.5-flash-002',
+            'gemini-1.5-flash-001',
+            'gemini-1.5-flash'
+        ]
+        model = None
+        chat = None
+        last_error = None
+
+        tools_configuration = [{"function_declarations": function_declarations}] if function_declarations else None
+
+        for name in model_names:
+            try:
+                print(f"Attempting to initialize Gemini model: {name}")
+                model = genai.GenerativeModel(
+                    model_name=name,
+                    tools=tools_configuration,
+                    generation_config={
+                        "temperature": 0.7,
+                        "top_p": 0.8,
+                        "top_k": 40,
+                    }
+                )
+                chat = model.start_chat(history=[])
+                print(f"Successfully initialized Gemini model: {name}")
+                break
+            except Exception as e:
+                print(f"Failed to initialize {name}: {str(e)}")
+                last_error = e
+                continue
+        
+        if not model:
+            try:
+                print("All Flash models failed. Falling back to Gemini 1.5 Pro...")
+                model = genai.GenerativeModel(
+                    model_name='gemini-1.5-pro',
+                    tools=tools_configuration,
+                    generation_config={
+                        "temperature": 0.7,
+                        "top_p": 0.8,
+                        "top_k": 40,
+                    }
+                )
+                chat = model.start_chat(history=[])
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"All AI providers failed. Last error: {str(last_error)}")
+        
+        full_prompt = f"{system_prompt}\n\nUser: {user_message}"
+        
+        while iteration < max_iterations:
+            iteration += 1
+            
+            try:
+                response = chat.send_message(full_prompt)
+            except Exception as e:
+                if "429" in str(e):
+                    return {
+                        "agent_response": "Rate limit exceeded. Please try again in a few moments.",
+                        "tool_calls": all_tool_calls,
+                        "results": all_tool_results,
+                        "conversation_history": [],
+                        "provider": "Gemini (rate limited)"
+                    }
+                raise e
+            
+            function_calls = []
+            if response.candidates and response.candidates[0].content.parts:
+                for part in response.candidates[0].content.parts:
+                    if hasattr(part, 'function_call') and part.function_call:
+                        function_calls.append(part.function_call)
+            
+            if not function_calls:
+                return {
+                    "agent_response": response.text,
+                    "tool_calls": all_tool_calls,
+                    "results": all_tool_results,
+                    "conversation_history": [],
+                    "provider": "Gemini (fallback)"
+                }
+            
+            for function_call in function_calls:
+                function_name = function_call.name
+                function_args = dict(function_call.args)
+                
+                if private_key and function_name in TOOL_DEFINITIONS:
+                    tool_params = TOOL_DEFINITIONS[function_name]["parameters"]["properties"]
+                    if "privateKey" in tool_params and "privateKey" not in function_args:
+                        function_args["privateKey"] = private_key
+                
+                all_tool_calls.append({
+                    "tool": function_name,
+                    "parameters": function_args
+                })
+                
+                result = execute_tool(function_name, function_args)
+                all_tool_results.append(result)
+                
+                full_prompt = f"Function {function_name} returned: {json.dumps(result)}"
+            
+            if all_tool_calls:
+                last_tool_executed = all_tool_calls[-1]["tool"]
+                if last_tool_executed in tool_flow:
+                    next_tool = tool_flow[last_tool_executed]
+                    full_prompt += f"\n\nIMPORTANT: You must now immediately call the {next_tool} tool as it is next in the sequential flow."
+        
+        return {
+            "agent_response": "Maximum iterations reached. Please try again with a simpler request.",
+            "tool_calls": all_tool_calls,
+            "results": all_tool_results,
+            "conversation_history": [],
+            "provider": "Gemini (fallback)"
+        }
+    
+    raise HTTPException(status_code=500, detail="No AI provider available")
 
 # API Endpoints
 @app.post("/agent/chat", response_model=AgentResponse)
@@ -551,7 +651,10 @@ async def health_check():
         "status": "healthy",
         "service": "AI Agent Builder",
         "blockchain": "Arbitrum Sepolia",
-        "ai_model": "Auto-detect (Prioritizing Gemini 2.0 Flash)",
+        "ai_providers": {
+            "primary": "Groq (llama-3.3-70b-versatile)" if GROQ_API_KEY else "Not configured",
+            "fallback": "Google Gemini 2.0 Flash" if GEMINI_API_KEY else "Not configured"
+        },
         "backend_url": BACKEND_URL
     }
 
