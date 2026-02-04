@@ -113,30 +113,30 @@ export default function FeaturesExpandableCards() {
           </div>
         ) : null}
       </AnimatePresence>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
         {cards.map((card) => (
           <motion.div
             layoutId={`card-${card.title}-${id}`}
             key={`card-${card.title}-${id}`}
             onClick={() => setActive(card)}
-            className="group relative bg-white p-10 rounded-xl border border-slate-200 cursor-pointer"
+            className="group relative bg-white p-6 sm:p-8 lg:p-10 rounded-xl border border-slate-200 cursor-pointer"
           >
             <div className="relative z-10">
               <motion.div
                 layoutId={`icon-${card.title}-${id}`}
-                className="w-16 h-16 bg-slate-900 rounded-lg flex items-center justify-center mb-8"
+                className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-slate-900 rounded-lg flex items-center justify-center mb-4 sm:mb-6 lg:mb-8"
               >
                 {card.icon}
               </motion.div>
               <motion.h3
                 layoutId={`title-${card.title}-${id}`}
-                className="text-xl font-bold text-slate-900 mb-3"
+                className="text-lg sm:text-xl font-bold text-slate-900 mb-2 sm:mb-3"
               >
                 {card.title}
               </motion.h3>
               <motion.p
                 layoutId={`description-${card.description}-${id}`}
-                className="text-slate-600 text-base leading-relaxed"
+                className="text-slate-600 text-sm sm:text-base leading-relaxed"
               >
                 {card.description}
               </motion.p>

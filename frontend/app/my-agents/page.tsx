@@ -112,34 +112,37 @@ export default function MyAgents() {
 
   return (
     <main className="min-h-screen bg-linear-to-br from-background via-background to-muted/20">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 max-w-7xl">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 max-w-7xl">
         {/* Header */}
-        <div className="mb-8 lg:mb-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="mb-6 sm:mb-8 lg:mb-10 flex flex-col gap-4">
           <div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
               <span className="bg-linear-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">My Agents</span>
             </h1>
-            <p className="text-muted-foreground mt-2 text-sm sm:text-base">
+            <p className="text-muted-foreground mt-1 sm:mt-2 text-xs sm:text-sm md:text-base">
               Manage and interact with your BlockOps agents
             </p>
           </div>
-          <div className="flex gap-2 items-center flex-wrap">
-            <Button asChild size="lg" variant="outline" className="font-semibold border-2 hover:bg-accent/50 transition-all shadow-sm">
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline" className="font-semibold border-2 hover:bg-accent/50 transition-all shadow-sm text-xs sm:text-sm">
               <Link href="/orbit-builder">
-                <Layers className="h-5 w-5 mr-2" />
-                Orbit L3 Builder
+                <Layers className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Orbit L3 Builder</span>
+                <span className="sm:hidden">Orbit</span>
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="font-semibold border-2 hover:bg-accent/50 transition-all shadow-sm">
+            <Button asChild size="sm" variant="outline" className="font-semibold border-2 hover:bg-accent/50 transition-all shadow-sm text-xs sm:text-sm">
               <Link href="/contract-explorer">
-                <FileCode className="h-5 w-5 mr-2" />
-                Contract Explorer
+                <FileCode className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Contract Explorer</span>
+                <span className="sm:hidden">Explorer</span>
               </Link>
             </Button>
-            <Button asChild size="lg" className="bg-foreground text-background hover:bg-foreground/90 font-semibold shadow-lg hover:shadow-xl transition-all">
+            <Button asChild size="sm" className="bg-foreground text-background hover:bg-foreground/90 font-semibold shadow-lg hover:shadow-xl transition-all text-xs sm:text-sm">
               <Link href="/agent-builder">
-                <Plus className="h-5 w-5 mr-2" />
-                Create New Agent
+                <Plus className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Create New Agent</span>
+                <span className="sm:hidden">New</span>
               </Link>
             </Button>
             <AgentWalletModal open={walletModalOpen} onOpenChange={setWalletModalOpen} hideButton={isWalletLogin} />
@@ -239,12 +242,12 @@ export default function MyAgents() {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-16 lg:py-24 text-center">
-            <div className="bg-muted/50 p-8 rounded-full mb-6">
-              <Bot className="h-20 w-20 text-muted-foreground" />
+          <div className="flex flex-col items-center justify-center py-12 sm:py-16 lg:py-24 text-center px-4">
+            <div className="bg-muted/50 p-6 sm:p-8 rounded-full mb-4 sm:mb-6">
+              <Bot className="h-16 w-16 sm:h-20 sm:w-20 text-muted-foreground" />
             </div>
-            <h3 className="text-2xl font-bold mb-3">No agents yet</h3>
-            <p className="text-muted-foreground mb-8 max-w-md text-sm sm:text-base">
+            <h3 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-3">No agents yet</h3>
+            <p className="text-muted-foreground mb-6 sm:mb-8 max-w-md text-sm sm:text-base">
               Create your first BlockOps agent to get started with workflow automation
             </p>
             <Button asChild size="lg" className="shadow-lg font-semibold">

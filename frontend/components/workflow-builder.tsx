@@ -125,6 +125,7 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
   const [agentDescription, setAgentDescription] = useState("")
   const [loadingAgent, setLoadingAgent] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [showNodeLibrary, setShowNodeLibrary] = useState(false)
 
   // Wrapper for onNodesChange to prevent agent node deletion
   const handleNodesChange = useCallback(
@@ -401,8 +402,9 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
   }
 
   return (
-    <div className="flex h-screen">
-      <div className="w-64 border-r border-gray-200 flex flex-col bg-gray-50">
+    <div className="flex h-screen relative">
+      {/* Desktop Sidebar */}
+      <div className="hidden md:flex w-64 border-r border-gray-200 flex-col bg-gray-50">
         <div className="flex-1 p-4 overflow-y-auto">
           <NodeLibrary />
         </div>
@@ -412,6 +414,32 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
           <AIQuotaCompact />
         </div>
       </div>
+
+      {/* Mobile Node Library Overlay */}
+      {showNodeLibrary && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowNodeLibrary(false)} />
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="font-semibold text-lg">Node Library</h3>
+              <button
+                onClick={() => setShowNodeLibrary(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex-1 p-4 overflow-y-auto">
+              <NodeLibrary />
+            </div>
+            <div className="border-t border-gray-200 p-3">
+              <AIQuotaCompact />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 flex flex-col">
         <div className="flex-1" ref={reactFlowWrapper}>
@@ -436,33 +464,45 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
             >
               <Background />
               <Controls />
-              <MiniMap />
+              <MiniMap className="hidden sm:block" />
               <Panel position="top-left">
                 <div className="flex gap-2">
                   <Button
                     onClick={handleBackClick}
-                    size="lg"
+                    size="sm"
                     variant="outline"
                     className="font-medium"
                   >
-                    <ArrowLeft className="h-5 w-5 mr-2" />
-                    Back
+                    <ArrowLeft className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Back</span>
                   </Button>
                   <Button
                     onClick={() => setIsAIChatOpen(true)}
-                    size="lg"
+                    size="sm"
                     variant="default"
-                    className="bg-foreground text-background hover:bg-foreground/90 shadow-lg font-semibold"
+                    className="bg-foreground text-background hover:bg-foreground/90 shadow-lg font-semibold text-xs sm:text-sm"
                   >
-                    Create with AI
+                    <span className="hidden sm:inline">Create with AI</span>
+                    <span className="sm:hidden">AI</span>
+                  </Button>
+                  {/* Mobile Node Library Toggle */}
+                  <Button
+                    onClick={() => setShowNodeLibrary(true)}
+                    size="sm"
+                    variant="outline"
+                    className="md:hidden font-medium"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
                   </Button>
                 </div>
               </Panel>
               <Panel position="top-right">
                 <div className="flex gap-2 items-center">
-                  <Button onClick={handleSaveClick} size="lg" variant="outline" disabled={loadingAgent}>
-                    <Save className="h-5 w-5 mr-2" />
-                    {agentId ? "Update Agent" : "Save Agent"}
+                  <Button onClick={handleSaveClick} size="sm" variant="outline" disabled={loadingAgent} className="text-xs sm:text-sm">
+                    <Save className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">{agentId ? "Update Agent" : "Save Agent"}</span>
                   </Button>
                   <UserProfile onLogout={() => {
                     logout()
@@ -476,13 +516,27 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
       </div>
 
       {selectedNode && selectedNode.id !== AGENT_NODE_ID && (
-        <div className="w-80 border-l border-gray-200 p-4 bg-gray-50">
-          <NodeConfigPanel
-            node={selectedNode as WorkflowNode}
-            updateNodeData={updateNodeData}
-            onClose={() => setSelectedNode(null)}
-          />
-        </div>
+        <>
+          {/* Mobile: Overlay */}
+          <div className="md:hidden fixed inset-0 z-50">
+            <div className="absolute inset-0 bg-black/50" onClick={() => setSelectedNode(null)} />
+            <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-xl max-h-[80vh] overflow-y-auto">
+              <NodeConfigPanel
+                node={selectedNode as WorkflowNode}
+                updateNodeData={updateNodeData}
+                onClose={() => setSelectedNode(null)}
+              />
+            </div>
+          </div>
+          {/* Desktop: Sidebar */}
+          <div className="hidden md:block w-80 border-l border-gray-200 p-4 bg-gray-50">
+            <NodeConfigPanel
+              node={selectedNode as WorkflowNode}
+              updateNodeData={updateNodeData}
+              onClose={() => setSelectedNode(null)}
+            />
+          </div>
+        </>
       )}
 
       <AIChatModal

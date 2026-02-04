@@ -33,6 +33,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
         <link rel="icon" href="/logo.jpeg" type="image/jpeg" />
       </head>
       <body

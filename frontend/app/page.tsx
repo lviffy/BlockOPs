@@ -79,6 +79,7 @@ export default function Home() {
   const { ready, authenticated, login, loading, logout, user, showPrivateKeySetup, setShowPrivateKeySetup, syncUser } = useAuth()
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [loadingLink, setLoadingLink] = useState<string | null>(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const handleGetStarted = async () => {
     console.log('Get Started clicked!')
@@ -127,13 +128,13 @@ export default function Home() {
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="sticky top-4 z-50 px-6"
+        className="sticky top-2 sm:top-4 z-50 px-3 sm:px-6"
       >
-        <div className="container mx-auto max-w-6xl bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200 shadow-lg shadow-slate-900/5">
-          <div className="px-6 py-4 flex items-center justify-between">
+        <div className="container mx-auto max-w-6xl bg-white/80 backdrop-blur-md rounded-xl sm:rounded-2xl border border-slate-200 shadow-lg shadow-slate-900/5">
+          <div className="px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-9 h-9 relative rounded-lg overflow-hidden transition-transform group-hover:scale-105">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 relative rounded-lg overflow-hidden transition-transform group-hover:scale-105">
                 <Image 
                   src="/logo.jpeg" 
                   alt="BlockOps Logo" 
@@ -141,10 +142,10 @@ export default function Home() {
                   className="object-cover"
                 />
               </div>
-              <span className="text-xl font-semibold text-slate-900">BlockOps</span>
+              <span className="text-lg sm:text-xl font-semibold text-slate-900">BlockOps</span>
             </Link>
 
-            {/* Nav Links */}
+            {/* Desktop Nav Links */}
             <div className="hidden md:flex items-center gap-8">
               <Link 
                 href="#features" 
@@ -170,33 +171,101 @@ export default function Home() {
               </Link>
             </div>
 
-            {/* Connect Wallet / Profile */}
-            {!authenticated ? (
-              <Button 
-                onClick={handleGetStarted}
-                variant="outline" 
-                size="sm"
-                disabled={isLoggingIn}
-                className="text-slate-900 border-slate-200 hover:bg-slate-50 font-medium"
+            {/* Mobile & Desktop Right Side */}
+            <div className="flex items-center gap-2">
+              {/* Connect Wallet / Profile */}
+              {!authenticated ? (
+                <Button 
+                  onClick={handleGetStarted}
+                  variant="outline" 
+                  size="sm"
+                  disabled={isLoggingIn}
+                  className="text-slate-900 border-slate-200 hover:bg-slate-50 font-medium text-xs sm:text-sm px-3 sm:px-4"
+                >
+                  {isLoggingIn ? (
+                    <>
+                      <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                      <span className="hidden sm:inline">Connecting</span>
+                      <span className="sm:hidden">...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="hidden sm:inline">Connect Wallet</span>
+                      <span className="sm:hidden">Connect</span>
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <UserProfile onLogout={logout} />
+              )}
+              
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden p-2 text-slate-600 hover:text-slate-900 transition-colors"
+                aria-label="Toggle menu"
               >
-                {isLoggingIn ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Connecting
-                  </>
+                {mobileMenuOpen ? (
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 ) : (
-                  "Connect Wallet"
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
                 )}
-              </Button>
-            ) : (
-              <UserProfile onLogout={logout} />
-            )}
+              </button>
+            </div>
           </div>
+          
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="md:hidden border-t border-slate-200 px-3 py-4"
+            >
+              <div className="flex flex-col gap-3">
+                <Link 
+                  href="#features" 
+                  onClick={() => {
+                    setLoadingLink('#features')
+                    setMobileMenuOpen(false)
+                  }}
+                  className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors py-2"
+                >
+                  Features
+                </Link>
+                <Link 
+                  href="/api-docs" 
+                  prefetch 
+                  onClick={() => {
+                    setLoadingLink('/api-docs')
+                    setMobileMenuOpen(false)
+                  }}
+                  className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors py-2"
+                >
+                  API Docs
+                </Link>
+                <Link 
+                  href="/contract-explorer" 
+                  onClick={() => {
+                    setLoadingLink('/contract-explorer')
+                    setMobileMenuOpen(false)
+                  }}
+                  className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors py-2"
+                >
+                  Contract Explorer
+                </Link>
+              </div>
+            </motion.div>
+          )}
         </div>
       </motion.nav>
 
       {/* Hero Section */}
-      <main className="relative container mx-auto px-6 pt-24 pb-16 max-w-6xl">
+      <main className="relative container mx-auto px-4 sm:px-6 pt-12 sm:pt-20 lg:pt-24 pb-12 sm:pb-16 max-w-6xl">
         <motion.div 
           variants={containerVariants}
           initial="hidden"
@@ -204,32 +273,32 @@ export default function Home() {
           className="relative flex flex-col items-center text-center"
         >
           {/* Social Proof Badge */}
-          <motion.div variants={itemVariants} className="mb-10 inline-flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-4 py-2">
-            <Bot className="w-5 h-5 text-blue-600" />
-            <span className="text-sm text-slate-700">Build your army of agents</span>
-            <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+          <motion.div variants={itemVariants} className="mb-6 sm:mb-10 inline-flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-3 sm:px-4 py-1.5 sm:py-2">
+            <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+            <span className="text-xs sm:text-sm text-slate-700">Build your army of agents</span>
+            <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400" />
           </motion.div>
 
           {/* Main Heading */}
-          <motion.h1 variants={itemVariants} className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6 max-w-4xl mt-4">
+          <motion.h1 variants={itemVariants} className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-4 sm:mb-6 max-w-4xl mt-2 sm:mt-4 px-4">
             <span className="text-slate-900">Build AI agents that</span>
             <br />
             <span className="text-blue-500">automate blockchain</span>
           </motion.h1>
 
           {/* Subheading */}
-          <motion.p variants={itemVariants} className="text-lg text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed">
+          <motion.p variants={itemVariants} className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed px-4">
             At BlockOps, we believe automation should be simple, scalable, and accessible—creating a experience where ideas thrive and boundaries fade.
           </motion.p>
 
           {/* CTA Buttons */}
-          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center gap-4 mb-16">
+          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-12 sm:mb-16 w-full max-w-sm sm:max-w-none px-4">
             {authenticated ? (
               <>
                 <Button 
                   asChild
                   size="lg" 
-                  className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-8 rounded-lg"
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-6 sm:px-8 rounded-lg w-full sm:w-auto"
                 >
                   <Link href="/my-agents">
                     View My Agents
@@ -239,7 +308,7 @@ export default function Home() {
                   asChild
                   size="lg" 
                   variant="outline"
-                  className="border-slate-300 text-slate-700 hover:bg-slate-50 font-medium px-8 rounded-lg"
+                  className="border-slate-300 text-slate-700 hover:bg-slate-50 font-medium px-6 sm:px-8 rounded-lg w-full sm:w-auto"
                 >
                   <Link href="/agent-builder">
                     Create Agent
@@ -252,11 +321,11 @@ export default function Home() {
                   onClick={handleGetStarted}
                   size="lg" 
                   disabled={isLoggingIn}
-                  className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-8 rounded-lg"
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-6 sm:px-8 rounded-lg w-full sm:w-auto"
                 >
                   {isLoggingIn ? (
                     <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
                       Connecting...
                     </>
                   ) : (
@@ -268,7 +337,7 @@ export default function Home() {
           </motion.div>
 
           {/* Hero Image */}
-          <motion.div variants={itemVariants} className="w-full max-w-3xl mx-auto">
+          <motion.div variants={itemVariants} className="w-full max-w-3xl mx-auto px-4">
             <Image
               src="/hero-diagram.png"
               alt="BlockOps Platform"
@@ -291,15 +360,15 @@ export default function Home() {
           WebkitMask: 'radial-gradient(ellipse 80% 50% at 50% 50%, black, transparent)'
         }}></div>
         
-        <div className="container mx-auto px-6 max-w-6xl relative z-10 py-16">
+        <div className="container mx-auto px-4 sm:px-6 max-w-6xl relative z-10 py-12 sm:py-16">
           {/* Section Header */}
-          <div className="mb-16">
+          <div className="mb-12 sm:mb-16">
             <motion.p 
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
-              className="text-white/50 text-sm font-medium mb-4 tracking-wide"
+              className="text-white/50 text-xs sm:text-sm font-medium mb-3 sm:mb-4 tracking-wide"
             >
               Limitless Possibilities
             </motion.p>
@@ -308,7 +377,7 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 max-w-4xl"
+              className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 max-w-4xl"
             >
               Automate anything on-chain{" "}
               <span className="text-white/50">with powerful, composable blocks.</span>
@@ -316,7 +385,7 @@ export default function Home() {
           </div>
 
           {/* Use Cases Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {[
               { 
                 title: "DeFi Automation", 
@@ -361,12 +430,12 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
-                className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 flex flex-col h-full"
+                className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl sm:rounded-2xl p-6 sm:p-8 flex flex-col h-full"
               >
-                <div className="mb-6 p-3 bg-white/5 rounded-xl w-fit border border-white/10">
+                <div className="mb-4 sm:mb-6 p-2.5 sm:p-3 bg-white/5 rounded-lg sm:rounded-xl w-fit border border-white/10">
                   {item.icon}
                 </div>
-                <h3 className="text-xl font-bold text-white mb-3">{item.title}</h3>
+                <h3 className="text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">{item.title}</h3>
                 <p className="text-white/60 text-sm leading-relaxed">
                   {item.description}
                 </p>
@@ -377,19 +446,19 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="bg-slate-50 py-24">
+      <section className="bg-slate-50 py-16 sm:py-20 lg:py-24">
         <motion.div 
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
           variants={containerVariants}
-          className="container mx-auto px-6 max-w-6xl"
+          className="container mx-auto px-4 sm:px-6 max-w-6xl"
         >
-          <motion.div variants={itemVariants} className="text-center mb-20">
-            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
+          <motion.div variants={itemVariants} className="text-center mb-12 sm:mb-16 lg:mb-20">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-3 sm:mb-4">
               Everything you need
             </h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto px-4">
               Build, deploy, and manage AI agents for blockchain automation
             </p>
           </motion.div>
@@ -401,53 +470,53 @@ export default function Home() {
       </section>
 
       {/* How It Works Section */}
-      <section className="bg-white py-24">
+      <section className="bg-white py-16 sm:py-20 lg:py-24">
         <motion.div 
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
           variants={containerVariants}
-          className="container mx-auto px-6 max-w-6xl"
+          className="container mx-auto px-4 sm:px-6 max-w-6xl"
         >
-          <motion.div variants={itemVariants} className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
+          <motion.div variants={itemVariants} className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-3 sm:mb-4">
               How it works
             </h2>
-            <p className="text-lg text-slate-600">
+            <p className="text-base sm:text-lg text-slate-600">
               Get started in three simple steps
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-12">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-10 lg:gap-12">
             {/* Step 1 */}
             <motion.div variants={itemVariants} className="text-center">
-              <div className="w-14 h-14 bg-slate-900 text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-6">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-slate-900 text-white rounded-full flex items-center justify-center text-lg sm:text-xl font-bold mx-auto mb-4 sm:mb-6">
                 1
               </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-3">Create Your Agent</h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
+              <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-2 sm:mb-3">Create Your Agent</h3>
+              <p className="text-slate-600 text-sm leading-relaxed px-4">
                 Use our visual builder to create your first AI agent. Choose from templates or start from scratch.
               </p>
             </motion.div>
 
             {/* Step 2 */}
             <motion.div variants={itemVariants} className="text-center">
-              <div className="w-14 h-14 bg-slate-900 text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-6">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-slate-900 text-white rounded-full flex items-center justify-center text-lg sm:text-xl font-bold mx-auto mb-4 sm:mb-6">
                 2
               </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-3">Configure Workflows</h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
+              <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-2 sm:mb-3">Configure Workflows</h3>
+              <p className="text-slate-600 text-sm leading-relaxed px-4">
                 Set up your automation workflows by connecting nodes and configuring triggers.
               </p>
             </motion.div>
 
             {/* Step 3 */}
             <motion.div variants={itemVariants} className="text-center">
-              <div className="w-14 h-14 bg-slate-900 text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-6">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-slate-900 text-white rounded-full flex items-center justify-center text-lg sm:text-xl font-bold mx-auto mb-4 sm:mb-6">
                 3
               </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-3">Deploy & Automate</h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
+              <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-2 sm:mb-3">Deploy & Automate</h3>
+              <p className="text-slate-600 text-sm leading-relaxed px-4">
                 Deploy your agent to the blockchain and automate its performance in real-time.
               </p>
             </motion.div>
@@ -456,26 +525,26 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="bg-slate-50 py-24 border-t border-slate-200">
+      <section className="bg-slate-50 py-16 sm:py-20 lg:py-24 border-t border-slate-200">
         <motion.div 
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
           variants={containerVariants}
-          className="container mx-auto px-6 max-w-4xl text-center"
+          className="container mx-auto px-4 sm:px-6 max-w-4xl text-center"
         >
-          <motion.h2 variants={itemVariants} className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
+          <motion.h2 variants={itemVariants} className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-3 sm:mb-4">
             Ready to get started?
           </motion.h2>
-          <motion.p variants={itemVariants} className="text-lg text-slate-600 mb-10 max-w-2xl mx-auto">
+          <motion.p variants={itemVariants} className="text-base sm:text-lg text-slate-600 mb-8 sm:mb-10 max-w-2xl mx-auto px-4">
             Join thousands of users building the future of blockchain automation.
           </motion.p>
-          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 max-w-sm sm:max-w-none mx-auto px-4">
             {authenticated ? (
               <Button 
                 asChild
                 size="lg" 
-                className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-8 rounded-lg"
+                className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-6 sm:px-8 rounded-lg w-full sm:w-auto"
               >
                 <Link href="/agent-builder">
                   Start Building
@@ -487,11 +556,11 @@ export default function Home() {
                   onClick={handleGetStarted}
                   size="lg" 
                   disabled={isLoggingIn}
-                  className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-8 rounded-lg"
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-6 sm:px-8 rounded-lg w-full sm:w-auto"
                 >
                   {isLoggingIn ? (
                     <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
                       Connecting...
                     </>
                   ) : (
@@ -502,7 +571,7 @@ export default function Home() {
                   asChild
                   size="lg" 
                   variant="outline"
-                  className="border-slate-300 text-slate-700 hover:bg-white font-medium px-8 rounded-lg"
+                  className="border-slate-300 text-slate-700 hover:bg-white font-medium px-6 sm:px-8 rounded-lg w-full sm:w-auto"
                 >
                   <Link href="/api-docs">
                     View Documentation
@@ -515,19 +584,19 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-white py-16">
+      <footer className="bg-slate-900 text-white py-12 sm:py-16">
         <motion.div 
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
           variants={containerVariants}
-          className="container mx-auto px-6 max-w-6xl"
+          className="container mx-auto px-4 sm:px-6 max-w-6xl"
         >
-          <div className="grid md:grid-cols-4 gap-12 mb-12">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10 lg:gap-12 mb-10 sm:mb-12">
             {/* Company Info */}
-            <motion.div variants={itemVariants}>
+            <motion.div variants={itemVariants} className="col-span-2 sm:col-span-1">
               <Link href="/" className="flex items-center gap-2 mb-4 group">
-                <div className="w-9 h-9 relative rounded-lg overflow-hidden transition-transform group-hover:scale-105">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 relative rounded-lg overflow-hidden transition-transform group-hover:scale-105">
                   <Image 
                     src="/logo.jpeg" 
                     alt="BlockOps Logo" 
@@ -535,7 +604,7 @@ export default function Home() {
                     className="object-cover"
                   />
                 </div>
-                <span className="text-lg font-semibold">BlockOps</span>
+                <span className="text-base sm:text-lg font-semibold">BlockOps</span>
               </Link>
               <p className="text-slate-400 text-sm leading-relaxed">
                 Building the future of blockchain automation.
@@ -544,8 +613,8 @@ export default function Home() {
 
             {/* Product */}
             <motion.div variants={itemVariants}>
-              <h4 className="font-semibold mb-4 text-sm">Product</h4>
-              <ul className="space-y-3">
+              <h4 className="font-semibold mb-3 sm:mb-4 text-sm">Product</h4>
+              <ul className="space-y-2 sm:space-y-3">
                 <li><Link href="/agent-builder" className="text-slate-400 hover:text-white transition-colors text-sm">Agent Builder</Link></li>
                 <li><Link href="/my-agents" className="text-slate-400 hover:text-white transition-colors text-sm">My Agents</Link></li>
                 <li><Link href="/orbit-builder" className="text-slate-400 hover:text-white transition-colors text-sm">Orbit L3 Builder</Link></li>
@@ -556,8 +625,8 @@ export default function Home() {
 
             {/* Resources */}
             <motion.div variants={itemVariants}>
-              <h4 className="font-semibold mb-4 text-sm">Resources</h4>
-              <ul className="space-y-3">
+              <h4 className="font-semibold mb-3 sm:mb-4 text-sm">Resources</h4>
+              <ul className="space-y-2 sm:space-y-3">
                 <li><Link href="/api-docs" className="text-slate-400 hover:text-white transition-colors text-sm">API Documentation</Link></li>
                 <li><a href="https://github.com" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors text-sm">GitHub</a></li>
               </ul>
@@ -565,19 +634,19 @@ export default function Home() {
 
             {/* Company */}
             <motion.div variants={itemVariants}>
-              <h4 className="font-semibold mb-4 text-sm">Company</h4>
-              <ul className="space-y-3">
+              <h4 className="font-semibold mb-3 sm:mb-4 text-sm">Company</h4>
+              <ul className="space-y-2 sm:space-y-3">
                 <li><a href="mailto:contact@blockops.com" className="text-slate-400 hover:text-white transition-colors text-sm">Contact</a></li>
               </ul>
             </motion.div>
           </div>
 
           {/* Bottom Bar */}
-          <motion.div variants={itemVariants} className="border-t border-slate-800 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <p className="text-slate-400 text-sm">
+          <motion.div variants={itemVariants} className="border-t border-slate-800 pt-6 sm:pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <p className="text-slate-400 text-xs sm:text-sm text-center sm:text-left">
               © 2025 BlockOps. All rights reserved.
             </p>
-            <div className="flex gap-6">
+            <div className="flex gap-5 sm:gap-6">
               <a href="#" className="text-slate-400 hover:text-white transition-colors">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z" />
