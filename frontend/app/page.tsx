@@ -105,7 +105,7 @@ export default function Home() {
   }
 
   return (
-    <div className="relative min-h-screen bg-white">
+    <div className="relative min-h-screen bg-white overflow-x-hidden">
       {/* Loading Overlay */}
       {loadingLink && (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-60 flex items-center justify-center">
@@ -117,10 +117,10 @@ export default function Home() {
       )}
 
       {/* Glowing Blue Orb - Half Visible at Top */}
-      <div className="absolute -top-[500px] left-1/2 -translate-x-1/2 w-[1000px] h-[1000px] pointer-events-none z-0">
+      <div className="absolute -top-[300px] sm:-top-[500px] left-1/2 -translate-x-1/2 w-[600px] sm:w-[800px] lg:w-[1000px] h-[600px] sm:h-[800px] lg:h-[1000px] pointer-events-none z-0">
         <div className="absolute inset-0 bg-blue-400 rounded-full blur-3xl opacity-20"></div>
-        <div className="absolute inset-8 bg-blue-400 rounded-full blur-2xl opacity-30"></div>
-        <div className="absolute inset-[490px] bg-blue-500 rounded-full blur-xl opacity-40"></div>
+        <div className="absolute inset-4 sm:inset-8 bg-blue-400 rounded-full blur-2xl opacity-30"></div>
+        <div className="absolute inset-[290px] sm:inset-[390px] lg:inset-[490px] bg-blue-500 rounded-full blur-xl opacity-40"></div>
       </div>
 
       {/* Navigation */}
@@ -292,7 +292,7 @@ export default function Home() {
           </motion.p>
 
           {/* CTA Buttons */}
-          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-12 sm:mb-16 w-full max-w-sm sm:max-w-none px-4">
+          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-12 sm:mb-16 w-full max-w-sm sm:max-w-none px-4">
             {authenticated ? (
               <>
                 <Button 

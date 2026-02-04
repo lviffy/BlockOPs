@@ -162,7 +162,18 @@
 }
 
 /* Prevent horizontal scroll on mobile */
+html {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 body {
   overflow-x: hidden;
   max-width: 100vw;
+}
+
+/* Ensure all elements respect viewport */
+img, video, canvas, svg {
+  max-width: 100%;
+  height: auto;
 }
