@@ -15,6 +15,7 @@ module.exports = {
   PORT: process.env.PORT || 3000,
   
   // API Keys
+  GROQ_API_KEY: process.env.GROQ_API_KEY || '',
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
   GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
   ETHERSCAN_API_KEY: process.env.ETHERSCAN_API_KEY || '',

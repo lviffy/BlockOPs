@@ -3,5 +3,6 @@ uvicorn
 pydantic
 python-dotenv
 google-generativeai
+groq
 requests
 httpx

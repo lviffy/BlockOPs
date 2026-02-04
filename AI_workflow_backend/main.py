@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 import google.generativeai as genai
+from groq import Groq
 import json
 import os
 import logging
@@ -26,12 +27,22 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
-# Configure Google Gemini
+# Configure API Keys
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if not GEMINI_API_KEY:
-    raise ValueError("GEMINI_API_KEY not found in environment variables")
 
-genai.configure(api_key=GEMINI_API_KEY)
+# Initialize clients
+groq_client = None
+if GROQ_API_KEY:
+    groq_client = Groq(api_key=GROQ_API_KEY)
+    logger.info("Groq client initialized (Primary)")
+
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    logger.info("Gemini configured (Fallback)")
+
+if not GROQ_API_KEY and not GEMINI_API_KEY:
+    raise ValueError("At least one of GROQ_API_KEY or GEMINI_API_KEY must be set")
 
 class WorkflowRequest(BaseModel):
     user_query: str
@@ -109,42 +120,78 @@ Return ONLY valid JSON matching this exact structure:
 @app.post("/create-workflow", response_model=WorkflowResponse)
 async def create_workflow(request: WorkflowRequest):
     """
-    Convert natural language workflow description to structured JSON using Google Gemini
+    Convert natural language workflow description to structured JSON
+    Primary: Groq (llama-3.3-70b-versatile)
+    Fallback: Google Gemini
     """
     try:
         logger.info(f"Processing workflow request: {request.user_query}")
         logger.info(f"Temperature: {request.temperature}, Max Tokens: {request.max_tokens}")
         
-        # Initialize Gemini model with JSON output
-        model = genai.GenerativeModel(
-            model_name='gemini-2.0-flash-exp',
-            generation_config={
-                "temperature": request.temperature,
-                "max_output_tokens": request.max_tokens,
-                "response_mime_type": "application/json"
-            }
-        )
-        
-        # Prepare the prompt
         full_prompt = f"{SYSTEM_PROMPT}\n\nUser Query: {request.user_query}\n\nGenerate the workflow JSON:"
+        raw_content = None
+        provider_used = None
         
-        # Generate response
-        response = model.generate_content(full_prompt)
-        raw_content = response.text
+        # Try Groq first (Primary)
+        if groq_client:
+            try:
+                logger.info("Attempting Groq API (Primary)...")
+                
+                groq_response = groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": f"User Query: {request.user_query}\n\nGenerate the workflow JSON:"}
+                    ],
+                    temperature=request.temperature,
+                    max_tokens=request.max_tokens,
+                    response_format={"type": "json_object"}
+                )
+                
+                raw_content = groq_response.choices[0].message.content
+                provider_used = "Groq (llama-3.3-70b-versatile)"
+                logger.info(f"Groq response received successfully")
+                
+            except Exception as groq_error:
+                logger.warning(f"Groq API failed: {str(groq_error)}, falling back to Gemini...")
         
-        logger.info(f"Raw Gemini Response: {raw_content}")
+        # Fallback to Gemini if Groq failed or not available
+        if raw_content is None and GEMINI_API_KEY:
+            try:
+                logger.info("Attempting Gemini API (Fallback)...")
+                
+                model = genai.GenerativeModel(
+                    model_name='gemini-2.0-flash-exp',
+                    generation_config={
+                        "temperature": request.temperature,
+                        "max_output_tokens": request.max_tokens,
+                        "response_mime_type": "application/json"
+                    }
+                )
+                
+                response = model.generate_content(full_prompt)
+                raw_content = response.text
+                provider_used = "Gemini (gemini-2.0-flash-exp)"
+                logger.info(f"Gemini response received successfully")
+                
+            except Exception as gemini_error:
+                logger.error(f"Gemini API also failed: {str(gemini_error)}")
+                raise HTTPException(status_code=500, detail=f"Both AI providers failed. Groq error: Primary not available, Gemini error: {str(gemini_error)}")
+        
+        if raw_content is None:
+            raise HTTPException(status_code=500, detail="No AI provider available")
+        
+        logger.info(f"Raw AI Response ({provider_used}): {raw_content}")
         
         # Parse the response
         workflow_data = json.loads(raw_content)
         workflow_data["raw_response"] = raw_content
         
         logger.info(f"Parsed workflow data: {json.dumps(workflow_data, indent=2)}")
+        logger.info(f"Provider used: {provider_used}")
         
         return WorkflowResponse(**workflow_data)
     
-    except genai.types.GenerationError as e:
-        logger.error(f"Gemini generation error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Gemini generation error: {str(e)}")
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON response: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Invalid JSON response: {str(e)}")
@@ -168,7 +215,10 @@ async def health_check():
         "status": "healthy",
         "service": "Agent Workflow Builder",
         "blockchain": "Arbitrum Sepolia",
-        "ai_model": "Google Gemini 2.0 Flash"
+        "ai_providers": {
+            "primary": "Groq (llama-3.3-70b-versatile)" if GROQ_API_KEY else "Not configured",
+            "fallback": "Google Gemini 2.0 Flash" if GEMINI_API_KEY else "Not configured"
+        }
     }
 
 # Example usage

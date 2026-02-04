@@ -1,11 +1,20 @@
 const axios = require('axios');
+const Groq = require('groq-sdk');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { GEMINI_API_KEY } = require('../config/constants');
+const { GROQ_API_KEY, GEMINI_API_KEY } = require('../config/constants');
 
-// Initialize Gemini client for natural language parsing
+// Initialize AI clients
+let groqClient = null;
 let geminiClient = null;
+
+if (GROQ_API_KEY) {
+  groqClient = new Groq({ apiKey: GROQ_API_KEY });
+  console.log('✓ Groq client initialized for price parsing (Primary)');
+}
+
 if (GEMINI_API_KEY) {
   geminiClient = new GoogleGenerativeAI(GEMINI_API_KEY);
+  console.log('✓ Gemini client initialized for price parsing (Fallback)');
 }
 
 // CoinGecko API base URL (free tier, no API key required)
@@ -66,7 +75,29 @@ const parseCryptoQuery = async (query) => {
     return foundCryptos;
   }
   
-  // If no direct match and Gemini is available, use it to parse
+  const aiPrompt = `Extract cryptocurrency names from this query: "${query}"\n\nReturn ONLY a comma-separated list of CoinGecko coin IDs (lowercase, no spaces). Examples: bitcoin, ethereum, solana\n\nIf you can't identify any cryptocurrencies, return "unknown".`;
+  
+  // Try Groq first (Primary)
+  if (groqClient) {
+    try {
+      const completion = await groqClient.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: aiPrompt }],
+        temperature: 0.1,
+        max_tokens: 100
+      });
+      
+      const text = completion.choices[0].message.content.trim().toLowerCase();
+      
+      if (text !== 'unknown' && text.length > 0) {
+        return text.split(',').map(s => s.trim()).filter(s => s.length > 0);
+      }
+    } catch (error) {
+      console.error('Groq parsing error, falling back to Gemini:', error.message);
+    }
+  }
+  
+  // Fallback to Gemini
   if (geminiClient) {
     try {
       const model = geminiClient.getGenerativeModel({
@@ -76,9 +107,7 @@ const parseCryptoQuery = async (query) => {
         },
       });
 
-      const result = await model.generateContent(
-        `Extract cryptocurrency names from this query: "${query}"\n\nReturn ONLY a comma-separated list of CoinGecko coin IDs (lowercase, no spaces). Examples: bitcoin, ethereum, solana\n\nIf you can't identify any cryptocurrencies, return "unknown".`
-      );
+      const result = await model.generateContent(aiPrompt);
 
       const response = await result.response;
       const text = response.text().trim().toLowerCase();
@@ -87,7 +116,7 @@ const parseCryptoQuery = async (query) => {
         return text.split(',').map(s => s.trim()).filter(s => s.length > 0);
       }
     } catch (error) {
-      console.error('Gemini parsing error:', error);
+      console.error('Gemini parsing error:', error.message);
     }
   }
   
