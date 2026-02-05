@@ -77,16 +77,62 @@ async function chat(req, res) {
       throw new Error('Failed to fetch conversation history');
     }
 
-    // Build context for AI (respects token limits)
-    const defaultSystemPrompt = systemPrompt || 
-      'You are a helpful AI assistant for blockchain operations. Provide clear, accurate, and concise responses. Use **bold** formatting sparingly and only for important terms or key points that need emphasis. Do not overuse formatting. IMPORTANT: You do not have access to real-time data, APIs, or tools. If asked about current prices, balances, or on-chain data, clearly state that you cannot fetch real-time data and the user should use the appropriate blockchain tools or APIs directly.';
+    // Check if the message requires tools (price fetching, balance checking, transfers, etc.)
+    const requiresTools = /\b(price|balance|transfer|deploy|fetch|check|get)\b/i.test(truncatedMessage);
     
-    const { context, tokenCount } = buildContext(messages, defaultSystemPrompt);
+    let aiResponse;
+    let toolResults = null;
 
-    console.log(`[Chat] Context built: ${context.length} messages, ~${tokenCount} tokens`);
+    if (requiresTools) {
+      // Use agent backend with tool calling capabilities
+      console.log('[Chat] Message requires tools, using agent backend');
+      
+      try {
+        const agentResponse = await fetch('http://localhost:8000/agent/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tools: [
+              { tool: 'fetch_token_price', next_tool: null }
+            ],
+            user_message: truncatedMessage,
+            private_key: null
+          })
+        });
 
-    // Call AI
-    const aiResponse = await chatWithAI(context);
+        if (!agentResponse.ok) {
+          const errorText = await agentResponse.text();
+          throw new Error(`Agent backend error: ${agentResponse.status} - ${errorText}`);
+        }
+
+        const agentData = await agentResponse.json();
+        aiResponse = agentData.agent_response;
+        toolResults = {
+          tool_calls: agentData.tool_calls || [],
+          results: agentData.results || []
+        };
+        
+        console.log('[Chat] Agent backend response received with', agentData.tool_calls?.length || 0, 'tool calls');
+      } catch (agentError) {
+        console.error('[Chat] Agent backend failed, falling back to simple chat:', agentError.message);
+        
+        // Fallback to simple chat
+        const defaultSystemPrompt = systemPrompt || 
+          'You are a helpful AI assistant for blockchain operations. Provide clear, accurate, and concise responses. Use **bold** formatting sparingly and only for important terms or key points that need emphasis.';
+        
+        const { context } = buildContext(messages, defaultSystemPrompt);
+        aiResponse = await chatWithAI(context);
+      }
+    } else {
+      // Simple conversational response (no tools needed)
+      console.log('[Chat] Simple conversation, using direct AI');
+      
+      const defaultSystemPrompt = systemPrompt || 
+        'You are a helpful AI assistant for blockchain operations. Provide clear, accurate, and concise responses. Use **bold** formatting sparingly and only for important terms or key points that need emphasis.';
+      
+      const { context, tokenCount } = buildContext(messages, defaultSystemPrompt);
+      aiResponse = await chatWithAI(context);
+    }
 
     // Save AI response
     const { error: aiMsgError } = await supabase
@@ -94,7 +140,8 @@ async function chat(req, res) {
       .insert({ 
         conversation_id: convId, 
         role: 'assistant', 
-        content: aiResponse 
+        content: aiResponse,
+        tool_calls: toolResults
       });
 
     if (aiMsgError) {
@@ -108,7 +155,8 @@ async function chat(req, res) {
       message: aiResponse,
       isNewConversation,
       messageCount: messages.length + 2, // +2 for the messages we just added
-      tokenCount
+      toolResults,
+      hasTools: !!toolResults
     });
 
   } catch (error) {
