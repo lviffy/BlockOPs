@@ -40,7 +40,6 @@ const getDefaultLabel = (type: string): string => {
     airdrop: "Airdrop",
     fetch_price: "Fetch Price",
     deposit_yield: "Deposit Yield",
-    wallet_analytics: "Wallet Analytics",
   }
   return labels[type] || "Tool"
 }
@@ -56,7 +55,6 @@ const getDefaultDescription = (type: string): string => {
     airdrop: "Airdrop tokens to addresses",
     fetch_price: "Fetch token price",
     deposit_yield: "Deposit to yield farming",
-    wallet_analytics: "Analyze wallet data",
   }
   return descriptions[type] || "Workflow tool"
 }

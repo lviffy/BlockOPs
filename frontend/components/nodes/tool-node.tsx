@@ -12,7 +12,6 @@ import {
   Gift,
   TrendingUp,
   PiggyBank,
-  BarChart3,
 } from "lucide-react"
 import type { NodeData } from "@/lib/types"
 
@@ -26,7 +25,6 @@ const toolIcons: Record<string, React.ReactNode> = {
   airdrop: <Gift className="h-4 w-4" />,
   fetch_price: <TrendingUp className="h-4 w-4" />,
   deposit_yield: <PiggyBank className="h-4 w-4" />,
-  wallet_analytics: <BarChart3 className="h-4 w-4" />,
 }
 
 const toolColors: Record<string, { border: string; bg: string; text: string }> = {
@@ -39,7 +37,6 @@ const toolColors: Record<string, { border: string; bg: string; text: string }> =
   airdrop: { border: "border-foreground/40", bg: "bg-foreground/5", text: "text-foreground" },
   fetch_price: { border: "border-foreground/50", bg: "bg-foreground/10", text: "text-foreground" },
   deposit_yield: { border: "border-foreground/60", bg: "bg-foreground/15", text: "text-foreground" },
-  wallet_analytics: { border: "border-foreground/40", bg: "bg-foreground/5", text: "text-foreground" },
 }
 
 export const ToolNode = memo(({ data, type, isConnectable }: NodeProps<NodeData>) => {

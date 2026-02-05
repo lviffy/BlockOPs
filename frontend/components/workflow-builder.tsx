@@ -68,7 +68,6 @@ const toolTypes = [
   "airdrop",
   "fetch_price",
   "deposit_yield",
-  "wallet_analytics",
 ]
 
 const nodeTypes: NodeTypes = {
@@ -82,7 +81,6 @@ const nodeTypes: NodeTypes = {
   airdrop: ToolNode,
   fetch_price: ToolNode,
   deposit_yield: ToolNode,
-  wallet_analytics: ToolNode,
 }
 
 const edgeTypes: EdgeTypes = {

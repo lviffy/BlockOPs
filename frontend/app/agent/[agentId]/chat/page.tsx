@@ -184,14 +184,14 @@ export default function AgentChatPage() {
       .join(" ")
   }
 
-  const renderToolResult = (result: any, tool: string) => {
+  const renderToolResult = (result: any, tool: string, idx: number) => {
     if (!result?.result) return null
 
     const res = result.result
     const isSuccess = result.success && res.success
 
     return (
-      <div key={`${tool}-${result.success}`} className={cn(
+      <div key={`${tool}-${idx}-${result.success}`} className={cn(
         "rounded-lg border bg-background/60 overflow-hidden",
         !isSuccess && "border-destructive/50"
       )}>
@@ -448,7 +448,7 @@ export default function AgentChatPage() {
                         <div className="space-y-2">
                           <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Results</h4>
                           {message.agentResponse.results.map((result, idx) =>
-                            renderToolResult(result, result.tool)
+                            renderToolResult(result, result.tool, idx)
                           )}
                         </div>
                       )}

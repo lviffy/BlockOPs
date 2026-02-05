@@ -642,6 +642,9 @@ async def chat_with_agent(request: AgentRequest):
         )
     
     except Exception as e:
+        import traceback
+        error_detail = f"{str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+        print(f"ERROR in /agent/chat: {error_detail}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health")

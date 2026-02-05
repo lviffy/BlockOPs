@@ -12,7 +12,6 @@ const toolTypeMap: Record<string, string> = {
   airdrop: 'airdrop',
   fetch_token_price: 'fetch_price',
   deposit_with_yield_prediction: 'deposit_yield',
-  wallet_analytics: 'wallet_analytics',
 }
 
 interface AITool {
@@ -56,7 +55,6 @@ export function aiResponseToWorkflow(aiResponse: AIResponse): { nodes: Node[]; e
       'airdrop',
       'fetch_price',
       'deposit_yield',
-      'wallet_analytics',
     ]
     
     if (!validToolTypes.includes(ourToolType)) {

@@ -7,7 +7,6 @@ import {
   Coins,
   Image as ImageIcon,
   TrendingUp,
-  BarChart3,
 } from "lucide-react"
 
 const toolTypes = [
@@ -40,12 +39,6 @@ const toolTypes = [
     label: "Fetch Price",
     description: "Fetch token price",
     icon: TrendingUp,
-  },
-  {
-    type: "wallet_analytics",
-    label: "Wallet Analytics",
-    description: "Analyze wallet data",
-    icon: BarChart3,
   },
 ]
 
