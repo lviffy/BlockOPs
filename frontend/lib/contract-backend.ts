@@ -103,7 +103,9 @@ export async function discoverContract(
     const errorData = await response.json().catch(() => ({ 
       error: 'Failed to discover contract' 
     }))
-    throw new Error(errorData.error || `Request failed with status ${response.status}`)
+    // Use details field if available (contains more specific error message)
+    const errorMessage = errorData.details || errorData.error || errorData.message || `Request failed with status ${response.status}`
+    throw new Error(errorMessage)
   }
 
   return response.json()
@@ -141,7 +143,9 @@ export async function executeNaturalLanguageCommand(
     const errorData = await response.json().catch(() => ({ 
       error: 'Failed to execute command' 
     }))
-    throw new Error(errorData.error || `Request failed with status ${response.status}`)
+    // Use details field if available (contains more specific error message)
+    const errorMessage = errorData.details || errorData.error || errorData.message || `Request failed with status ${response.status}`
+    throw new Error(errorMessage)
   }
 
   return response.json()
@@ -178,7 +182,9 @@ export async function quickExecuteCommand(
     const errorData = await response.json().catch(() => ({ 
       error: 'Failed to execute command' 
     }))
-    throw new Error(errorData.error || `Request failed with status ${response.status}`)
+    // Use details field if available (contains more specific error message)
+    const errorMessage = errorData.details || errorData.error || errorData.message || `Request failed with status ${response.status}`
+    throw new Error(errorMessage)
   }
 
   return response.json()
