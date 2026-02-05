@@ -647,6 +647,202 @@ async def chat_with_agent(request: AgentRequest):
         print(f"ERROR in /agent/chat: {error_detail}")
         raise HTTPException(status_code=500, detail=str(e))
 
+class WorkflowRequest(BaseModel):
+    prompt: str
+
+class AITool(BaseModel):
+    id: str
+    type: str
+    name: str
+    next_tools: List[str]
+
+class WorkflowResponse(BaseModel):
+    agent_id: str
+    tools: List[AITool]
+    has_sequential_execution: bool
+    description: str
+    raw_response: Optional[str] = None
+
+@app.post("/create-workflow", response_model=WorkflowResponse)
+async def create_workflow(request: WorkflowRequest):
+    """
+    Generate a workflow configuration from a natural language query.
+    This endpoint analyzes the user's request and returns a structured workflow with tools.
+    """
+    
+    try:
+        # System prompt for workflow generation
+        workflow_system_prompt = """You are an AI workflow designer for Arbitrum Sepolia blockchain operations.
+Your task is to analyze the user's request and create a structured workflow with the appropriate blockchain tools.
+
+AVAILABLE TOOLS:
+- transfer: Transfer tokens (ETH or ERC20) from one address to another
+- get_balance: Get the ETH balance of a wallet address
+- deploy_erc20: Deploy a new ERC-20 token contract
+- deploy_erc721: Deploy a new ERC-721 NFT collection
+- deploy_orbit: Deploy an Arbitrum Orbit L3 chain
+- mint_nft: Mint an NFT from a deployed ERC-721 collection
+- get_price: Get the current price of a token
+- airdrop: Send tokens to multiple addresses
+
+RESPONSE FORMAT:
+You must respond with a valid JSON object containing:
+{
+  "tools": [
+    {
+      "type": "tool_name",
+      "name": "Descriptive Name",
+      "next_tools": ["next_tool_type"] or []
+    }
+  ],
+  "description": "Brief description of what this workflow does",
+  "has_sequential_execution": true/false
+}
+
+RULES:
+1. Identify which tool(s) are needed based on the user's request
+2. If multiple operations need to happen in sequence, set has_sequential_execution to true
+3. Use next_tools array to link sequential operations
+4. Keep the description clear and concise
+5. Only include tools that are needed for the request
+6. Return ONLY the JSON object, no additional text
+
+EXAMPLES:
+
+User: "Deploy a new token called MYTOKEN with 1000000 supply"
+Response:
+{
+  "tools": [{"type": "deploy_erc20", "name": "Deploy MYTOKEN", "next_tools": []}],
+  "description": "Deploy ERC-20 token MYTOKEN with 1,000,000 initial supply",
+  "has_sequential_execution": false
+}
+
+User: "Deploy an NFT collection and mint the first NFT"
+Response:
+{
+  "tools": [
+    {"type": "deploy_erc721", "name": "Deploy NFT Collection", "next_tools": ["mint_nft"]},
+    {"type": "mint_nft", "name": "Mint First NFT", "next_tools": []}
+  ],
+  "description": "Deploy an ERC-721 NFT collection and mint the first NFT",
+  "has_sequential_execution": true
+}
+
+User: "Check my wallet balance"
+Response:
+{
+  "tools": [{"type": "get_balance", "name": "Check Balance", "next_tools": []}],
+  "description": "Check the ETH balance of your wallet",
+  "has_sequential_execution": false
+}
+"""
+
+        # Use Groq for workflow generation
+        if groq_client:
+            try:
+                completion = groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[
+                        {"role": "system", "content": workflow_system_prompt},
+                        {"role": "user", "content": request.prompt}
+                    ],
+                    temperature=0.5,
+                    max_tokens=2048,
+                )
+                
+                response_text = completion.choices[0].message.content.strip()
+                
+                # Parse the JSON response
+                # Remove markdown code blocks if present
+                if response_text.startswith("```json"):
+                    response_text = response_text[7:]
+                if response_text.startswith("```"):
+                    response_text = response_text[3:]
+                if response_text.endswith("```"):
+                    response_text = response_text[:-3]
+                
+                response_text = response_text.strip()
+                workflow_data = json.loads(response_text)
+                
+                # Generate tool IDs and structure
+                tools = []
+                for idx, tool in enumerate(workflow_data.get("tools", [])):
+                    tools.append(AITool(
+                        id=f"tool_{idx + 1}",
+                        type=tool.get("type", ""),
+                        name=tool.get("name", ""),
+                        next_tools=tool.get("next_tools", [])
+                    ))
+                
+                return WorkflowResponse(
+                    agent_id=f"workflow_{int(os.urandom(4).hex(), 16)}",
+                    tools=tools,
+                    has_sequential_execution=workflow_data.get("has_sequential_execution", False),
+                    description=workflow_data.get("description", "Generated workflow"),
+                    raw_response=response_text
+                )
+                
+            except Exception as groq_error:
+                print(f"Groq workflow generation failed: {str(groq_error)}")
+                # Fall through to Gemini
+        
+        # Fallback to Gemini
+        if GEMINI_API_KEY:
+            try:
+                model = genai.GenerativeModel(
+                    model_name='gemini-2.0-flash',
+                    generation_config={
+                        "temperature": 0.5,
+                        "top_p": 0.8,
+                    }
+                )
+                
+                prompt = f"{workflow_system_prompt}\n\nUser Query: {request.prompt}"
+                response = model.generate_content(prompt)
+                response_text = response.text.strip()
+                
+                # Parse the JSON response
+                if response_text.startswith("```json"):
+                    response_text = response_text[7:]
+                if response_text.startswith("```"):
+                    response_text = response_text[3:]
+                if response_text.endswith("```"):
+                    response_text = response_text[:-3]
+                
+                response_text = response_text.strip()
+                workflow_data = json.loads(response_text)
+                
+                # Generate tool IDs and structure
+                tools = []
+                for idx, tool in enumerate(workflow_data.get("tools", [])):
+                    tools.append(AITool(
+                        id=f"tool_{idx + 1}",
+                        type=tool.get("type", ""),
+                        name=tool.get("name", ""),
+                        next_tools=tool.get("next_tools", [])
+                    ))
+                
+                return WorkflowResponse(
+                    agent_id=f"workflow_{int(os.urandom(4).hex(), 16)}",
+                    tools=tools,
+                    has_sequential_execution=workflow_data.get("has_sequential_execution", False),
+                    description=workflow_data.get("description", "Generated workflow"),
+                    raw_response=response_text
+                )
+                
+            except Exception as gemini_error:
+                raise HTTPException(status_code=500, detail=f"Gemini workflow generation failed: {str(gemini_error)}")
+        
+        raise HTTPException(status_code=500, detail="No AI providers available")
+        
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to parse AI response as JSON: {str(e)}")
+    except Exception as e:
+        import traceback
+        error_detail = f"{str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+        print(f"ERROR in /create-workflow: {error_detail}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""

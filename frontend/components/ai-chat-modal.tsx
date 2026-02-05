@@ -113,7 +113,7 @@ export function AIChatModal({ open, onOpenChange, onApplyWorkflow }: AIChatModal
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          user_query: userQuery,
+          prompt: userQuery,
         }),
       })
 

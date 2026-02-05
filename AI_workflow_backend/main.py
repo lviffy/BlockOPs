@@ -45,7 +45,7 @@ if not GROQ_API_KEY and not GEMINI_API_KEY:
     raise ValueError("At least one of GROQ_API_KEY or GEMINI_API_KEY must be set")
 
 class WorkflowRequest(BaseModel):
-    user_query: str
+    prompt: str
     temperature: Optional[float] = 0.3
     max_tokens: Optional[int] = 2000
 
@@ -125,10 +125,10 @@ async def create_workflow(request: WorkflowRequest):
     Fallback: Google Gemini
     """
     try:
-        logger.info(f"Processing workflow request: {request.user_query}")
+        logger.info(f"Processing workflow request: {request.prompt}")
         logger.info(f"Temperature: {request.temperature}, Max Tokens: {request.max_tokens}")
         
-        full_prompt = f"{SYSTEM_PROMPT}\n\nUser Query: {request.user_query}\n\nGenerate the workflow JSON:"
+        full_prompt = f"{SYSTEM_PROMPT}\n\nUser Query: {request.prompt}\n\nGenerate the workflow JSON:"
         raw_content = None
         provider_used = None
         
@@ -141,7 +141,7 @@ async def create_workflow(request: WorkflowRequest):
                     model="llama-3.3-70b-versatile",
                     messages=[
                         {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": f"User Query: {request.user_query}\n\nGenerate the workflow JSON:"}
+                        {"role": "user", "content": f"User Query: {request.prompt}\n\nGenerate the workflow JSON:"}
                     ],
                     temperature=request.temperature,
                     max_tokens=request.max_tokens,
