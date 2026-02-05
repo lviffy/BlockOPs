@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useState, useRef, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { Send, Bot, User, Loader2, CheckCircle2, XCircle, ExternalLink, ArrowLeft } from "lucide-react"
+import { Send, Bot, User, Loader2, CheckCircle2, XCircle, ExternalLink, ArrowLeft, ChevronDown, ChevronUp, Wrench, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
@@ -16,12 +16,114 @@ import { sendChatWithMemory } from "@/lib/backend"
 import type { Agent } from "@/lib/supabase"
 import type { AgentChatResponse } from "@/lib/types"
 
+interface ToolCallInfo {
+  tool: string
+  parameters: Record<string, any>
+}
+
+interface ToolResultInfo {
+  success: boolean
+  tool: string
+  result: any
+  error?: string
+}
+
+interface ToolResults {
+  tool_calls: ToolCallInfo[]
+  results: ToolResultInfo[]
+  routing_plan?: any
+}
+
 interface Message {
   id: string
   role: "user" | "assistant"
   content: string
   timestamp: Date
   conversationId?: string
+  toolResults?: ToolResults
+}
+
+// Tool Details View Component - Shows request/response JSON
+function ToolDetailsView({ toolResults }: { toolResults: ToolResults }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  if (!toolResults?.tool_calls?.length) return null
+
+  return (
+    <div className="mt-3 pt-3 border-t border-border/30">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
+      >
+        <Wrench className="h-3 w-3" />
+        <span>View Details</span>
+        {isExpanded ? (
+          <ChevronUp className="h-3 w-3 ml-auto" />
+        ) : (
+          <ChevronDown className="h-3 w-3 ml-auto" />
+        )}
+      </button>
+      
+      {isExpanded && (
+        <div className="mt-3 space-y-3">
+          {toolResults.tool_calls.map((toolCall, index) => {
+            const result = toolResults.results[index]
+            
+            return (
+              <div key={index} className="space-y-2">
+                {/* Tool Call Header */}
+                <div className="flex items-center gap-2 text-xs">
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0.5">
+                    {toolCall.tool}
+                  </Badge>
+                  <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                  <span className={cn(
+                    "text-[10px] font-medium",
+                    result?.success ? "text-green-600" : "text-red-500"
+                  )}>
+                    {result?.success ? "Success" : "Failed"}
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {/* Request Box */}
+                  <div className="rounded-lg bg-muted/50 border border-border/40 overflow-hidden">
+                    <div className="px-3 py-1.5 bg-muted/70 border-b border-border/40">
+                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                        Request
+                      </span>
+                    </div>
+                    <div className="p-2 overflow-x-auto">
+                      <pre className="text-[10px] font-mono text-foreground/80 whitespace-pre-wrap break-all">
+                        {JSON.stringify(toolCall.parameters || {}, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
+                  
+                  {/* Response Box */}
+                  <div className="rounded-lg bg-muted/50 border border-border/40 overflow-hidden">
+                    <div className="px-3 py-1.5 bg-muted/70 border-b border-border/40">
+                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                        Response
+                      </span>
+                    </div>
+                    <div className="p-2 overflow-x-auto max-h-[200px] overflow-y-auto">
+                      <pre className="text-[10px] font-mono text-foreground/80 whitespace-pre-wrap break-all">
+                        {result?.error 
+                          ? JSON.stringify({ error: result.error }, null, 2)
+                          : JSON.stringify(result?.result || {}, null, 2)
+                        }
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function AgentChatPage() {
@@ -121,7 +223,8 @@ export default function AgentChatPage() {
         role: "assistant",
         content: data.message,
         timestamp: new Date(),
-        conversationId: data.conversationId
+        conversationId: data.conversationId,
+        toolResults: data.toolResults
       }
       setMessages((prev) => [...prev, assistantMessage])
     } catch (error: any) {
@@ -237,6 +340,11 @@ export default function AgentChatPage() {
                         .replace(/`([^`]+)`/g, '<code class="bg-muted/60 px-1.5 py-0.5 rounded text-xs">$1</code>')
                     }}
                   />
+                  
+                  {/* Tool Details View for assistant messages with tool results */}
+                  {message.role === "assistant" && message.toolResults && (
+                    <ToolDetailsView toolResults={message.toolResults} />
+                  )}
                   
                   <div className={cn(
                     "text-[11px] mt-2",

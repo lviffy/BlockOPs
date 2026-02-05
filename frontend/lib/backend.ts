@@ -28,12 +28,41 @@ export interface ConversationChatRequest {
   systemPrompt?: string
 }
 
+export interface ToolCallInfo {
+  tool: string
+  parameters: Record<string, any>
+}
+
+export interface ToolResultInfo {
+  success: boolean
+  tool: string
+  result: any
+  error?: string
+}
+
+export interface ToolResults {
+  tool_calls: ToolCallInfo[]
+  results: ToolResultInfo[]
+  routing_plan?: {
+    is_off_topic: boolean
+    requires_tools: boolean
+    complexity: string
+    analysis: string
+    execution_plan?: {
+      type: string
+      steps: any[]
+    }
+  }
+}
+
 export interface ConversationChatResponse {
   conversationId: string
   message: string
   isNewConversation: boolean
   messageCount: number
   tokenCount?: number
+  toolResults?: ToolResults
+  hasTools?: boolean
 }
 
 export interface Conversation {

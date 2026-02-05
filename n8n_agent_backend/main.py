@@ -176,6 +176,20 @@ TOOL_DEFINITIONS = {
         },
         "endpoint": f"{BACKEND_URL}/nft/info/{{collectionAddress}}/{{tokenId}}",
         "method": "GET"
+    },
+    "calculate": {
+        "name": "calculate",
+        "description": "Perform mathematical calculations. Use this for computing token amounts, conversions, or any arithmetic operations. Returns the calculated result.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "expression": {"type": "string", "description": "The mathematical expression to evaluate (e.g., '1000000 / 1.05')"},
+                "description": {"type": "string", "description": "A brief description of what is being calculated"}
+            },
+            "required": ["expression"]
+        },
+        "endpoint": "local",
+        "method": "LOCAL"
     }
 }
 
@@ -301,12 +315,21 @@ EXECUTION GUIDELINES:
    - Token amounts use the token's decimal precision (default: 18 decimals)
    - Always wait for transaction confirmation before proceeding
 
-3. RESPONSE FORMATTING:
+3. RESPONSE FORMATTING (CRITICAL):
+   - ALWAYS show your work! When performing calculations or multi-step operations, show each step clearly
+   - Format responses with clear sections using bullet points or numbered steps
+   - For price/balance queries, show: the fetched values → the calculation → the final result
+   - Example format for calculations:
+     "Here's how I calculated that:
+     • ETH Price: $2,500.00
+     • SOL Price: $105.50
+     • Calculation: 1 ETH × $2,500 ÷ $105.50 = 23.7 SOL
+     
+     **Result:** You can buy approximately 23.7 SOL tokens with 1 ETH."
    - Provide transaction hash for all blockchain operations
    - Include Arbiscan explorer link: https://sepolia.arbiscan.io/tx/{txHash}
    - For deployments, provide contract address and explorer link
-   - Explain the operation outcome in simple, user-friendly language
-   - Include gas used and transaction status
+   - Keep responses concise but informative - NO code blocks, NO hypothetical examples
 
 4. ERROR HANDLING:
    - If a transaction fails, explain why in clear terms
@@ -359,6 +382,37 @@ def execute_tool(tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
     tool_def = TOOL_DEFINITIONS[tool_name]
     endpoint = tool_def["endpoint"]
     method = tool_def["method"]
+    
+    # Handle local tools (like calculate)
+    if method == "LOCAL":
+        if tool_name == "calculate":
+            try:
+                expression = parameters.get("expression", "")
+                description = parameters.get("description", "Calculation")
+                # Safely evaluate the expression (only allow basic math)
+                allowed_chars = set("0123456789+-*/().e ")
+                if not all(c in allowed_chars for c in expression.lower()):
+                    return {
+                        "success": False,
+                        "tool": tool_name,
+                        "error": "Invalid characters in expression. Only numbers and basic operators (+, -, *, /, .) are allowed."
+                    }
+                result = eval(expression)
+                return {
+                    "success": True,
+                    "tool": tool_name,
+                    "result": {
+                        "expression": expression,
+                        "result": result,
+                        "description": description
+                    }
+                }
+            except Exception as e:
+                return {
+                    "success": False,
+                    "tool": tool_name,
+                    "error": f"Calculation error: {str(e)}"
+                }
     
     # Handle URL parameters for GET requests
     url_params_to_replace = {

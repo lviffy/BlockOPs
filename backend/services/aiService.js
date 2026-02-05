@@ -40,14 +40,10 @@ async function chatWithAI(messages, model = 'llama-3.1-8b-instant', options = {}
     console.error('Groq API error:', error.message);
     
     // Provide helpful error messages
-    if (error.message?.includes('rate_limit') || error.status === 429) {
+    if (error.message?.includes('rate_limit')) {
       throw new Error('Rate limit exceeded. Please try again in a moment.');
-    } else if (error.message?.includes('invalid_api_key') || error.status === 401) {
+    } else if (error.message?.includes('invalid_api_key')) {
       throw new Error('Invalid Groq API key. Please check your configuration.');
-    } else if (error.message?.includes('model_not_found') || error.status === 404) {
-      throw new Error('AI model not available. Please try a different model.');
-    } else if (error.status === 503) {
-      throw new Error('AI service temporarily unavailable. Please try again shortly.');
     } else {
       throw new Error(`AI service error: ${error.message}`);
     }
