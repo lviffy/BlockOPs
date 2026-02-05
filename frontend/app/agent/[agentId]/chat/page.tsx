@@ -225,7 +225,14 @@ export default function AgentChatPage() {
                       : "bg-muted/70 text-foreground border border-border/40"
                   )}
                 >
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</div>
+                  <div 
+                    className="text-sm leading-relaxed whitespace-pre-wrap"
+                    dangerouslySetInnerHTML={{
+                      __html: message.content
+                        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+                    }}
+                  />
                   
                   <div className={cn(
                     "text-[11px] mt-2",
