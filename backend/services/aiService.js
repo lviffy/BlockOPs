@@ -22,14 +22,17 @@ async function chatWithAI(messages, model = 'llama-3.1-8b-instant', options = {}
   }
 
   try {
+    // Destructure to remove properties we handle explicitly
+    const { maxTokens, temperature, topP, ...restOptions } = options;
+    
     const completion = await groq.chat.completions.create({
       model,
       messages,
-      temperature: options.temperature || 0.7,
-      max_tokens: options.maxTokens || 1024,
-      top_p: options.topP || 1,
+      temperature: temperature || 0.7,
+      max_tokens: maxTokens || 1024,
+      top_p: topP || 1,
       stream: false,
-      ...options
+      ...restOptions
     });
 
     return completion.choices[0]?.message?.content || 'No response generated';
@@ -37,10 +40,14 @@ async function chatWithAI(messages, model = 'llama-3.1-8b-instant', options = {}
     console.error('Groq API error:', error.message);
     
     // Provide helpful error messages
-    if (error.message?.includes('rate_limit')) {
+    if (error.message?.includes('rate_limit') || error.status === 429) {
       throw new Error('Rate limit exceeded. Please try again in a moment.');
-    } else if (error.message?.includes('invalid_api_key')) {
+    } else if (error.message?.includes('invalid_api_key') || error.status === 401) {
       throw new Error('Invalid Groq API key. Please check your configuration.');
+    } else if (error.message?.includes('model_not_found') || error.status === 404) {
+      throw new Error('AI model not available. Please try a different model.');
+    } else if (error.status === 503) {
+      throw new Error('AI service temporarily unavailable. Please try again shortly.');
     } else {
       throw new Error(`AI service error: ${error.message}`);
     }

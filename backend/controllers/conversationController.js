@@ -155,15 +155,20 @@ async function chat(req, res) {
         // Enhance user message with conversation context and routing analysis
         const enhancedMessage = `${routingPlan.analysis}\n\nPrevious context:\n${contextSummary}\n\nCurrent query: ${truncatedMessage}\n\nExecution plan: ${routingPlan.execution_plan.type}`;
         
-        const agentResponse = await fetch('http://localhost:8000/agent/chat', {
+        // Use AbortController for timeout (60 seconds for blockchain operations)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
+        
+        const agentResponse = await fetch(process.env.AGENT_BACKEND_URL || 'http://localhost:8000/agent/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             tools: tools,
             user_message: enhancedMessage,
             private_key: null
-          })
-        });
+          }),
+          signal: controller.signal
+        }).finally(() => clearTimeout(timeoutId));
 
         if (!agentResponse.ok) {
           const errorText = await agentResponse.text();
@@ -195,12 +200,17 @@ async function chat(req, res) {
         
         // Fallback to simple chat with routing context
         const defaultSystemPrompt = systemPrompt || 
-          `You are a specialized blockchain operations assistant. You ONLY help with blockchain-related tasks: cryptocurrency prices, wallet operations, token/NFT deployment, smart contracts, and blockchain transactions. 
+        `You are a specialized blockchain operations assistant for BlockOps on Arbitrum Sepolia (Chain ID: 421614). You ONLY help with blockchain-related tasks: cryptocurrency prices, wallet operations, token/NFT deployment, smart contracts, and blockchain transactions.
+          
+          Network Details:
+          - Network: Arbitrum Sepolia (Testnet)
+          - Explorer: https://sepolia.arbiscan.io
+          - Native Currency: ETH (for gas fees)
+          - Block Time: ~0.25 seconds
           
           If asked about topics unrelated to blockchain (politics, news, general knowledge, weather, entertainment, etc.), respond: "I'm a blockchain operations assistant and can only help with blockchain-related tasks. Please ask me something about cryptocurrency, tokens, NFTs, or blockchain operations."
           
-          The user's request analysis: ${routingPlan.analysis}. Provide clear, accurate, and concise responses. Use **bold** formatting sparingly and only for important terms or key points that need emphasis.`;
-        
+          The user's request analysis: ${routingPlan.analysis}. Provide clear, accurate, and concise responses. Always include transaction hashes and explorer links for any blockchain operations.`;
         const { context } = buildContext(messages, defaultSystemPrompt);
         aiResponse = await chatWithAI(context);
       }
@@ -209,11 +219,17 @@ async function chat(req, res) {
       console.log('[Chat] Simple conversation, using direct AI');
       
       const defaultSystemPrompt = systemPrompt || 
-        `You are a specialized blockchain operations assistant. You ONLY help with blockchain-related tasks: cryptocurrency prices, wallet operations, token/NFT deployment, smart contracts, and blockchain transactions.
+        `You are a specialized blockchain operations assistant for BlockOps on Arbitrum Sepolia (Chain ID: 421614). You ONLY help with blockchain-related tasks: cryptocurrency prices, wallet operations, token/NFT deployment, smart contracts, and blockchain transactions.
+        
+        Network Details:
+        - Network: Arbitrum Sepolia (Testnet)
+        - Explorer: https://sepolia.arbiscan.io
+        - Native Currency: ETH (for gas fees)
+        - Block Time: ~0.25 seconds
         
         If asked about topics unrelated to blockchain (politics, news, general knowledge, weather, entertainment, etc.), respond EXACTLY: "I'm a blockchain operations assistant and can only help with blockchain-related tasks. Please ask me something about cryptocurrency, tokens, NFTs, or blockchain operations."
         
-        Provide clear, accurate, and concise responses. Use **bold** formatting sparingly and only for important terms or key points that need emphasis.`;
+        Provide clear, accurate, and concise responses.`;
       
       const { context, tokenCount } = buildContext(messages, defaultSystemPrompt);
       aiResponse = await chatWithAI(context);

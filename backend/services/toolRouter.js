@@ -151,6 +151,8 @@ IMPORTANT RULES:
 5. For calculations involving tool results, add a "calculate" tool step
 6. If information is ambiguous or missing, add it to "missing_info"
 7. Common pattern: "How much X can I buy with balance Y" = get_balance → fetch_price → calculate (sequential)
+8. Ethereum addresses must be 42 characters starting with "0x" - validate before including
+9. Network: Arbitrum Sepolia (Chain ID: 421614) - all operations are on this testnet
 
 Examples:
 - "What is the price of Solana?" → Simple, single tool (fetch_price)
@@ -171,18 +173,23 @@ Respond ONLY with valid JSON, no other text.`;
       }
     ];
 
-    const response = await chatWithAI(messages, 'llama-3.1-70b-versatile', {
+    const response = await chatWithAI(messages, 'llama-3.3-70b-versatile', {
       temperature: 0.2, // Low temperature for more consistent routing
       maxTokens: 2000
     });
 
-    // Extract JSON from response
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    // Extract JSON from response - try multiple patterns
+    let jsonMatch = response.match(/```json\s*([\s\S]*?)```/);
+    if (!jsonMatch) {
+      jsonMatch = response.match(/\{[\s\S]*\}/);
+    }
+    
     if (!jsonMatch) {
       throw new Error('AI response did not contain valid JSON');
     }
 
-    const routingPlan = JSON.parse(jsonMatch[0]);
+    const jsonStr = jsonMatch[1] || jsonMatch[0];
+    const routingPlan = JSON.parse(jsonStr.trim());
     
     console.log('[Tool Router] AI Routing Plan:', JSON.stringify(routingPlan, null, 2));
     
