@@ -12,7 +12,7 @@ import { toast } from "@/components/ui/use-toast"
 import { UserProfile } from "@/components/user-profile"
 import { useAuth } from "@/lib/auth"
 import { getAgentById } from "@/lib/agents"
-import { sendAgentChatMessage } from "@/lib/backend"
+import { sendChatWithMemory } from "@/lib/backend"
 import type { Agent } from "@/lib/supabase"
 import type { AgentChatResponse } from "@/lib/types"
 
@@ -21,7 +21,7 @@ interface Message {
   role: "user" | "assistant"
   content: string
   timestamp: Date
-  agentResponse?: AgentChatResponse
+  conversationId?: string
 }
 
 export default function AgentChatPage() {
@@ -35,6 +35,7 @@ export default function AgentChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [conversationId, setConversationId] = useState<string | undefined>(undefined)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -87,7 +88,7 @@ export default function AgentChatPage() {
   }, [loadingAgent])
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading || !agent || !agent.api_key) return
+    if (!input.trim() || isLoading || !agent || !dbUser?.id) return
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -101,30 +102,26 @@ export default function AgentChatPage() {
     setIsLoading(true)
 
     try {
-      if (!agent.tools || agent.tools.length === 0) {
-        throw new Error("Agent has no tools configured")
+      // Use conversation memory API
+      const data = await sendChatWithMemory({
+        agentId: agent.id,
+        userId: dbUser.id,
+        message: userQuery,
+        conversationId: conversationId,
+        systemPrompt: `You are a helpful AI assistant for blockchain operations. The agent has these tools: ${agent.tools?.map(t => t.tool).join(', ')}`
+      })
+
+      // Save conversation ID for subsequent messages
+      if (data.isNewConversation) {
+        setConversationId(data.conversationId)
       }
-
-      // Get private key from user's database record if available
-      const privateKey = dbUser?.private_key || undefined
-
-      // Use the backend service to send the message
-      // Pass agent.tools directly as required by the AI Agent Backend
-      const data = await sendAgentChatMessage(
-        agent.tools,
-        userQuery,
-        privateKey
-      )
-
-      // Remove privateKey/private_key fields from the response
-      const cleanedData = removePrivateKeys(data) as AgentChatResponse
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: cleanedData.agent_response || "Response received",
+        content: data.message,
         timestamp: new Date(),
-        agentResponse: cleanedData,
+        conversationId: data.conversationId
       }
       setMessages((prev) => [...prev, assistantMessage])
     } catch (error: any) {
@@ -150,198 +147,6 @@ export default function AgentChatPage() {
       e.preventDefault()
       handleSend()
     }
-  }
-
-  // Recursively remove privateKey/private_key fields from objects
-  const removePrivateKeys = (obj: any): any => {
-    if (obj === null || obj === undefined) {
-      return obj
-    }
-
-    if (Array.isArray(obj)) {
-      return obj.map(removePrivateKeys)
-    }
-
-    if (typeof obj === "object") {
-      const cleaned: any = {}
-      for (const [key, value] of Object.entries(obj)) {
-        // Skip privateKey and private_key fields
-        if (key === "privateKey" || key === "private_key") {
-          continue
-        }
-        cleaned[key] = removePrivateKeys(value)
-      }
-      return cleaned
-    }
-
-    return obj
-  }
-
-  const formatToolName = (tool: string): string => {
-    return tool
-      .split("_")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ")
-  }
-
-  const renderToolResult = (result: any, tool: string, idx: number) => {
-    if (!result?.result) return null
-
-    const res = result.result
-    const isSuccess = result.success && res.success
-
-    return (
-      <div key={`${tool}-${idx}-${result.success}`} className={cn(
-        "rounded-lg border bg-background/60 overflow-hidden",
-        !isSuccess && "border-destructive/50"
-      )}>
-        <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {isSuccess ? (
-              <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-            ) : (
-              <XCircle className="h-3.5 w-3.5 text-destructive" />
-            )}
-            <span className="text-xs font-medium">{formatToolName(tool)}</span>
-          </div>
-          <Badge variant={isSuccess ? "default" : "destructive"} className="text-[10px] h-5">
-            {isSuccess ? "Success" : "Failed"}
-          </Badge>
-        </div>
-        <div className="p-3 space-y-3 text-xs">
-          {res.message && (
-            <p className="text-muted-foreground">{res.message}</p>
-          )}
-
-          {/* Airdrop Result */}
-          {tool === "airdrop" && res.airdrop && (
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-0.5">
-                  <span className="text-muted-foreground text-[11px]">From</span>
-                  <p className="font-mono text-[11px] break-all">{res.airdrop.from}</p>
-                </div>
-                <div className="space-y-0.5">
-                  <span className="text-muted-foreground text-[11px]">Recipients</span>
-                  <p>{res.airdrop.recipientsCount}</p>
-                </div>
-                <div className="space-y-0.5">
-                  <span className="text-muted-foreground text-[11px]">Amount per recipient</span>
-                  <p>{res.airdrop.amountPerRecipient}</p>
-                </div>
-                <div className="space-y-0.5">
-                  <span className="text-muted-foreground text-[11px]">Total amount</span>
-                  <p>{res.airdrop.totalAmount}</p>
-                </div>
-              </div>
-              {res.airdrop.recipients && res.airdrop.recipients.length > 0 && (
-                <div>
-                  <span className="text-muted-foreground text-[11px]">Recipients:</span>
-                  <div className="mt-1 space-y-1">
-                    {res.airdrop.recipients.map((addr: string, idx: number) => (
-                      <p key={idx} className="font-mono text-[11px] bg-muted/50 p-1.5 rounded break-all">
-                        {addr}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Deposit Yield Result */}
-          {tool === "deposit_yield" && res.deposit && (
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-0.5">
-                  <span className="text-muted-foreground text-[11px]">Deposit ID</span>
-                  <p className="font-semibold">{res.deposit.depositId}</p>
-                </div>
-                <div className="space-y-0.5">
-                  <span className="text-muted-foreground text-[11px]">Token</span>
-                  <p>{res.deposit.tokenSymbol} ({res.deposit.tokenName})</p>
-                </div>
-                <div className="space-y-0.5">
-                  <span className="text-muted-foreground text-[11px]">Amount</span>
-                  <p>{res.deposit.depositAmount} {res.deposit.tokenSymbol}</p>
-                </div>
-                <div className="space-y-0.5">
-                  <span className="text-muted-foreground text-[11px]">APY</span>
-                  <p>{res.deposit.apyPercent}%</p>
-                </div>
-              </div>
-              {res.projections && res.projections.length > 0 && (
-                <div>
-                  <span className="text-muted-foreground text-[11px] block mb-1">Projections</span>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {res.projections.map((proj: any, idx: number) => (
-                      <div key={idx} className="bg-muted/50 p-2 rounded">
-                        <div className="font-semibold text-[11px]">{proj.days} Days</div>
-                        <div className="text-muted-foreground text-[10px]">Total: {proj.totalValue} {proj.tokenSymbol}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Transaction Info */}
-          {res.transaction && (
-            <div className="pt-2 border-t border-border/40">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5 flex-1 min-w-0">
-                  <span className="text-muted-foreground text-[11px]">Transaction</span>
-                  <p className="font-mono text-[11px] truncate">{res.transaction.hash}</p>
-                </div>
-                {res.transaction.explorerUrl && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-[11px] ml-2"
-                    onClick={() => window.open(res.transaction.explorerUrl, "_blank")}
-                  >
-                    <ExternalLink className="h-3 w-3 mr-1" />
-                    View
-                  </Button>
-                )}
-              </div>
-              {res.transaction.gasUsed && (
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  Gas Used: {res.transaction.gasUsed}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Balances */}
-          {res.balances && (
-            <div className="pt-2 border-t border-border/40">
-              <span className="text-muted-foreground text-[11px]">Balances</span>
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                <div className="space-y-0.5">
-                  <span className="text-muted-foreground text-[10px]">Before</span>
-                  <p>{res.balances.walletBefore}</p>
-                </div>
-                <div className="space-y-0.5">
-                  <span className="text-muted-foreground text-[10px]">After</span>
-                  <p>{res.balances.walletAfter}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Generic Result Data */}
-          {!res.airdrop && !res.deposit && !res.transaction && (
-            <div>
-              <pre className="bg-muted/50 p-2 rounded border border-border/40 overflow-x-auto text-[11px]">
-                {JSON.stringify(res, null, 2)}
-              </pre>
-            </div>
-          )}
-        </div>
-      </div>
-    )
   }
 
   if (loadingAgent) {
@@ -422,39 +227,6 @@ export default function AgentChatPage() {
                 >
                   <div className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</div>
                   
-                  {message.agentResponse && (
-                    <div className="mt-4 space-y-3 pt-3 border-t border-border/30">
-                      {/* Tool Calls */}
-                      {message.agentResponse.tool_calls && message.agentResponse.tool_calls.length > 0 && (
-                        <div className="space-y-2">
-                          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions Taken</h4>
-                          <div className="space-y-2">
-                            {message.agentResponse.tool_calls.map((toolCall, idx) => (
-                              <div key={idx} className="bg-background/60 rounded-lg p-3 space-y-2">
-                                <Badge variant="secondary" className="text-xs">
-                                  {formatToolName(toolCall.tool)}
-                                </Badge>
-                                <pre className="text-[11px] bg-background/80 p-2 rounded border border-border/40 overflow-x-auto">
-                                  {JSON.stringify(toolCall.parameters, null, 2)}
-                                </pre>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Tool Results */}
-                      {message.agentResponse.results && message.agentResponse.results.length > 0 && (
-                        <div className="space-y-2">
-                          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Results</h4>
-                          {message.agentResponse.results.map((result, idx) =>
-                            renderToolResult(result, result.tool, idx)
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  
                   <div className={cn(
                     "text-[11px] mt-2",
                     message.role === "user" ? "text-gray-300" : "text-muted-foreground"
@@ -500,12 +272,12 @@ export default function AgentChatPage() {
                 onKeyDown={handleKeyDown}
                 placeholder="Message..."
                 className="min-h-[52px] max-h-[120px] resize-none rounded-xl bg-muted/30 border-border/40 focus:bg-background focus:border-border pr-12 text-sm"
-                disabled={isLoading || !agent || !agent.api_key}
+                disabled={isLoading || !dbUser?.id}
               />
             </div>
             <Button
               onClick={handleSend}
-              disabled={!input.trim() || isLoading || !agent || !agent.api_key}
+              disabled={!input.trim() || isLoading || !dbUser?.id}
               size="icon"
               className="h-[52px] w-[52px] shrink-0 rounded-xl shadow-sm hover:shadow-md transition-all"
             >
@@ -516,12 +288,8 @@ export default function AgentChatPage() {
               )}
             </Button>
           </div>
-          <p className="text-[11px] text-muted-foreground/60 text-center mt-2">
-            Press Enter to send • Shift+Enter for new line
-          </p>
         </div>
       </div>
     </div>
   )
 }
-
