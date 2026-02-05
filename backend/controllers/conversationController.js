@@ -1,6 +1,7 @@
 const supabase = require('../config/supabase');
 const { buildContext, truncateMessage } = require('../utils/memory');
 const { chatWithAI } = require('../services/aiService');
+const { intelligentToolRouting, convertToAgentFormat } = require('../services/toolRouter');
 
 /**
  * Main chat endpoint - handles conversation and AI response
@@ -77,25 +78,89 @@ async function chat(req, res) {
       throw new Error('Failed to fetch conversation history');
     }
 
-    // Check if the message requires tools (price fetching, balance checking, transfers, etc.)
-    const requiresTools = /\b(price|balance|transfer|deploy|fetch|check|get)\b/i.test(truncatedMessage);
+    // Check if the message requires tools using intelligent AI routing
+    console.log('[Chat] Analyzing message for tool requirements...');
+    
+    const routingPlan = await intelligentToolRouting(truncatedMessage, messages);
+    
+    console.log('[Chat] Routing analysis:', {
+      isOffTopic: routingPlan.is_off_topic,
+      requiresTools: routingPlan.requires_tools,
+      complexity: routingPlan.complexity,
+      executionType: routingPlan.execution_plan?.type,
+      toolCount: routingPlan.execution_plan?.steps?.length || 0
+    });
+    
+    // Guard rail: Reject off-topic questions
+    if (routingPlan.is_off_topic) {
+      const rejectionMessage = "I'm a blockchain operations assistant and can only help with blockchain-related tasks such as checking cryptocurrency prices, wallet balances, deploying tokens/NFTs, and managing transactions. Please ask me something related to blockchain or crypto operations.";
+      
+      // Save rejection message
+      await supabase
+        .from('conversation_messages')
+        .insert({ 
+          conversation_id: convId, 
+          role: 'assistant', 
+          content: rejectionMessage
+        });
+
+      return res.json({
+        conversationId: convId,
+        message: rejectionMessage,
+        isNewConversation,
+        messageCount: messages.length + 2,
+        offTopicRejection: true
+      });
+    }
     
     let aiResponse;
     let toolResults = null;
 
-    if (requiresTools) {
-      // Use agent backend with tool calling capabilities
-      console.log('[Chat] Message requires tools, using agent backend');
+    if (routingPlan.requires_tools && routingPlan.execution_plan?.steps?.length > 0) {
+      // Check if user needs to provide more information
+      if (routingPlan.missing_info && routingPlan.missing_info.length > 0) {
+        const missingInfoMessage = `I need some additional information to help you:\n${routingPlan.missing_info.map((info, i) => `${i + 1}. ${info}`).join('\n')}`;
+        
+        // Save AI response asking for more info
+        await supabase
+          .from('conversation_messages')
+          .insert({ 
+            conversation_id: convId, 
+            role: 'assistant', 
+            content: missingInfoMessage
+          });
+
+        return res.json({
+          conversationId: convId,
+          message: missingInfoMessage,
+          isNewConversation,
+          messageCount: messages.length + 2,
+          needsMoreInfo: true,
+          missingInfo: routingPlan.missing_info
+        });
+      }
+
+      // Convert routing plan to agent format
+      const tools = convertToAgentFormat(routingPlan);
+      
+      console.log('[Chat] Executing tools:', tools.map(t => `${t.tool}${t.next_tool ? ` → ${t.next_tool}` : ''}`).join(', '));
       
       try {
+        // Build context summary from recent messages for the agent
+        const recentMessages = messages.slice(-5);
+        const contextSummary = recentMessages
+          .map(m => `${m.role}: ${m.content}`)
+          .join('\n');
+        
+        // Enhance user message with conversation context and routing analysis
+        const enhancedMessage = `${routingPlan.analysis}\n\nPrevious context:\n${contextSummary}\n\nCurrent query: ${truncatedMessage}\n\nExecution plan: ${routingPlan.execution_plan.type}`;
+        
         const agentResponse = await fetch('http://localhost:8000/agent/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            tools: [
-              { tool: 'fetch_price', next_tool: null }
-            ],
-            user_message: truncatedMessage,
+            tools: tools,
+            user_message: enhancedMessage,
             private_key: null
           })
         });
@@ -120,16 +185,21 @@ async function chat(req, res) {
         
         toolResults = {
           tool_calls: agentData.tool_calls || [],
-          results: agentData.results || []
+          results: agentData.results || [],
+          routing_plan: routingPlan // Include routing plan for debugging
         };
         
         console.log('[Chat] Agent backend response received with', agentData.tool_calls?.length || 0, 'tool calls');
       } catch (agentError) {
         console.error('[Chat] Agent backend failed, falling back to simple chat:', agentError.message);
         
-        // Fallback to simple chat
+        // Fallback to simple chat with routing context
         const defaultSystemPrompt = systemPrompt || 
-          'You are a helpful AI assistant for blockchain operations. Provide clear, accurate, and concise responses. Use **bold** formatting sparingly and only for important terms or key points that need emphasis.';
+          `You are a specialized blockchain operations assistant. You ONLY help with blockchain-related tasks: cryptocurrency prices, wallet operations, token/NFT deployment, smart contracts, and blockchain transactions. 
+          
+          If asked about topics unrelated to blockchain (politics, news, general knowledge, weather, entertainment, etc.), respond: "I'm a blockchain operations assistant and can only help with blockchain-related tasks. Please ask me something about cryptocurrency, tokens, NFTs, or blockchain operations."
+          
+          The user's request analysis: ${routingPlan.analysis}. Provide clear, accurate, and concise responses. Use **bold** formatting sparingly and only for important terms or key points that need emphasis.`;
         
         const { context } = buildContext(messages, defaultSystemPrompt);
         aiResponse = await chatWithAI(context);
@@ -139,7 +209,11 @@ async function chat(req, res) {
       console.log('[Chat] Simple conversation, using direct AI');
       
       const defaultSystemPrompt = systemPrompt || 
-        'You are a helpful AI assistant for blockchain operations. Provide clear, accurate, and concise responses. Use **bold** formatting sparingly and only for important terms or key points that need emphasis.';
+        `You are a specialized blockchain operations assistant. You ONLY help with blockchain-related tasks: cryptocurrency prices, wallet operations, token/NFT deployment, smart contracts, and blockchain transactions.
+        
+        If asked about topics unrelated to blockchain (politics, news, general knowledge, weather, entertainment, etc.), respond EXACTLY: "I'm a blockchain operations assistant and can only help with blockchain-related tasks. Please ask me something about cryptocurrency, tokens, NFTs, or blockchain operations."
+        
+        Provide clear, accurate, and concise responses. Use **bold** formatting sparingly and only for important terms or key points that need emphasis.`;
       
       const { context, tokenCount } = buildContext(messages, defaultSystemPrompt);
       aiResponse = await chatWithAI(context);
