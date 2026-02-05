@@ -231,6 +231,10 @@ export default function AgentChatPage() {
                       __html: message.content
                         .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
                         .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+                        .replace(/```json\n([\s\S]*?)\n```/g, (_, json) => {
+                          return `<div class="mt-3 rounded-lg border border-border/60 bg-muted/40 p-3 font-mono text-xs overflow-x-auto"><pre class="m-0">${json}</pre></div>`
+                        })
+                        .replace(/`([^`]+)`/g, '<code class="bg-muted/60 px-1.5 py-0.5 rounded text-xs">$1</code>')
                     }}
                   />
                   

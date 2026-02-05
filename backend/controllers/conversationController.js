@@ -93,7 +93,7 @@ async function chat(req, res) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             tools: [
-              { tool: 'fetch_token_price', next_tool: null }
+              { tool: 'fetch_price', next_tool: null }
             ],
             user_message: truncatedMessage,
             private_key: null
@@ -107,6 +107,17 @@ async function chat(req, res) {
 
         const agentData = await agentResponse.json();
         aiResponse = agentData.agent_response;
+        
+        // Format JSON data in the response for better display
+        aiResponse = aiResponse.replace(/```json\n([\s\S]*?)```/g, (match, json) => {
+          try {
+            const parsed = JSON.parse(json);
+            return '```json\n' + JSON.stringify(parsed, null, 2) + '\n```';
+          } catch {
+            return match;
+          }
+        });
+        
         toolResults = {
           tool_calls: agentData.tool_calls || [],
           results: agentData.results || []
