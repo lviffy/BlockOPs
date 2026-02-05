@@ -1,0 +1,67 @@
+const Groq = require('groq-sdk');
+require('dotenv').config();
+
+if (!process.env.GROQ_API_KEY) {
+  console.warn('⚠️  Warning: GROQ_API_KEY not set in .env');
+}
+
+const groq = process.env.GROQ_API_KEY 
+  ? new Groq({ apiKey: process.env.GROQ_API_KEY })
+  : null;
+
+/**
+ * Chat with AI using Groq
+ * @param {Array} messages - Array of message objects with role and content
+ * @param {string} model - Model to use
+ * @param {Object} options - Additional options
+ * @returns {Promise<string>} AI response
+ */
+async function chatWithAI(messages, model = 'mixtral-8x7b-32768', options = {}) {
+  if (!groq) {
+    throw new Error('Groq API not configured. Please set GROQ_API_KEY in .env');
+  }
+
+  try {
+    const completion = await groq.chat.completions.create({
+      model,
+      messages,
+      temperature: options.temperature || 0.7,
+      max_tokens: options.maxTokens || 1024,
+      top_p: options.topP || 1,
+      stream: false,
+      ...options
+    });
+
+    return completion.choices[0]?.message?.content || 'No response generated';
+  } catch (error) {
+    console.error('Groq API error:', error.message);
+    
+    // Provide helpful error messages
+    if (error.message?.includes('rate_limit')) {
+      throw new Error('Rate limit exceeded. Please try again in a moment.');
+    } else if (error.message?.includes('invalid_api_key')) {
+      throw new Error('Invalid Groq API key. Please check your configuration.');
+    } else {
+      throw new Error(`AI service error: ${error.message}`);
+    }
+  }
+}
+
+/**
+ * Get available models
+ * @returns {Array} Available model names
+ */
+function getAvailableModels() {
+  return [
+    'mixtral-8x7b-32768',      // Fast, good quality
+    'llama2-70b-4096',          // Slower, higher quality
+    'gemma-7b-it',              // Lightweight
+    'llama3-8b-8192',           // Balanced
+    'llama3-70b-8192'           // High quality
+  ];
+}
+
+module.exports = { 
+  chatWithAI,
+  getAvailableModels
+};
