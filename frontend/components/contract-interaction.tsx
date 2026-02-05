@@ -175,11 +175,43 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
       }
     } catch (error: any) {
       console.error("Error fetching contract:", error)
-      toast({
-        title: "Error Loading Contract",
-        description: error.message || "Failed to fetch contract details",
-        variant: "destructive",
-      })
+      
+      // Check if it's a verification error
+      const isVerificationError = error.message?.includes('not verified') || 
+                                  error.message?.includes('Contract source code')
+      
+      if (isVerificationError) {
+        toast({
+          title: "Contract Not Verified",
+          description: "This contract is not verified on Arbiscan. Please use a verified contract or verify your contract first.",
+          variant: "destructive",
+        })
+        
+        // Show helpful examples
+        setChatMessages([{
+          role: 'assistant',
+          content: `⚠️ **Contract Not Verified**
+
+The contract at ${contractAddress} is not verified on Arbiscan.
+
+**To use this feature, you need:**
+1. A verified contract on Arbitrum Sepolia
+2. The contract source code must be published on Arbiscan
+
+**Example Verified Contracts on Arbitrum Sepolia:**
+- USDC Mock: \`0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d\`
+- Uniswap V3 Router: \`0x101F443B4d1b059569D643917553c771E1b9663E\`
+
+**To verify your contract:**
+Visit https://sepolia.arbiscan.io/verifyContract and follow the verification steps.`
+        }])
+      } else {
+        toast({
+          title: "Error Loading Contract",
+          description: error.message || "Failed to fetch contract details",
+          variant: "destructive",
+        })
+      }
       
       // If backend fails, suggest manual ABI input
       if (useBackendDiscovery) {

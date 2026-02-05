@@ -293,8 +293,21 @@ async function discoverContract(req, res) {
 
   } catch (error) {
     console.error('Discovery error:', error);
-    return res.status(500).json(
-      errorResponse('Failed to discover contract', error.message)
+    
+    // Provide better error messages for common issues
+    let errorMessage = error.message;
+    let statusCode = 500;
+    
+    if (error.message.includes('Contract source code not verified')) {
+      errorMessage = 'Contract source code is not verified on Etherscan. To use this contract, please verify it on Arbiscan (https://sepolia.arbiscan.io) or use a verified contract address.';
+      statusCode = 400;
+    } else if (error.message.includes('ETHERSCAN_API_KEY not configured')) {
+      errorMessage = 'Etherscan API key is not configured. Please set ETHERSCAN_API_KEY in environment variables.';
+      statusCode = 500;
+    }
+    
+    return res.status(statusCode).json(
+      errorResponse('Failed to discover contract', errorMessage)
     );
   }
 }
@@ -484,8 +497,24 @@ async function executeCommand(req, res) {
 
   } catch (error) {
     console.error('Execution error:', error);
-    return res.status(500).json(
-      errorResponse('Failed to execute command', error.message)
+    
+    // Provide better error messages for common issues
+    let errorMessage = error.message;
+    let statusCode = 500;
+    
+    if (error.message.includes('Contract source code not verified')) {
+      errorMessage = 'Contract source code is not verified on Etherscan. Please verify the contract or use a verified contract address.';
+      statusCode = 400;
+    } else if (error.message.includes('ETHERSCAN_API_KEY not configured')) {
+      errorMessage = 'Etherscan API key is not configured. Please set ETHERSCAN_API_KEY in environment variables.';
+      statusCode = 500;
+    } else if (error.message.includes('No AI API key configured')) {
+      errorMessage = 'No AI API key configured. Please set GROQ_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY.';
+      statusCode = 500;
+    }
+    
+    return res.status(statusCode).json(
+      errorResponse('Failed to execute command', errorMessage)
     );
   }
 }
