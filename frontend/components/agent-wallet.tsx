@@ -202,7 +202,7 @@ export function AgentWalletModal({ open, onOpenChange, hideButton = false }: Age
   }
 
   const handleClaimFunds = () => {
-    window.open("https://cloud.google.com/application/web3/faucet/somnia/shannon", "_blank")
+    window.open("https://www.alchemy.com/faucets/arbitrum-sepolia", "_blank")
   }
 
   // Get balance for display in button

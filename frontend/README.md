@@ -98,7 +98,7 @@ frontend/
 
 - [Next.js Documentation](https://nextjs.org/docs)
 - [React Flow Documentation](https://reactflow.dev)
-- [BlockOps Network](https://somnia.network)
+- [Arbitrum Sepolia Network](https://docs.arbitrum.io/for-devs/concepts/public-chains)
 
 ## Deploy on Vercel
 
