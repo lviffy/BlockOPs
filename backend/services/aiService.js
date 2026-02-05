@@ -16,7 +16,7 @@ const groq = process.env.GROQ_API_KEY
  * @param {Object} options - Additional options
  * @returns {Promise<string>} AI response
  */
-async function chatWithAI(messages, model = 'mixtral-8x7b-32768', options = {}) {
+async function chatWithAI(messages, model = 'llama-3.1-8b-instant', options = {}) {
   if (!groq) {
     throw new Error('Groq API not configured. Please set GROQ_API_KEY in .env');
   }
@@ -53,11 +53,11 @@ async function chatWithAI(messages, model = 'mixtral-8x7b-32768', options = {}) 
  */
 function getAvailableModels() {
   return [
-    'mixtral-8x7b-32768',      // Fast, good quality
-    'llama2-70b-4096',          // Slower, higher quality
-    'gemma-7b-it',              // Lightweight
+    'llama-3.1-70b-versatile',  // Fast, high quality (recommended)
+    'llama-3.1-8b-instant',     // Fastest, lightweight
+    'llama3-70b-8192',          // High quality
     'llama3-8b-8192',           // Balanced
-    'llama3-70b-8192'           // High quality
+    'gemma2-9b-it'              // Lightweight alternative
   ];
 }
 

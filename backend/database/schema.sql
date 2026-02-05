@@ -103,10 +103,7 @@ EXECUTE FUNCTION update_message_count();
 CREATE OR REPLACE FUNCTION smart_cleanup()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- 1. Always clean up old messages in this conversation
-  PERFORM cleanup_old_messages();
-  
-  -- 2. Probabilistic stale conversation cleanup (1% chance)
+  -- Probabilistic stale conversation cleanup (1% chance)
   -- This means cleanup runs ~once per 100 messages
   IF random() < 0.01 THEN
     -- Delete max 10 stale conversations at a time (fast, no timeout)

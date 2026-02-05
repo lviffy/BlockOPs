@@ -79,14 +79,22 @@ async function chat(req, res) {
 
     // Build context for AI (respects token limits)
     const defaultSystemPrompt = systemPrompt || 
-      'You are a helpful AI assistant for blockchain operations. Provide clear, accurate, and concise responses.';
+      'You are a helpful AI assistant for blockchain operations. Provide clear, accurate, and concise responses in plain text without using markdown formatting like ** or __ or ##. Just use regular text.';
     
     const { context, tokenCount } = buildContext(messages, defaultSystemPrompt);
 
     console.log(`[Chat] Context built: ${context.length} messages, ~${tokenCount} tokens`);
 
     // Call AI
-    const aiResponse = await chatWithAI(context);
+    let aiResponse = await chatWithAI(context);
+    
+    // Clean up markdown formatting
+    aiResponse = aiResponse
+      .replace(/\*\*([^*]+)\*\*/g, '$1')  // Remove **bold**
+      .replace(/\*([^*]+)\*/g, '$1')      // Remove *italic*
+      .replace(/__(.*?)__/g, '$1')        // Remove __underline__
+      .replace(/^#{1,6}\s+/gm, '')        // Remove # headers
+      .trim();
 
     // Save AI response
     const { error: aiMsgError } = await supabase
