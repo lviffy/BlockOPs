@@ -14,7 +14,7 @@ import type {
 
 // Backend URLs from environment
 const AI_AGENT_BACKEND_URL = process.env.NEXT_PUBLIC_AI_AGENT_BACKEND_URL || 'http://localhost:8000'
-const BLOCKCHAIN_BACKEND_URL = process.env.NEXT_PUBLIC_BLOCKCHAIN_BACKEND_URL || 'http://localhost:3001'
+const BLOCKCHAIN_BACKEND_URL = process.env.NEXT_PUBLIC_BLOCKCHAIN_BACKEND_URL || 'http://localhost:3000'
 
 /**
  * Send a chat message to the AI agent
