@@ -173,7 +173,7 @@ Respond ONLY with valid JSON, no other text.`;
       }
     ];
 
-    const response = await chatWithAI(messages, 'llama-3.3-70b-versatile', {
+    const response = await chatWithAI(messages, 'moonshotai/kimi-k2-instruct-0905', {
       temperature: 0.2, // Low temperature for more consistent routing
       maxTokens: 2000
     });

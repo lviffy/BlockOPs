@@ -179,11 +179,12 @@ TOOL_DEFINITIONS = {
     },
     "calculate": {
         "name": "calculate",
-        "description": "Perform mathematical calculations. Use this for computing token amounts, conversions, or any arithmetic operations. Returns the calculated result.",
+        "description": "Perform mathematical calculations with support for variables. You can use variable names in the expression and provide their values in the 'variables' parameter. Example: expression='eth_price * amount / sol_price', variables={'eth_price': 2500.50, 'amount': 1, 'sol_price': 105.20}",
         "parameters": {
             "type": "object",
             "properties": {
-                "expression": {"type": "string", "description": "The mathematical expression to evaluate (e.g., '1000000 / 1.05')"},
+                "expression": {"type": "string", "description": "The mathematical expression (e.g., 'eth_price * amount / sol_price' or '2500.50 / 105.20')"},
+                "variables": {"type": "object", "description": "A dictionary mapping variable names to their numeric values from previous tool results (e.g., {'eth_price': 2500.50, 'sol_price': 105.20})"},
                 "description": {"type": "string", "description": "A brief description of what is being calculated"}
             },
             "required": ["expression"]
@@ -285,9 +286,18 @@ SEQUENTIAL EXECUTION PROTOCOL (CRITICAL):
 5. Only provide a comprehensive summary after the ENTIRE chain completes
 6. If ANY tool in the sequence fails, stop execution and report the failure clearly
 
+CALCULATE TOOL USAGE:
+- Use the 'variables' parameter to pass values from previous tool results
+- Example: If fetch_price returned {"price": 2543.67} for ETH:
+  expression: "eth_price * amount"
+  variables: {"eth_price": 2543.67, "amount": 1}
+- The tool will substitute variables automatically before evaluation
+- You can also use direct numbers: expression: "2543.67 * 1"
+
 PARAMETER FLOW:
 - Automatically pass relevant outputs (e.g., tokenAddress, collectionAddress) to next tools
 - If the next tool requires data from the previous tool, extract and use it automatically
+- For calculate tool: Pass numeric values via the 'variables' parameter
 - Maintain context throughout the execution chain
 """
     else:
@@ -388,21 +398,52 @@ def execute_tool(tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
         if tool_name == "calculate":
             try:
                 expression = parameters.get("expression", "")
+                variables = parameters.get("variables", {})
                 description = parameters.get("description", "Calculation")
+                
+                import re
+                
+                # Substitute variables in the expression
+                resolved_expression = expression
+                if variables:
+                    for var_name, var_value in variables.items():
+                        # Replace variable name with its numeric value
+                        resolved_expression = re.sub(
+                            r'\b' + re.escape(str(var_name)) + r'\b',
+                            str(var_value),
+                            resolved_expression
+                        )
+                
+                # Check if there are still unresolved variable names
+                variable_pattern = r'[a-zA-Z_][a-zA-Z0-9_]*'
+                found_variables = re.findall(variable_pattern, resolved_expression)
+                # Filter out 'e' which is valid for scientific notation like 1e10
+                found_variables = [v for v in found_variables if v.lower() != 'e']
+                
+                if found_variables:
+                    return {
+                        "success": False,
+                        "tool": tool_name,
+                        "error": f"Unresolved variables in expression: {', '.join(found_variables)}. Please provide their values in the 'variables' parameter. Example: variables={{{found_variables[0]}: 123.45}}"
+                    }
+                
                 # Safely evaluate the expression (only allow basic math)
                 allowed_chars = set("0123456789+-*/().e ")
-                if not all(c in allowed_chars for c in expression.lower()):
+                if not all(c in allowed_chars for c in resolved_expression.lower()):
                     return {
                         "success": False,
                         "tool": tool_name,
                         "error": "Invalid characters in expression. Only numbers and basic operators (+, -, *, /, .) are allowed."
                     }
-                result = eval(expression)
+                    
+                result = eval(resolved_expression)
                 return {
                     "success": True,
                     "tool": tool_name,
                     "result": {
-                        "expression": expression,
+                        "original_expression": expression,
+                        "variables": variables,
+                        "resolved_expression": resolved_expression,
                         "result": result,
                         "description": description
                     }
@@ -486,7 +527,7 @@ def process_agent_conversation(
 ) -> Dict[str, Any]:
     """
     Process the conversation with the AI agent
-    Primary: Groq (llama-3.3-70b-versatile) with tool use
+    Primary: Groq (moonshotai/kimi-k2-instruct-0905) with tool use
     Fallback: Google Gemini
     """
     
@@ -515,7 +556,7 @@ def process_agent_conversation(
                 iteration += 1
                 
                 groq_response = groq_client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
+                    model="moonshotai/kimi-k2-instruct-0905",
                     messages=messages,
                     tools=openai_tools if openai_tools else None,
                     tool_choice="auto" if openai_tools else None,
@@ -569,7 +610,7 @@ def process_agent_conversation(
                         "tool_calls": all_tool_calls,
                         "results": all_tool_results,
                         "conversation_history": [],
-                        "provider": "Groq (llama-3.3-70b-versatile)"
+                        "provider": "Groq (moonshotai/kimi-k2-instruct-0905)"
                     }
             
             # Max iterations reached with Groq
@@ -578,7 +619,7 @@ def process_agent_conversation(
                 "tool_calls": all_tool_calls,
                 "results": all_tool_results,
                 "conversation_history": [],
-                "provider": "Groq (llama-3.3-70b-versatile)"
+                "provider": "Groq (moonshotai/kimi-k2-instruct-0905)"
             }
             
         except Exception as groq_error:
@@ -856,7 +897,7 @@ Response:
         if groq_client:
             try:
                 completion = groq_client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
+                    model="moonshotai/kimi-k2-instruct-0905",
                     messages=[
                         {"role": "system", "content": workflow_system_prompt},
                         {"role": "user", "content": request.prompt}
@@ -966,7 +1007,7 @@ async def health_check():
         "service": "AI Agent Builder",
         "blockchain": "Arbitrum Sepolia",
         "ai_providers": {
-            "primary": "Groq (llama-3.3-70b-versatile)" if GROQ_API_KEY else "Not configured",
+            "primary": "Groq (moonshotai/kimi-k2-instruct-0905)" if GROQ_API_KEY else "Not configured",
             "fallback": "Google Gemini 2.0 Flash" if GEMINI_API_KEY else "Not configured"
         },
         "backend_url": BACKEND_URL
