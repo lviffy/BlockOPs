@@ -1,20 +1,20 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, Search, Wallet, AlertCircle, CheckCircle2, ExternalLink, MessageSquare, Send } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
+import { Loader2, Search, Wallet, AlertCircle, CheckCircle2, ExternalLink, Send, ArrowRight, ChevronDown, BookOpen, PenLine, MessageSquare } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { ethers } from "ethers"
 import { useAuth } from "@/lib/auth"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { 
   discoverContract, 
   executeNaturalLanguageCommand 
@@ -70,6 +70,13 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
   const [isChatLoading, setIsChatLoading] = useState(false)
   const [useBackendDiscovery, setUseBackendDiscovery] = useState(true)
   const [executionPlan, setExecutionPlan] = useState<any>(null)
+  const chatScrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
+    }
+  }, [chatMessages, isChatLoading])
 
   const isValidAddress = (address: string) => {
     return ethers.isAddress(address)
@@ -89,20 +96,18 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
     setShowManualABI(false)
     setContractABI(null)
     setFunctions({ read: [], write: [] })
-    
-    console.log("=== Starting contract load for:", contractAddress)
-    
-    try {
-      if (useBackendDiscovery) {
-        // Use backend API for contract discovery
-        console.log("Using backend discovery API...")
+
+    let loaded = false
+
+    // 1) Try backend discovery first
+    if (useBackendDiscovery) {
+      try {
         const response = await discoverContract(contractAddress)
-        
+
         if (response.success && response.data) {
           const { allFunctions, totalFunctions } = response.data
-          
-          // Convert backend functions to component format
-          const functions: ContractFunction[] = allFunctions.map(func => ({
+
+          const funcs: ContractFunction[] = allFunctions.map(func => ({
             index: func.index,
             name: func.name,
             type: 'function',
@@ -111,122 +116,85 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
             inputs: func.inputs,
             outputs: func.outputs,
           }))
-          
-          // Create a minimal ABI from functions
-          const abi = functions.map(func => ({
+
+          const abi = funcs.map(func => ({
             name: func.name,
             type: func.type,
             stateMutability: func.stateMutability,
             inputs: func.inputs,
             outputs: func.outputs,
           }))
-          
+
           setContractABI(abi)
           parseFunctions(abi)
-          
+          loaded = true
+
           toast({
-            title: "Contract Loaded via Backend ✓",
-            description: `Successfully loaded ${totalFunctions} contract functions`,
+            title: "Contract Loaded",
+            description: `${totalFunctions} functions discovered`,
           })
         }
-      } else {
-        // Fallback to direct Etherscan API
+      } catch (backendError: any) {
+        console.warn("Backend discovery failed, trying Etherscan fallback:", backendError.message)
+      }
+    }
+
+    // 2) Fallback: direct Etherscan API
+    if (!loaded) {
+      try {
         const provider = new ethers.JsonRpcProvider(
           process.env.NEXT_PUBLIC_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com"
         )
-        
-        console.log("Checking if contract exists on chain...")
+
         const code = await provider.getCode(contractAddress)
-        console.log("Contract code length:", code.length)
-        
+
         if (code === "0x") {
           toast({
             title: "Contract Not Found",
-            description: "No contract found at this address on Ethereum Sepolia",
+            description: "No contract deployed at this address",
             variant: "destructive",
           })
           setIsLoading(false)
           return
         }
 
-        console.log("Contract exists! Fetching ABI from Etherscan...")
         const apiKey = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || "YourApiKeyToken"
         const apiUrl = `https://api.etherscan.io/v2/api?chainid=11155111&module=contract&action=getabi&address=${contractAddress}&apikey=${apiKey}`
-        
+
         const response = await fetch(apiUrl)
         const data = await response.json()
-        
+
         if (data.status === "1" && data.result) {
           const abi = JSON.parse(data.result)
           setContractABI(abi)
           parseFunctions(abi)
+          loaded = true
           toast({
-            title: "Contract Loaded ✓",
-            description: `Successfully loaded ${abi.length} contract functions`,
-          })
-        } else {
-          setShowManualABI(true)
-          toast({
-            title: "Contract Not Verified",
-            description: "Contract found but not verified. Please paste ABI manually.",
-            variant: "destructive",
+            title: "Contract Loaded",
+            description: `${abi.length} functions loaded`,
           })
         }
+      } catch (etherscanError: any) {
+        console.warn("Etherscan fallback also failed:", etherscanError.message)
       }
-    } catch (error: any) {
-      console.error("Error fetching contract:", error)
-      
-      // Check if it's a verification error
-      const isVerificationError = error.message?.includes('not verified') || 
-                                  error.message?.includes('Contract source code')
-      
-      if (isVerificationError) {
-        toast({
-          title: "Contract Not Verified",
-          description: "This contract is not verified on Arbiscan. Please use a verified contract or verify your contract first.",
-          variant: "destructive",
-        })
-        
-        // Show helpful examples
-        setChatMessages([{
-          role: 'assistant',
-          content: `⚠️ **Contract Not Verified**
-
-The contract at ${contractAddress} is not verified on Arbiscan.
-
-**To use this feature, you need:**
-1. A verified contract on Arbitrum Sepolia
-2. The contract source code must be published on Arbiscan
-
-**Example Verified Contracts on Arbitrum Sepolia:**
-- USDC Mock: \`0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d\`
-- Uniswap V3 Router: \`0x101F443B4d1b059569D643917553c771E1b9663E\`
-
-**To verify your contract:**
-Visit https://sepolia.arbiscan.io/verifyContract and follow the verification steps.`
-        }])
-      } else {
-        toast({
-          title: "Error Loading Contract",
-          description: error.message || "Failed to fetch contract details",
-          variant: "destructive",
-        })
-      }
-      
-      // If backend fails, suggest manual ABI input
-      if (useBackendDiscovery) {
-        setShowManualABI(true)
-      }
-    } finally {
-      setIsLoading(false)
     }
+
+    // 3) Nothing worked — show manual ABI input
+    if (!loaded) {
+      setShowManualABI(true)
+      toast({
+        title: "Contract Not Verified",
+        description: "Paste the ABI manually to interact with this contract.",
+        variant: "destructive",
+      })
+    }
+
+    setIsLoading(false)
   }
 
   const parseFunctions = (abi: any[]) => {
     const readFunctions: ContractFunction[] = []
     const writeFunctions: ContractFunction[] = []
-
-    console.log("Parsing ABI with", abi.length, "items")
 
     abi.forEach((item) => {
       if (item.type === "function") {
@@ -246,7 +214,7 @@ Visit https://sepolia.arbiscan.io/verifyContract and follow the verification ste
       }
     })
 
-    console.log("Found functions:", { read: readFunctions.length, write: writeFunctions.length })
+    console.log("Functions parsed:", { read: readFunctions.length, write: writeFunctions.length })
     setFunctions({ read: readFunctions, write: writeFunctions })
   }
 
@@ -336,7 +304,7 @@ Visit https://sepolia.arbiscan.io/verifyContract and follow the verification ste
         convertParamValue(value, func.inputs[index]?.type || 'string')
       )
 
-      console.log("Executing read function:", func.name, "with params:", params)
+      console.log("Executing read:", func.name, params)
       const result = await contract[func.name](...params)
 
       // Convert result to string for display
@@ -406,22 +374,16 @@ Visit https://sepolia.arbiscan.io/verifyContract and follow the verification ste
       
       let contract: ethers.Contract
       
-      // Use agent wallet if available, otherwise use Privy wallet (browser provider)
       if (hasAgentWallet) {
-        // Use agent wallet with private key
         const wallet = new ethers.Wallet(dbUser.private_key!, provider)
         contract = new ethers.Contract(contractAddress, contractABI, wallet)
-        console.log("Using agent wallet:", dbUser.wallet_address)
       } else if (hasPrivyWallet && window.ethereum) {
-        // Use Privy wallet - requires browser provider
         try {
           const browserProvider = new ethers.BrowserProvider(window.ethereum)
           const signer = await browserProvider.getSigner()
           contract = new ethers.Contract(contractAddress, contractABI, signer)
-          console.log("Using Privy wallet via browser provider:", privyWalletAddress)
         } catch (providerError) {
-          console.error("Failed to get browser provider:", providerError)
-          throw new Error("Failed to connect to wallet. Please ensure your wallet is connected and unlocked.")
+          throw new Error("Failed to connect to wallet. Please ensure your wallet is connected.")
         }
       } else {
         throw new Error("No wallet available. Please connect your wallet first.")
@@ -433,7 +395,7 @@ Visit https://sepolia.arbiscan.io/verifyContract and follow the verification ste
         convertParamValue(value, func.inputs[index]?.type || 'string')
       )
 
-      console.log("Executing write function:", func.name, "with params:", params)
+      console.log("Executing write:", func.name, params)
       const tx = await contract[func.name](...params)
       
       toast({
@@ -600,34 +562,31 @@ Visit https://sepolia.arbiscan.io/verifyContract and follow the verification ste
     const hasWallet = dbUser?.private_key || (isWalletLogin && privyWalletAddress)
 
     return (
-      <AccordionItem key={func.name} value={func.name}>
-        <AccordionTrigger className="hover:no-underline py-3 md:py-4">
-          <div className="flex items-center gap-2 text-left flex-wrap">
-            <span className="font-semibold text-sm md:text-base">{func.name}</span>
-            <Badge variant={isWrite ? "destructive" : "secondary"} className="text-xs">
-              {isWrite ? "Write" : "Read"}
-            </Badge>
-            <Badge variant="outline" className="text-xs hidden sm:inline-flex">
+      <AccordionItem key={func.name} value={func.name} className="border-b last:border-b-0">
+        <AccordionTrigger className="hover:no-underline py-3 text-sm">
+          <div className="flex items-center gap-2 text-left">
+            <span className="font-medium font-mono">{func.name}</span>
+            <Badge variant="outline" className="text-[10px] font-normal">
               {func.stateMutability}
             </Badge>
           </div>
         </AccordionTrigger>
         <AccordionContent>
-          <div className="space-y-3 md:space-y-4 pt-2">
+          <div className="space-y-3 pt-1 pb-2">
             {func.inputs.length > 0 && (
-              <div className="space-y-2 md:space-y-3">
-                <Label className="text-sm font-semibold">Input Parameters</Label>
+              <div className="space-y-2">
                 {func.inputs.map((input, index) => (
                   <div key={index} className="space-y-1">
-                    <Label htmlFor={`${func.name}-${index}`} className="text-xs">
-                      {input.name || `param${index}`} ({input.type})
+                    <Label className="text-xs text-muted-foreground">
+                      {input.name || `param${index}`}
+                      <span className="ml-1 font-mono text-[10px] opacity-60">{input.type}</span>
                     </Label>
                     <Input
-                      id={`${func.name}-${index}`}
                       placeholder={`Enter ${input.type}`}
                       value={functionParams[func.name]?.[index] || ""}
                       onChange={(e) => handleParamChange(func.name, index, e.target.value)}
                       disabled={isExecuting}
+                      className="h-8 text-sm font-mono"
                     />
                   </div>
                 ))}
@@ -635,72 +594,67 @@ Visit https://sepolia.arbiscan.io/verifyContract and follow the verification ste
             )}
 
             <Button
+              variant="outline"
+              size="sm"
               onClick={() => isWrite ? executeWriteFunction(func) : executeReadFunction(func)}
               disabled={isExecuting || (isWrite && !hasWallet)}
-              className="w-full"
+              className="w-full h-8 text-xs"
             >
               {isExecuting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-1.5 size-3 animate-spin" />
                   Executing...
                 </>
               ) : (
-                <>Execute {func.name}</>
+                <>
+                  <ArrowRight className="mr-1.5 size-3" />
+                  Execute
+                </>
               )}
             </Button>
 
             {isWrite && !hasWallet && (
-              <Alert>
-                <Wallet className="h-4 w-4" />
-                <AlertDescription>
-                  Connect your wallet to execute write functions
-                </AlertDescription>
-              </Alert>
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Wallet className="size-3" />
+                Connect wallet to execute write functions
+              </p>
             )}
 
             {result && (
-              <Alert variant={result.success ? "default" : "destructive"}>
+              <div className={`rounded-md border p-3 text-xs ${result.success ? 'bg-muted/50' : 'border-destructive/30 bg-destructive/5'}`}>
                 {result.success ? (
-                  <CheckCircle2 className="h-4 w-4" />
+                  <div className="space-y-1">
+                    <p className="text-muted-foreground text-[10px] uppercase tracking-wider">Result</p>
+                    <p className="font-mono break-all">{result.result}</p>
+                    {result.txHash && (
+                      <a
+                        href={`${process.env.NEXT_PUBLIC_EXPLORER_URL || "https://sepolia.etherscan.io"}/tx/${result.txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors mt-1"
+                      >
+                        View on Explorer <ExternalLink className="size-2.5" />
+                      </a>
+                    )}
+                  </div>
                 ) : (
-                  <AlertCircle className="h-4 w-4" />
+                  <div className="space-y-1">
+                    <p className="text-destructive text-[10px] uppercase tracking-wider">Error</p>
+                    <p className="break-all text-destructive/80">{result.error}</p>
+                  </div>
                 )}
-                <AlertDescription>
-                  {result.success ? (
-                    <div className="space-y-1">
-                      <div className="font-semibold">Result:</div>
-                      <div className="break-all">{result.result}</div>
-                      {result.txHash && (
-                        <a
-                          href={`${process.env.NEXT_PUBLIC_EXPLORER_URL || "https://sepolia.etherscan.io"}/tx/${result.txHash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-blue-500 hover:underline mt-2"
-                        >
-                          View on Explorer <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
-                    </div>
-                  ) : (
-                    <div>
-                      <div className="font-semibold">Error:</div>
-                      <div className="break-all text-sm">{result.error}</div>
-                    </div>
-                  )}
-                </AlertDescription>
-              </Alert>
+              </div>
             )}
 
             {func.outputs.length > 0 && (
-              <div className="text-xs text-muted-foreground">
-                <span className="font-semibold">Returns:</span>{" "}
-                {func.outputs.map((output, idx) => (
+              <p className="text-[10px] text-muted-foreground font-mono">
+                → {func.outputs.map((output, idx) => (
                   <span key={idx}>
-                    {output.name || `output${idx}`} ({output.type})
+                    {output.name || `output${idx}`}: {output.type}
                     {idx < func.outputs.length - 1 ? ", " : ""}
                   </span>
                 ))}
-              </div>
+              </p>
             )}
           </div>
         </AccordionContent>
@@ -709,227 +663,211 @@ Visit https://sepolia.arbiscan.io/verifyContract and follow the verification ste
   }
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <Card className="shadow-lg border-2">
-        <CardHeader className="p-4 md:p-6 bg-linear-to-r from-card to-muted/20">
-          <CardTitle className="text-lg md:text-2xl">Contract Interaction</CardTitle>
-          <CardDescription className="text-sm md:text-base">
-            Enter a contract address to view and interact with its functions
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-4 md:p-6">
-          <div className="flex flex-col sm:flex-row gap-2">
-            <div className="flex-1">
-              <Input
-                placeholder="0x... (Contract Address)"
-                value={contractAddress}
-                onChange={(e) => setContractAddress(e.target.value)}
-                disabled={isLoading}
-                className="text-sm md:text-base"
-              />
-            </div>
-            <Button
-              onClick={fetchContractABI}
-              disabled={isLoading || !contractAddress}
-              className="w-full sm:w-auto"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  <span className="hidden sm:inline">Loading...</span>
-                  <span className="sm:hidden">Loading</span>
-                </>
-              ) : (
-                <>
-                  <Search className="mr-2 h-4 w-4" />
-                  <span className="hidden sm:inline">Load Contract</span>
-                  <span className="sm:hidden">Load</span>
-                </>
-              )}
-            </Button>
-          </div>
+    <div className="space-y-8">
+      {/* Contract Address Input */}
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-sm font-medium">Contract Address</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Enter a verified contract address to explore its functions
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Input
+            placeholder="0x..."
+            value={contractAddress}
+            onChange={(e) => setContractAddress(e.target.value)}
+            disabled={isLoading}
+            className="font-mono text-sm"
+          />
+          <Button
+            variant="outline"
+            onClick={fetchContractABI}
+            disabled={isLoading || !contractAddress}
+            className="shrink-0"
+          >
+            {isLoading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <>
+                <Search className="mr-2 size-4" />
+                Load
+              </>
+            )}
+          </Button>
+        </div>
 
-          {showManualABI && (
-            <div className="mt-4 space-y-3">
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Contract is not verified on Arbiscan. Please paste the contract ABI (JSON format) below.
+        {showManualABI && (
+          <Collapsible defaultOpen>
+            <CollapsibleTrigger className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <ChevronDown className="size-3" />
+              Manual ABI Input
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-3 space-y-3">
+              <Alert variant="destructive" className="py-2">
+                <AlertCircle className="size-3" />
+                <AlertDescription className="text-xs">
+                  Contract not verified. Paste the ABI below.
                 </AlertDescription>
               </Alert>
-              <Label htmlFor="manual-abi">Contract ABI (JSON)</Label>
               <Textarea
-                id="manual-abi"
-                placeholder='[{"inputs":[],"name":"functionName","outputs":[],"stateMutability":"view","type":"function"}]'
+                placeholder='[{"inputs":[],"name":"functionName","outputs":[],...}]'
                 value={manualABI}
                 onChange={(e) => setManualABI(e.target.value)}
-                rows={10}
+                rows={6}
                 className="font-mono text-xs"
               />
-              <Button onClick={handleManualABI} className="w-full">
+              <Button variant="outline" size="sm" onClick={handleManualABI} className="w-full">
                 Load ABI
               </Button>
-            </div>
-          )}
-
-          {(dbUser?.wallet_address || privyWalletAddress) && (
-            <Alert className="mt-4">
-              <Wallet className="h-4 w-4" />
-              <AlertDescription>
-                <div className="text-base font-mono font-semibold break-all">
-                  {dbUser?.wallet_address || privyWalletAddress}
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+      </section>
 
       {contractABI && (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-6">
-          {/* Functions Panel */}
-          <div className="xl:col-span-2 order-2 xl:order-1">
-            <Card className="shadow-lg border-2">
-              <CardHeader className="p-4 md:p-6 bg-linear-to-r from-card to-muted/20">
-                <CardTitle className="text-lg md:text-xl">Contract Functions</CardTitle>
-                <CardDescription className="text-sm">
-                  {functions.read.length + functions.write.length} functions found
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 md:p-6">
-                <Tabs defaultValue="read" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="read" className="text-xs sm:text-sm">
-                      <span className="hidden sm:inline">Read Functions ({functions.read.length})</span>
-                      <span className="sm:hidden">Read ({functions.read.length})</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="write" className="text-xs sm:text-sm">
-                      <span className="hidden sm:inline">Write Functions ({functions.write.length})</span>
-                      <span className="sm:hidden">Write ({functions.write.length})</span>
-                    </TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="read">
-                    <ScrollArea className="h-[300px] sm:h-[350px] md:h-[400px] pr-2 md:pr-4">
-                      {functions.read.length > 0 ? (
-                        <Accordion type="single" collapsible className="w-full">
-                          {functions.read.map((func) => renderFunctionCard(func, false))}
-                        </Accordion>
-                      ) : (
-                        <div className="text-center py-8 text-muted-foreground text-sm">
-                          No read functions found
-                        </div>
-                      )}
-                    </ScrollArea>
-                  </TabsContent>
-                  <TabsContent value="write">
-                    <ScrollArea className="h-[300px] sm:h-[350px] md:h-[400px] pr-2 md:pr-4">
-                      {functions.write.length > 0 ? (
-                        <Accordion type="single" collapsible className="w-full">
-                          {functions.write.map((func) => renderFunctionCard(func, true))}
-                        </Accordion>
-                      ) : (
-                        <div className="text-center py-8 text-muted-foreground text-sm">
-                          No write functions found
-                        </div>
-                      )}
-                    </ScrollArea>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          </div>
+        <>
+          <Separator />
 
-          {/* AI Chat Panel */}
-          <div className="xl:col-span-1 order-1 xl:order-2">
-            <Card className="h-full flex flex-col shadow-lg border-2">
-              <CardHeader className="p-4 md:p-6 bg-linear-to-r from-card to-muted/20">
-                <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
-                  <MessageSquare className="h-4 w-4 md:h-5 md:w-5" />
-                  AI Assistant
-                </CardTitle>
-                <CardDescription className="text-xs md:text-sm">
-                  Ask AI to help you interact with the contract
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col min-h-0 p-4 md:p-6">
-                <ScrollArea className="flex-1 pr-2 md:pr-4 mb-4 h-[200px] sm:h-[250px] md:h-[300px]">
-                  <div className="space-y-3 md:space-y-4">
-                    {chatMessages.length === 0 ? (
-                      <div className="text-center py-6 md:py-8 text-muted-foreground text-xs md:text-sm">
-                        <MessageSquare className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-3 opacity-20" />
-                        <p>Ask me anything about this contract!</p>
-                        <p className="mt-2 text-xs hidden sm:block">
-                          Examples:<br />
-                          "What functions are available?"<br />
-                          "How do I call the transfer function?"<br />
-                          "What parameters does the function need?"
-                        </p>
-                      </div>
-                    ) : (
-                      chatMessages.map((msg, idx) => (
+          {/* Functions */}
+          <section className="space-y-4">
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-sm font-medium">Functions</h2>
+              <span className="text-xs text-muted-foreground">
+                {functions.read.length + functions.write.length} total
+              </span>
+            </div>
+
+            <Tabs defaultValue="read" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 h-9">
+                <TabsTrigger value="read" className="text-xs gap-1.5">
+                  <BookOpen className="size-3" />
+                  Read ({functions.read.length})
+                </TabsTrigger>
+                <TabsTrigger value="write" className="text-xs gap-1.5">
+                  <PenLine className="size-3" />
+                  Write ({functions.write.length})
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="read" className="mt-3">
+                {functions.read.length > 0 ? (
+                  <Accordion type="single" collapsible className="w-full">
+                    {functions.read.map((func) => renderFunctionCard(func, false))}
+                  </Accordion>
+                ) : (
+                  <p className="text-center py-10 text-sm text-muted-foreground">
+                    No read functions found
+                  </p>
+                )}
+              </TabsContent>
+              <TabsContent value="write" className="mt-3">
+                {functions.write.length > 0 ? (
+                  <Accordion type="single" collapsible className="w-full">
+                    {functions.write.map((func) => renderFunctionCard(func, true))}
+                  </Accordion>
+                ) : (
+                  <p className="text-center py-10 text-sm text-muted-foreground">
+                    No write functions found
+                  </p>
+                )}
+              </TabsContent>
+            </Tabs>
+          </section>
+
+          <Separator />
+
+          {/* AI Chat */}
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-sm font-medium flex items-center gap-2">
+                <MessageSquare className="size-3.5" />
+                AI Assistant
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Describe what you want to do with the contract
+              </p>
+            </div>
+
+            <div className="rounded-md border">
+              {/* Messages */}
+              <div ref={chatScrollRef} className="max-h-72 overflow-y-auto">
+                {chatMessages.length === 0 ? (
+                  <div className="px-4 py-8 text-center">
+                    <p className="text-xs text-muted-foreground">
+                      Try: &quot;What does this contract do?&quot; or &quot;Call the transfer function&quot;
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-4 space-y-3">
+                    {chatMessages.map((msg, idx) => (
+                      <div
+                        key={idx}
+                        className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                      >
                         <div
-                          key={idx}
-                          className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                          className={`max-w-[85%] rounded-md px-3 py-2 text-xs ${
+                            msg.role === 'user'
+                              ? 'bg-foreground text-background'
+                              : 'bg-muted'
+                          }`}
                         >
-                          <div
-                            className={`max-w-[85%] sm:max-w-[80%] rounded-lg px-3 py-2 md:px-4 md:py-2 ${
-                              msg.role === 'user'
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted'
-                            }`}
-                          >
-                            <p className="text-xs sm:text-sm whitespace-pre-wrap wrap-break-word">{msg.content}</p>
-                          </div>
+                          <p className="whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
                         </div>
-                      ))
-                    )}
+                      </div>
+                    ))}
                     {isChatLoading && (
                       <div className="flex justify-start">
-                        <div className="bg-muted rounded-lg px-3 py-2 md:px-4 md:py-2">
-                          <Loader2 className="h-3 w-3 md:h-4 md:w-4 animate-spin" />
+                        <div className="bg-muted rounded-md px-3 py-2">
+                          <Loader2 className="size-3 animate-spin" />
                         </div>
                       </div>
                     )}
                   </div>
-                </ScrollArea>
-                <div className="flex flex-col gap-2 pt-3 md:pt-4 border-t">
-                  {executionPlan && (
-                    <Button
-                      onClick={handleExecuteConfirmation}
-                      disabled={isChatLoading}
-                      className="w-full bg-green-600 hover:bg-green-700"
-                    >
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Execute Function
-                    </Button>
-                  )}
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Ask AI about the contract..."
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault()
-                          handleAIChatSubmit()
-                        }
-                      }}
-                      disabled={isChatLoading}
-                      className="text-sm"
-                    />
-                    <Button
-                      size="icon"
-                      onClick={handleAIChatSubmit}
-                      disabled={!chatInput.trim() || isChatLoading}
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
+                )}
+              </div>
+
+              {/* Input */}
+              <div className="border-t p-3 space-y-2">
+                {executionPlan && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExecuteConfirmation}
+                    disabled={isChatLoading}
+                    className="w-full h-8 text-xs"
+                  >
+                    <CheckCircle2 className="mr-1.5 size-3" />
+                    Confirm &amp; Execute
+                  </Button>
+                )}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Ask AI about the contract..."
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        handleAIChatSubmit()
+                      }
+                    }}
+                    disabled={isChatLoading}
+                    className="h-8 text-xs"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0 size-8"
+                    onClick={handleAIChatSubmit}
+                    disabled={!chatInput.trim() || isChatLoading}
+                  >
+                    <Send className="size-3" />
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+              </div>
+            </div>
+          </section>
+        </>
       )}
     </div>
   )
