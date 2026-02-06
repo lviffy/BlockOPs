@@ -3,10 +3,14 @@
 import * as React from "react"
 import { useState, useRef, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { Send, Bot, User, Loader2, CheckCircle2, XCircle, ExternalLink, ArrowLeft, ChevronDown, ChevronUp, Wrench, ArrowRight } from "lucide-react"
+import { Send, Loader2, ChevronDown, ChevronUp, Wrench, ArrowLeft, ArrowRight, CircleDot } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import { toast } from "@/components/ui/use-toast"
 import { UserProfile } from "@/components/user-profile"
@@ -43,87 +47,73 @@ interface Message {
   toolResults?: ToolResults
 }
 
-// Tool Details View Component - Shows request/response JSON
 function ToolDetailsView({ toolResults }: { toolResults: ToolResults }) {
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
 
   if (!toolResults?.tool_calls?.length) return null
 
   return (
-    <div className="mt-3 pt-3 border-t border-border/30">
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
-      >
-        <Wrench className="h-3 w-3" />
-        <span>View Details</span>
-        {isExpanded ? (
-          <ChevronUp className="h-3 w-3 ml-auto" />
-        ) : (
-          <ChevronDown className="h-3 w-3 ml-auto" />
-        )}
-      </button>
-      
-      {isExpanded && (
-        <div className="mt-3 space-y-3">
-          {toolResults.tool_calls.map((toolCall, index) => {
-            const result = toolResults.results[index]
-            
-            return (
-              <div key={index} className="space-y-2">
-                {/* Tool Call Header */}
-                <div className="flex items-center gap-2 text-xs">
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0.5">
-                    {toolCall.tool}
-                  </Badge>
-                  <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                  <span className={cn(
-                    "text-[10px] font-medium",
-                    result?.success ? "text-green-600" : "text-red-500"
-                  )}>
-                    {result?.success ? "Success" : "Failed"}
-                  </span>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-3">
+      <CollapsibleTrigger asChild>
+        <button className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+          <Wrench className="h-3 w-3" />
+          <span>{toolResults.tool_calls.length} tool call{toolResults.tool_calls.length > 1 ? "s" : ""}</span>
+          {isOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-2 space-y-2">
+        {toolResults.tool_calls.map((toolCall, index) => {
+          const result = toolResults.results[index]
+          return (
+            <div key={index} className="rounded-md border border-border bg-background/50 overflow-hidden">
+              <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-muted/30">
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-mono">
+                  {toolCall.tool}
+                </Badge>
+                <ArrowRight className="h-2.5 w-2.5 text-muted-foreground" />
+                <span className="text-[10px] font-medium text-muted-foreground">
+                  {result?.success ? "ok" : "err"}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
+                <div className="p-2">
+                  <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Request</span>
+                  <pre className="mt-1 text-[10px] font-mono text-foreground/80 whitespace-pre-wrap break-all leading-relaxed">
+                    {JSON.stringify(toolCall.parameters || {}, null, 2)}
+                  </pre>
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {/* Request Box */}
-                  <div className="rounded-lg bg-muted/50 border border-border/40 overflow-hidden">
-                    <div className="px-3 py-1.5 bg-muted/70 border-b border-border/40">
-                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                        Request
-                      </span>
-                    </div>
-                    <div className="p-2 overflow-x-auto">
-                      <pre className="text-[10px] font-mono text-foreground/80 whitespace-pre-wrap break-all">
-                        {JSON.stringify(toolCall.parameters || {}, null, 2)}
-                      </pre>
-                    </div>
-                  </div>
-                  
-                  {/* Response Box */}
-                  <div className="rounded-lg bg-muted/50 border border-border/40 overflow-hidden">
-                    <div className="px-3 py-1.5 bg-muted/70 border-b border-border/40">
-                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                        Response
-                      </span>
-                    </div>
-                    <div className="p-2 overflow-x-auto max-h-[200px] overflow-y-auto">
-                      <pre className="text-[10px] font-mono text-foreground/80 whitespace-pre-wrap break-all">
-                        {result?.error 
-                          ? JSON.stringify({ error: result.error }, null, 2)
-                          : JSON.stringify(result?.result || {}, null, 2)
-                        }
-                      </pre>
-                    </div>
+                <div className="p-2 overflow-hidden">
+                  <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Response</span>
+                  <div className="mt-1 max-h-[160px] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border">
+                    <pre className="text-[10px] font-mono text-foreground/80 whitespace-pre-wrap break-all leading-relaxed">
+                      {result?.error
+                        ? JSON.stringify({ error: result.error }, null, 2)
+                        : JSON.stringify(result?.result || {}, null, 2)}
+                    </pre>
                   </div>
                 </div>
               </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
+            </div>
+          )
+        })}
+      </CollapsibleContent>
+    </Collapsible>
   )
+}
+
+function formatContent(content: string): string {
+  return content
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2 hover:text-foreground/80 transition-colors">$1</a>')
+    .replace(/(https?:\/\/[^\s<]+)/g, (match) => {
+      if (match.includes('href="')) return match
+      return `<a href="${match}" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2 hover:text-foreground/80 transition-colors">${match}</a>`
+    })
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+    .replace(/```(?:json)?\n([\s\S]*?)\n```/g, (_, code) => {
+      return `<pre class="mt-2 rounded border border-border bg-muted/40 p-2.5 font-mono text-[11px] overflow-x-auto leading-relaxed">${code}</pre>`
+    })
+    .replace(/`([^`]+)`/g, '<code class="bg-muted px-1 py-0.5 rounded text-[11px] font-mono">$1</code>')
 }
 
 export default function AgentChatPage() {
@@ -131,7 +121,7 @@ export default function AgentChatPage() {
   const params = useParams()
   const agentId = params.agentId as string
   const { logout, dbUser } = useAuth()
-  
+
   const [agent, setAgent] = useState<Agent | null>(null)
   const [loadingAgent, setLoadingAgent] = useState(true)
   const [messages, setMessages] = useState<Message[]>([])
@@ -141,48 +131,32 @@ export default function AgentChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // Load agent on mount
   useEffect(() => {
     const loadAgent = async () => {
-      if (!agentId) {
-        router.push("/my-agents")
-        return
-      }
-
+      if (!agentId) { router.push("/my-agents"); return }
       try {
         const agentData = await getAgentById(agentId)
         if (!agentData) {
-          toast({
-            title: "Agent not found",
-            description: "The agent you're looking for doesn't exist",
-            variant: "destructive",
-          })
+          toast({ title: "Agent not found", description: "The agent you're looking for doesn't exist", variant: "destructive" })
           router.push("/my-agents")
           return
         }
         setAgent(agentData)
       } catch (error: any) {
         console.error("Error loading agent:", error)
-        toast({
-          title: "Error",
-          description: "Failed to load agent",
-          variant: "destructive",
-        })
+        toast({ title: "Error", description: "Failed to load agent", variant: "destructive" })
         router.push("/my-agents")
       } finally {
         setLoadingAgent(false)
       }
     }
-
     loadAgent()
   }, [agentId, router])
 
-  // Auto-scroll to bottom when new messages are added
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  // Focus textarea when page loads
   useEffect(() => {
     if (!loadingAgent && textareaRef.current) {
       setTimeout(() => textareaRef.current?.focus(), 100)
@@ -204,16 +178,14 @@ export default function AgentChatPage() {
     setIsLoading(true)
 
     try {
-      // Use conversation memory API
       const data = await sendChatWithMemory({
         agentId: agent.id,
         userId: dbUser.id,
         message: userQuery,
         conversationId: conversationId,
-        systemPrompt: `You are a helpful AI assistant for blockchain operations. The agent has these tools: ${agent.tools?.map(t => t.tool).join(', ')}`
+        systemPrompt: `You are a helpful AI assistant for blockchain operations. The agent has these tools: ${agent.tools?.map((t) => t.tool).join(", ")}`,
       })
 
-      // Save conversation ID for subsequent messages
       if (data.isNewConversation) {
         setConversationId(data.conversationId)
       }
@@ -224,7 +196,7 @@ export default function AgentChatPage() {
         content: data.message,
         timestamp: new Date(),
         conversationId: data.conversationId,
-        toolResults: data.toolResults
+        toolResults: data.toolResults,
       }
       setMessages((prev) => [...prev, assistantMessage])
     } catch (error: any) {
@@ -235,11 +207,7 @@ export default function AgentChatPage() {
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, errorMessage])
-      toast({
-        title: "Error",
-        description: error.message || "Failed to chat with agent",
-        variant: "destructive",
-      })
+      toast({ title: "Error", description: error.message || "Failed to chat with agent", variant: "destructive" })
     } finally {
       setIsLoading(false)
     }
@@ -254,161 +222,148 @@ export default function AgentChatPage() {
 
   if (loadingAgent) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-foreground" />
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
       </div>
     )
   }
 
-  if (!agent) {
-    return null
-  }
+  if (!agent) return null
 
   return (
-    <div className="flex h-screen flex-col bg-background">
-      {/* Minimal Header */}
-      <div className="sticky top-0 z-10 backdrop-blur-sm bg-background/80 border-b">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 hover:bg-muted/50"
-              onClick={() => router.push("/my-agents")}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-base font-medium tracking-tight">{agent.name}</h1>
-          </div>
-          <UserProfile onLogout={() => {
-            logout()
-            router.push("/")
-          }} />
-        </div>
-      </div>
-
-      {/* Main Chat Container - centered with max width */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-          {messages.length === 0 && (
-            <div className="flex items-center justify-center min-h-[60vh]">
-              <div className="text-center space-y-4">
-                <div className="flex justify-center">
-                  <div className="h-16 w-16 rounded-2xl bg-muted/50 flex items-center justify-center">
-                    <Bot className="h-8 w-8 text-muted-foreground/60" />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-base font-medium text-foreground/80">Ready to help</p>
-                  <p className="text-sm text-muted-foreground">Send a message to start the conversation</p>
-                </div>
-              </div>
+    <TooltipProvider>
+      <div className="flex h-screen flex-col bg-background">
+        {/* Header */}
+        <header className="shrink-0 border-b border-border">
+          <div className="mx-auto flex h-12 max-w-2xl items-center justify-between px-4">
+            <div className="flex items-center gap-2.5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => router.push("/my-agents")}
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom"><p>Back</p></TooltipContent>
+              </Tooltip>
+              <Separator orientation="vertical" className="h-4" />
+              <span className="text-sm font-medium text-foreground">{agent.name}</span>
+              <Badge variant="secondary" className="text-[10px] h-4 px-1.5 py-0 font-normal">
+                {agent.tools?.length || 0} {(agent.tools?.length || 0) === 1 ? "tool" : "tools"}
+              </Badge>
             </div>
-          )}
+            <UserProfile
+              onLogout={() => {
+                logout()
+                router.push("/")
+              }}
+            />
+          </div>
+        </header>
 
-          <div className="space-y-6">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={cn(
-                  "flex gap-3 group",
-                  message.role === "user" ? "justify-end" : "justify-start"
-                )}
-              >
-                {message.role === "assistant" && (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-muted/50 group-hover:bg-muted transition-colors">
-                    <Bot className="h-4 w-4 text-foreground/70" />
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-2xl px-4 py-6">
+            {messages.length === 0 && (
+              <div className="flex min-h-[65vh] items-center justify-center">
+                <div className="text-center space-y-2">
+                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border border-dashed border-border">
+                    <CircleDot className="h-4 w-4 text-muted-foreground" />
                   </div>
-                )}
-                <div
-                  className={cn(
-                    "max-w-[75%] rounded-2xl px-4 py-3 shadow-sm",
-                    message.role === "user"
-                      ? "bg-gray-700 text-white"
-                      : "bg-muted/70 text-foreground border border-border/40"
-                  )}
-                >
-                  <div 
-                    className="text-sm leading-relaxed whitespace-pre-wrap"
-                    dangerouslySetInnerHTML={{
-                      __html: message.content
-                        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-                        .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-                        .replace(/```json\n([\s\S]*?)\n```/g, (_, json) => {
-                          return `<div class="mt-3 rounded-lg border border-border/60 bg-muted/40 p-3 font-mono text-xs overflow-x-auto"><pre class="m-0">${json}</pre></div>`
-                        })
-                        .replace(/`([^`]+)`/g, '<code class="bg-muted/60 px-1.5 py-0.5 rounded text-xs">$1</code>')
-                    }}
-                  />
-                  
-                  {/* Tool Details View for assistant messages with tool results */}
-                  {message.role === "assistant" && message.toolResults && (
-                    <ToolDetailsView toolResults={message.toolResults} />
-                  )}
-                  
-                  <div className={cn(
-                    "text-[11px] mt-2",
-                    message.role === "user" ? "text-gray-300" : "text-muted-foreground"
-                  )}>
-                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                </div>
-                {message.role === "user" && (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gray-700 group-hover:bg-gray-600 transition-colors">
-                    <User className="h-4 w-4 text-white" />
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {isLoading && (
-              <div className="flex gap-3 justify-start">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-muted/50">
-                  <Bot className="h-4 w-4 text-foreground/70" />
-                </div>
-                <div className="bg-muted/70 border border-border/40 rounded-2xl px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Thinking...</span>
-                  </div>
+                  <p className="text-xs text-muted-foreground">Send a message to begin.</p>
                 </div>
               </div>
             )}
-            <div ref={messagesEndRef} />
-          </div>
-        </div>
-      </div>
 
-      {/* Minimal Input Area - fixed at bottom */}
-      <div className="sticky bottom-0 border-t bg-background/95 backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4">
-          <div className="flex items-end gap-2">
-            <div className="flex-1 relative">
-              <Textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Message..."
-                className="min-h-[52px] max-h-[120px] resize-none rounded-xl bg-muted/30 border-border/40 focus:bg-background focus:border-border pr-12 text-sm"
-                disabled={isLoading || !dbUser?.id}
-              />
-            </div>
-            <Button
-              onClick={handleSend}
-              disabled={!input.trim() || isLoading || !dbUser?.id}
-              size="icon"
-              className="h-[52px] w-[52px] shrink-0 rounded-xl shadow-sm hover:shadow-md transition-all"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
+            <div className="space-y-4">
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={cn(
+                    "flex",
+                    message.role === "user" ? "justify-end" : "justify-start"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "max-w-[80%] rounded-2xl px-4 py-2.5",
+                      message.role === "user"
+                        ? "bg-foreground text-background rounded-br-md"
+                        : "bg-muted/60 text-foreground border border-border rounded-bl-md"
+                    )}
+                  >
+                    <div
+                      className="text-sm leading-relaxed whitespace-pre-wrap [&_a]:underline [&_a]:underline-offset-2"
+                      dangerouslySetInnerHTML={{ __html: formatContent(message.content) }}
+                    />
+
+                    {message.role === "assistant" && message.toolResults && (
+                      <ToolDetailsView toolResults={message.toolResults} />
+                    )}
+
+                    <div
+                      className={cn(
+                        "text-[10px] mt-1.5",
+                        message.role === "user" ? "text-background/50" : "text-muted-foreground/60"
+                      )}
+                    >
+                      {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-muted/60 border border-border rounded-2xl rounded-bl-md px-4 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">Thinking…</span>
+                    </div>
+                  </div>
+                </div>
               )}
-            </Button>
+              <div ref={messagesEndRef} />
+            </div>
           </div>
         </div>
+
+        {/* Input */}
+        <footer className="shrink-0 border-t border-border bg-background">
+          <div className="mx-auto flex max-w-2xl items-end gap-2 px-4 py-3">
+            <Textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Message…"
+              className="min-h-[40px] max-h-[120px] flex-1 resize-none rounded-lg border-border bg-muted/30 px-3 py-2.5 text-sm placeholder:text-muted-foreground/50 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring"
+              disabled={isLoading || !dbUser?.id}
+            />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={handleSend}
+                  disabled={!input.trim() || isLoading || !dbUser?.id}
+                  size="icon"
+                  className="h-10 w-10 shrink-0 rounded-lg bg-foreground text-background hover:bg-foreground/90"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Send className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top"><p>Send</p></TooltipContent>
+            </Tooltip>
+          </div>
+        </footer>
       </div>
-    </div>
+    </TooltipProvider>
   )
 }

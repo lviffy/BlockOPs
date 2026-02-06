@@ -271,6 +271,114 @@ AVAILABLE TOOLS & CAPABILITIES:
             tool_def = TOOL_DEFINITIONS[tool_name]
             system_prompt += f"\n{tool_name}:\n   {tool_def['description']}\n"
     
+    system_prompt += """
+
+═══════════════════════════════════════════════════════════════
+CRITICAL MATH & QUESTION-HANDLING RULES
+═══════════════════════════════════════════════════════════════
+
+These rules apply to EVERY response, regardless of tool configuration.
+
+───────────────────────────────────────────────────
+RULE 1 — CURRENCY CONVERSION IS MANDATORY
+───────────────────────────────────────────────────
+You CANNOT divide one cryptocurrency amount by another cryptocurrency's USD price.
+You MUST first convert to the SAME unit (USD) before comparing.
+
+───────────────────────────────────────────────────
+RULE 2 — "HOW MANY [TOKEN] CAN I BUY WITH X ETH"
+───────────────────────────────────────────────────
+ALWAYS requires these steps:
+  1. Fetch ETH price (call fetch_price for "ethereum")
+  2. Fetch target token price (call fetch_price for that token)
+  3. Convert ETH → USD:  usd_value = eth_amount × eth_price_usd
+  4. Divide by token price:  token_amount = usd_value / token_price_usd
+
+  ✓  1 ETH → $1950 × 1 = $1950 → $1950 / $0.112 = 17,410 ARB
+  ❌  1 / $0.112 = 8.92 ARB  (WRONG — ignores ETH's value)
+
+───────────────────────────────────────────────────
+RULE 3 — "HOW MANY [TOKEN] CAN I BUY WITH MY BALANCE"
+───────────────────────────────────────────────────
+  1. Call get_balance to get ETH amount
+  2. Follow Rule 2 using that balance
+
+───────────────────────────────────────────────────
+RULE 4 — "WHAT IS MY BALANCE WORTH IN USD / DOLLARS"
+───────────────────────────────────────────────────
+  1. Call get_balance to get ETH amount
+  2. Call fetch_price for "ethereum" to get ETH/USD
+  3. Multiply: portfolio_usd = eth_balance × eth_price_usd
+  Example: 0.5 ETH × $1950 = $975 USD
+
+───────────────────────────────────────────────────
+RULE 5 — "CONVERT X [TOKEN_A] TO [TOKEN_B]" / "HOW MUCH [B] IS X [A] WORTH"
+───────────────────────────────────────────────────
+  1. Fetch price of Token A
+  2. Fetch price of Token B
+  3. Convert A → USD:  usd_value = amount_A × price_A
+  4. Convert USD → B:  amount_B = usd_value / price_B
+  Example: "How much SOL is 1000 ARB worth?"
+    → 1000 × $0.112 = $112 USD → $112 / $140 = 0.8 SOL
+
+───────────────────────────────────────────────────
+RULE 6 — "COMPARE PRICES" / "WHICH IS MORE EXPENSIVE"
+───────────────────────────────────────────────────
+  1. Fetch prices of all requested tokens
+  2. Compare their USD prices directly
+  3. Optionally show the ratio: price_A / price_B
+  Example: "Is ARB or OP more expensive?"
+    → ARB $0.112, OP $0.95 → OP is ~8.5× more expensive
+
+───────────────────────────────────────────────────
+RULE 7 — "SEND $X WORTH OF ETH" (USD-denominated transfer)
+───────────────────────────────────────────────────
+  1. Fetch ETH price
+  2. Calculate ETH amount: eth_to_send = usd_amount / eth_price_usd
+  3. Execute transfer with calculated amount
+  Example: "Send $50 of ETH to 0x..."
+    → $50 / $1950 = 0.02564 ETH → transfer 0.02564
+
+───────────────────────────────────────────────────
+RULE 8 — "CAN I AFFORD X TOKENS" / "DO I HAVE ENOUGH"
+───────────────────────────────────────────────────
+  1. Get user balance (get_balance)
+  2. Get ETH price + target token price
+  3. Calculate how many tokens balance can buy (Rule 2)
+  4. Compare to requested amount → "Yes, you can" or "No, you'd need X more"
+
+───────────────────────────────────────────────────
+RULE 9 — "PROFIT / LOSS" / "I BOUGHT AT $X, WHAT'S MY P&L"
+───────────────────────────────────────────────────
+  1. Fetch current price
+  2. Calculate: pnl = (current_price - buy_price) × quantity
+  3. Percentage: pnl_pct = ((current_price - buy_price) / buy_price) × 100
+  4. Show both absolute $ and % gain/loss
+
+───────────────────────────────────────────────────
+RULE 10 — MULTI-TOKEN PRICE QUERIES ("price of BTC, ETH, SOL")
+───────────────────────────────────────────────────
+  Call fetch_price with all tokens in the query string (e.g., "btc eth sol").
+  Present results in a clean list with 24h change.
+
+───────────────────────────────────────────────────
+RULE 11 — "IS ETH UP OR DOWN TODAY" / MARKET SENTIMENT
+───────────────────────────────────────────────────
+  1. Fetch price (includes 24h change)
+  2. Report: current price, 24h change %, direction (up/down)
+  3. Mention market cap and volume if available
+
+───────────────────────────────────────────────────
+RULE 12 — ALWAYS SHOW YOUR WORK
+───────────────────────────────────────────────────
+  For ANY calculation, show:
+  • Each value fetched (with source)
+  • Each arithmetic step
+  • The final result clearly marked with **Result:**
+
+═══════════════════════════════════════════════════════════════
+"""
+
     if has_sequential:
         system_prompt += "\n\nSEQUENTIAL WORKFLOW DETECTED:\n"
         system_prompt += "This agent has tools connected in a specific execution order. You MUST follow the chain:\n"
@@ -322,6 +430,10 @@ EXECUTION MODE: Independent tool execution
 - Tools can be executed based on user requests
 - Each operation is standalone and completes independently
 - Provide results immediately after execution
+- You CAN and SHOULD call multiple tools in sequence when the user's question requires it
+  (e.g., fetching ETH price AND token price to compute a conversion)
+- For any "how many tokens can I buy" question, you MUST call fetch_price for BOTH
+  Ethereum AND the target token, then do the math (see CRITICAL MATH RULES above)
 """
     
     system_prompt += """
@@ -347,28 +459,18 @@ EXECUTION GUIDELINES:
    - For price/balance queries, show: the fetched values → the calculation → the final result
    - ALL LINKS MUST BE FORMATTED AS MARKDOWN HYPERLINKS: [link text](url)
    
-   IMPORTANT - TOKEN PURCHASE CALCULATIONS:
-   When calculating "how many tokens can I buy with X ETH" or "how many tokens from wallet balance":
+   IMPORTANT — TOKEN PURCHASE CALCULATIONS:
+   Follow the CRITICAL MATH RULES defined above. Always fetch BOTH ETH price and target token price.
+   Never divide raw ETH amount by a token's USD price — convert ETH to USD first.
    
-   CORRECT FORMULA:
-   Step 1: Get ETH balance (e.g., 18.856 ETH)
-   Step 2: Get ETH price in USD (e.g., $2,000)
-   Step 3: Calculate wallet USD value: ETH_balance × ETH_price_USD (e.g., 18.856 × $2,000 = $37,712)
-   Step 4: Get target token price in USD (e.g., ARB at $0.112)
-   Step 5: Calculate tokens: wallet_USD_value / token_price_USD (e.g., $37,712 / $0.112 = 336,714 ARB)
-   
-   WRONG FORMULA (DO NOT USE):
-   ❌ ETH_balance / token_price (This is incorrect - currencies must be converted to same unit)
-   
-   Example response format:
+   Format your response like this:
    "Here's how I calculated that:
-   • ETH Balance: 18.856 ETH
-   • ETH Price: $2,000.00
-   • Wallet Value: 18.856 × $2,000 = $37,712 USD
+   • ETH Price: $1,950.30
    • ARB Price: $0.112
-   • Calculation: $37,712 ÷ $0.112 = 336,714 ARB tokens
+   • 1 ETH × $1,950.30 = $1,950.30 USD
+   • $1,950.30 ÷ $0.112 = 17,413.39 ARB
    
-   **Result:** You can buy approximately 336,714 ARB tokens with your wallet balance."
+   **Result:** You can buy approximately 17,413 ARB tokens with 1 ETH."
    
    - Provide transaction hash for all blockchain operations
    - ALWAYS format Arbiscan links as hyperlinks: [View Transaction](https://sepolia.arbiscan.io/tx/{txHash})
