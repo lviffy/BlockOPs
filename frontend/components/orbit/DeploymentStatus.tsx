@@ -29,7 +29,7 @@ export function DeploymentStatus({ deploymentId }: DeploymentStatusProps) {
 
   const fetchDeploymentStatus = async () => {
     try {
-      const response = await fetch(`http://localhost:3002/api/orbit/deploy/status/${deploymentId}`);
+      const response = await fetch(`http://localhost:3000/api/orbit/deploy/status/${deploymentId}`);
       const data = await response.json();
       
       if (data.success) {

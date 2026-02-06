@@ -1,17 +1,17 @@
-"use client"
+'use client'
 
-import * as React from "react"
-import { useState, useRef, useEffect } from "react"
-import { Send, Bot, User, Sparkles, X } from "lucide-react"
-import { usePrivy } from "@privy-io/react-auth"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
+import * as React from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { Send, Bot, User, Sparkles, ArrowRight } from 'lucide-react'
+import { usePrivy } from '@privy-io/react-auth'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Separator } from '@/components/ui/separator'
+import { cn } from '@/lib/utils'
 
 interface Message {
   id: string
-  role: "user" | "assistant"
+  role: 'user' | 'assistant'
   content: string
   timestamp: Date
   config?: OrbitConfig
@@ -38,249 +38,218 @@ interface OrbitConfig {
 
 interface OrbitAIChatProps {
   onApplyConfig: (config: OrbitConfig) => void
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  initialPrompt?: string
+  onPromptConsumed?: () => void
 }
 
-export function OrbitAIChat({ onApplyConfig, open, onOpenChange }: OrbitAIChatProps) {
+export function OrbitAIChat({ onApplyConfig, initialPrompt, onPromptConsumed }: OrbitAIChatProps) {
   const { user, authenticated } = usePrivy()
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: "1",
-      role: "assistant",
-      content: "Hello! I can help you configure your Arbitrum Orbit L3 chain. Tell me what you'd like to build, and I'll automatically fill in the configuration details for you.\n\nFor example, you could say:\n• 'I want to create a gaming L3 called GameChain with fast 1-second blocks'\n• 'Build me a DeFi-focused chain with low gas fees'\n• 'Create an enterprise L3 with 5 validators'",
+      id: '1',
+      role: 'assistant',
+      content:
+        "Hi! I'll help you configure your L3 chain. Describe what you want to build — I'll set up everything for you.\n\nTry something like:\n• \"A gaming chain called GameNet with 1s blocks\"\n• \"DeFi-focused chain with low gas fees\"\n• \"Enterprise L3 with 5 validators\"",
       timestamp: new Date(),
     },
   ])
-  const [input, setInput] = useState("")
+  const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  // Auto-scroll to bottom when new messages are added
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    const container = scrollContainerRef.current
+    if (container) {
+      container.scrollTop = container.scrollHeight
+    }
   }, [messages])
 
-  // Focus textarea when opened
+  // Handle initial prompt from parent
   useEffect(() => {
-    if (open && textareaRef.current) {
-      setTimeout(() => textareaRef.current?.focus(), 100)
+    if (initialPrompt?.trim()) {
+      setInput('')
+      handleSendMessage(initialPrompt.trim())
+      onPromptConsumed?.()
     }
-  }, [open])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPrompt])
 
-  const parseAIResponse = (aiText: string): OrbitConfig | null => {
-    try {
-      // Try to find JSON in the response
-      const jsonMatch = aiText.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0])
-      }
-      return null
-    } catch (error) {
-      console.error('Failed to parse AI response:', error)
-      return null
-    }
-  }
+  const handleSendMessage = async (text: string) => {
+    if (!text.trim() || isLoading) return
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return
-    
-    // Check authentication
     if (!authenticated || !user?.id) {
-      const aiMessage: Message = {
-        id: Date.now().toString(),
-        role: "assistant",
-        content: "Please connect your wallet to use AI configuration.",
-        timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, aiMessage])
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: 'Please connect your wallet first to use AI configuration.',
+          timestamp: new Date(),
+        },
+      ])
       return
     }
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      role: "user",
-      content: input.trim(),
+      role: 'user',
+      content: text,
       timestamp: new Date(),
     }
 
     setMessages((prev) => [...prev, userMessage])
-    const userQuery = input.trim()
-    setInput("")
+    setInput('')
     setIsLoading(true)
 
     try {
-      // Call Gemini API to parse user requirements
       const response = await fetch('/api/orbit/ai-parse', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userQuery,
-          userId: user.id,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userQuery: text, userId: user.id }),
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to generate configuration')
-      }
+      if (!response.ok) throw new Error('Failed to generate configuration')
 
       const data = await response.json()
-      
+
       if (data.success && data.config) {
         const config = data.config
         const aiMessage: Message = {
           id: (Date.now() + 1).toString(),
-          role: "assistant",
-          content: data.message || `I've created a configuration for "${config.name}"!\n\nHere's what I've set up:\n• Chain ID: ${config.chainId}\n• Parent Chain: ${config.parentChain}\n• Validators: ${config.validators?.length || 0}\n• Native Token: ${config.chainConfig?.nativeToken?.name || 'ETH'} (${config.chainConfig?.nativeToken?.symbol || 'ETH'})\n• Block Time: ${config.chainConfig?.blockTime || 2} seconds\n\nClick "Apply Configuration" below to use these settings in your form!`,
+          role: 'assistant',
+          content: `Here's your configuration for "${config.chainConfig?.chainName || config.name}":\n\n• Chain ID: ${config.chainId}\n• Parent: ${config.parentChain}\n• Block time: ${config.chainConfig?.blockTime || 2}s\n• Token: ${config.chainConfig?.nativeToken?.symbol || 'ETH'}\n• Validators: ${config.validators?.length || 0}\n\nApply this to your form below.`,
           timestamp: new Date(),
-          config: config,
+          config,
         }
         setMessages((prev) => [...prev, aiMessage])
       } else {
-        const aiMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: "assistant",
-          content: data.message || "I couldn't generate a configuration from your request. Could you provide more details? For example:\n• What would you like to name your L3?\n• What's the main use case (gaming, DeFi, NFTs)?\n• Any specific requirements (block time, validators)?",
-          timestamp: new Date(),
-        }
-        setMessages((prev) => [...prev, aiMessage])
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content:
+              data.message ||
+              "I couldn't parse that. Could you be more specific? Try including a chain name, use case, or any requirements.",
+            timestamp: new Date(),
+          },
+        ])
       }
     } catch (error: any) {
-      console.error('Error calling AI API:', error)
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: `Sorry, I encountered an error: ${error.message || 'Failed to generate configuration'}. Please try again.`,
-        timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, aiMessage])
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: `Error: ${error.message || 'Something went wrong'}. Please try again.`,
+          timestamp: new Date(),
+        },
+      ])
     } finally {
       setIsLoading(false)
+      inputRef.current?.focus()
     }
   }
 
-  const handleApplyConfig = (config: OrbitConfig) => {
-    onApplyConfig(config)
-    onOpenChange(false)
-  }
+  const handleSend = () => handleSendMessage(input)
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
     }
   }
 
-  if (!open) return null
-
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
-      <div className="fixed inset-4 sm:inset-auto sm:right-4 sm:bottom-4 sm:top-4 sm:w-[500px] z-50">
-        <Card className="h-full flex flex-col shadow-2xl border-2">
-          <CardHeader className="border-b bg-muted/30 shrink-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-foreground rounded-lg">
-                  <Sparkles className="w-4 h-4 text-background" />
-                </div>
-                <CardTitle className="text-lg">AI Configuration Assistant</CardTitle>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onOpenChange(false)}
-                className="h-8 w-8"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          </CardHeader>
+    <div className="rounded-lg border border-border">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-4 py-3">
+        <Sparkles className="size-4 text-muted-foreground" />
+        <span className="text-sm font-medium">AI Configuration</span>
+      </div>
 
-          <CardContent className="flex-1 overflow-hidden flex flex-col p-0">
-            {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={cn(
-                    "flex gap-3 items-start",
-                    message.role === "user" ? "justify-end" : "justify-start"
-                  )}
-                >
-                  {message.role === "assistant" && (
-                    <div className="p-2 bg-muted rounded-full shrink-0">
-                      <Bot className="w-4 h-4 text-foreground" />
-                    </div>
-                  )}
-                  <div
-                    className={cn(
-                      "rounded-lg px-4 py-2 max-w-[85%] whitespace-pre-wrap",
-                      message.role === "user"
-                        ? "bg-foreground text-background"
-                        : "bg-muted text-foreground"
-                    )}
-                  >
-                    <p className="text-sm leading-relaxed">{message.content}</p>
-                    {message.config && (
-                      <Button
-                        onClick={() => handleApplyConfig(message.config!)}
-                        className="mt-3 w-full"
-                        size="sm"
-                      >
-                        Apply Configuration
-                      </Button>
-                    )}
-                  </div>
-                  {message.role === "user" && (
-                    <div className="p-2 bg-foreground rounded-full shrink-0">
-                      <User className="w-4 h-4 text-background" />
-                    </div>
-                  )}
-                </div>
-              ))}
-              {isLoading && (
-                <div className="flex gap-3 items-start">
-                  <div className="p-2 bg-muted rounded-full shrink-0">
-                    <Bot className="w-4 h-4 text-foreground animate-pulse" />
-                  </div>
-                  <div className="bg-muted rounded-lg px-4 py-2">
-                    <p className="text-sm text-muted-foreground">Generating configuration...</p>
-                  </div>
-                </div>
+      <Separator />
+
+      {/* Messages */}
+      <div ref={scrollContainerRef} className="max-h-80 overflow-y-auto px-4 py-4 space-y-4">
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={cn(
+              'flex gap-2.5 items-start',
+              message.role === 'user' ? 'flex-row-reverse' : '',
+            )}
+          >
+            <div
+              className={cn(
+                'flex items-center justify-center shrink-0 size-6 rounded-full mt-0.5',
+                message.role === 'user' ? 'bg-foreground' : 'bg-muted',
               )}
-              <div ref={messagesEndRef} />
+            >
+              {message.role === 'user' ? (
+                <User className="size-3 text-background" />
+              ) : (
+                <Bot className="size-3 text-foreground" />
+              )}
             </div>
-
-            {/* Input Area */}
-            <div className="p-4 border-t bg-muted/30 shrink-0">
-              <div className="flex gap-2">
-                <Textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Describe your L3 requirements..."
-                  className="min-h-[60px] max-h-[120px] resize-none"
-                  disabled={isLoading}
-                />
+            <div
+              className={cn(
+                'rounded-lg px-3 py-2 max-w-[85%] text-sm leading-relaxed',
+                message.role === 'user'
+                  ? 'bg-foreground text-background'
+                  : 'bg-muted/60',
+              )}
+            >
+              <p className="whitespace-pre-wrap">{message.content}</p>
+              {message.config && (
                 <Button
-                  onClick={handleSend}
-                  disabled={!input.trim() || isLoading}
-                  size="icon"
-                  className="h-[60px] w-[60px] shrink-0"
+                  onClick={() => onApplyConfig(message.config!)}
+                  size="sm"
+                  className="mt-2.5 gap-1.5 w-full"
                 >
-                  <Send className="h-4 w-4" />
+                  Apply Configuration
+                  <ArrowRight className="size-3" />
                 </Button>
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Press Enter to send, Shift+Enter for new line
-              </p>
+              )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        ))}
+
+        {isLoading && (
+          <div className="flex gap-2.5 items-start">
+            <div className="flex items-center justify-center shrink-0 size-6 rounded-full mt-0.5 bg-muted">
+              <Bot className="size-3 text-foreground animate-pulse" />
+            </div>
+            <div className="bg-muted/60 rounded-lg px-3 py-2">
+              <p className="text-sm text-muted-foreground">Generating configuration…</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <Separator />
+
+      {/* Input */}
+      <div className="flex items-center gap-2 p-2">
+        <Input
+          ref={inputRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Describe your chain requirements…"
+          className="border-0 shadow-none focus-visible:border-transparent h-9 text-sm"
+          disabled={isLoading}
+        />
+        <Button
+          size="icon"
+          variant="ghost"
+          className="shrink-0 size-8"
+          disabled={!input.trim() || isLoading}
+          onClick={handleSend}
+        >
+          <Send className="size-3.5" />
+        </Button>
       </div>
     </div>
   )

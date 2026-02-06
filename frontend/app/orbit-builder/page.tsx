@@ -1,182 +1,219 @@
 'use client';
 
 import { useState } from 'react';
-import { Rocket, Layers, Settings, Shield, Zap, Info, Sparkles } from 'lucide-react';
+import { Layers, Settings, Shield, Zap, ChevronRight, Plus, List, User, Wallet, LogOut } from 'lucide-react';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { OrbitConfigForm } from '@/components/orbit/OrbitConfigForm';
 import { DeploymentStatus } from '@/components/orbit/DeploymentStatus';
 import { ConfigList } from '@/components/orbit/ConfigList';
 import { OrbitAIChat } from '@/components/orbit/OrbitAIChat';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+
+const features = [
+  { icon: Layers, title: 'Custom L3 Chains', desc: 'Build your own Layer 3 rollup' },
+  { icon: Settings, title: 'Flexible Config', desc: 'Customize every parameter' },
+  { icon: Shield, title: 'Secure Deployment', desc: 'Battle-tested contracts' },
+  { icon: Zap, title: 'One-Click Deploy', desc: 'Deploy in minutes' },
+];
 
 export default function OrbitBuilderPage() {
-  const [activeTab, setActiveTab] = useState<'create' | 'deployments'>('create');
+  const { authenticated, login, logout } = usePrivy();
+  const { wallets } = useWallets();
+  const [activeTab, setActiveTab] = useState('create');
   const [selectedConfig, setSelectedConfig] = useState<string | null>(null);
   const [deploymentId, setDeploymentId] = useState<string | null>(null);
-  const [aiChatOpen, setAiChatOpen] = useState(false);
   const [aiGeneratedConfig, setAiGeneratedConfig] = useState<any>(null);
+
+  const walletAddress = wallets && wallets.length > 0 ? wallets[0].address : null;
+  const truncatedAddress = walletAddress 
+    ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+    : 'Not connected';
 
   const handleApplyAIConfig = (config: any) => {
     setAiGeneratedConfig(config);
     setActiveTab('create');
   };
 
+  const handleDisconnect = () => {
+    logout();
+  };
+
   return (
-    <div className="min-h-screen bg-linear-to-br from-background via-background to-muted/20">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 max-w-7xl">
+    <div className="min-h-screen bg-background" style={{ scrollbarGutter: 'stable' }}>
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 py-10 lg:py-14">
         {/* Header */}
-        <div className="mb-8 lg:mb-10">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-muted rounded-lg">
-                <Rocket className="w-7 h-7 text-foreground" />
-              </div>
-              <div>
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-                  <span className="bg-linear-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                    Orbit L3 Builder
-                  </span>
+        <header className="mb-10">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-2xl font-semibold tracking-tight">
+                  Orbit L3 Builder
                 </h1>
-                <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-                  Create and deploy custom Layer 3 chains on Arbitrum
-                </p>
               </div>
+              <p className="text-sm text-muted-foreground">
+                Create and deploy custom Layer 3 chains on Arbitrum
+              </p>
             </div>
-            <Button
-              onClick={() => setAiChatOpen(true)}
-              className="gap-2 bg-foreground hover:bg-foreground/90"
-              size="lg"
-            >
-              <Sparkles className="w-4 h-4" />
-              AI Assistant
-            </Button>
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <button className="shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                  <Avatar className="size-9 cursor-pointer">
+                    <AvatarImage src="" alt="User" />
+                    <AvatarFallback className="bg-muted">
+                      <User className="size-4 text-muted-foreground" />
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-xs text-muted-foreground">Wallet</p>
+                    <p className="text-xs font-mono leading-none">
+                      {truncatedAddress}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <Wallet className="mr-2 size-4" />
+                  {authenticated && walletAddress ? 'Connected' : 'Not Connected'}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onClick={handleDisconnect}>
+                  <LogOut className="mr-2 size-4" />
+                  Disconnect
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
-          {/* Feature Highlights */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-6">
-            <Card className="transition-all duration-200 hover:shadow-lg hover:shadow-foreground/5">
-              <CardContent className="p-4">
-                <Layers className="w-5 h-5 text-foreground mb-2" />
-                <h3 className="font-semibold text-sm">Custom L3 Chains</h3>
-                <p className="text-muted-foreground text-xs mt-1">Build your own Layer 3 rollup</p>
-              </CardContent>
-            </Card>
-            <Card className="transition-all duration-200 hover:shadow-lg hover:shadow-foreground/5">
-              <CardContent className="p-4">
-                <Settings className="w-5 h-5 text-foreground mb-2" />
-                <h3 className="font-semibold text-sm">Flexible Config</h3>
-                <p className="text-muted-foreground text-xs mt-1">Customize every parameter</p>
-              </CardContent>
-            </Card>
-            <Card className="transition-all duration-200 hover:shadow-lg hover:shadow-foreground/5">
-              <CardContent className="p-4">
-                <Shield className="w-5 h-5 text-foreground mb-2" />
-                <h3 className="font-semibold text-sm">Secure Deployment</h3>
-                <p className="text-muted-foreground text-xs mt-1">Battle-tested contracts</p>
-              </CardContent>
-            </Card>
-            <Card className="transition-all duration-200 hover:shadow-lg hover:shadow-foreground/5">
-              <CardContent className="p-4">
-                <Zap className="w-5 h-5 text-foreground mb-2" />
-                <h3 className="font-semibold text-sm">One-Click Deploy</h3>
-                <p className="text-muted-foreground text-xs mt-1">Deploy in minutes</p>
-              </CardContent>
-            </Card>
+          <Separator className="mt-6" />
+
+          {/* Feature cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-5">
+            {features.map((f) => (
+              <div
+                key={f.title}
+                className="flex flex-col items-start gap-2 rounded-lg border border-border p-3"
+              >
+                <f.icon className="size-4 text-muted-foreground" />
+                <div>
+                  <p className="font-medium text-sm leading-none">{f.title}</p>
+                  <p className="text-muted-foreground text-xs mt-1 leading-tight">{f.desc}</p>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+        </header>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={() => setActiveTab('create')}
-            className={`px-6 py-2.5 rounded-lg font-semibold transition-all text-sm ${
-              activeTab === 'create'
-                ? 'bg-foreground text-background shadow-lg'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-          >
-            Create Configuration
-          </button>
-          <button
-            onClick={() => setActiveTab('deployments')}
-            className={`px-6 py-2.5 rounded-lg font-semibold transition-all text-sm ${
-              activeTab === 'deployments'
-                ? 'bg-foreground text-background shadow-lg'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-          >
-            My Deployments
-          </button>
-        </div>
+        {/* Main content */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="w-full">
+            <TabsTrigger value="create" className="gap-1.5">
+              <Plus className="size-3.5" />
+              Create Configuration
+            </TabsTrigger>
+            <TabsTrigger value="deployments" className="gap-1.5">
+              <List className="size-3.5" />
+              My Deployments
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Content */}
-        <Card className="mb-8">
-          <CardContent className="p-6">
-            {activeTab === 'create' ? (
-              <OrbitConfigForm 
+          <TabsContent value="create">
+            <div className="space-y-6">
+              <OrbitAIChat
+                onApplyConfig={handleApplyAIConfig}
+              />
+              <OrbitConfigForm
                 initialConfig={aiGeneratedConfig}
                 onDeploymentStart={(depId) => {
                   setDeploymentId(depId);
                   setActiveTab('deployments');
                 }}
               />
-            ) : (
-              <div className="space-y-6">
-                {deploymentId && (
-                  <DeploymentStatus deploymentId={deploymentId} />
-                )}
-                <ConfigList 
-                  onSelectConfig={setSelectedConfig}
-                  onDeploymentStart={(depId) => setDeploymentId(depId)}
-                />
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+          </TabsContent>
 
-        {/* Info Section */}
-        <Card className="bg-muted/50">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-background rounded-lg shrink-0">
-                <Info className="w-5 h-5 text-foreground" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold mb-3">
-                  About Arbitrum Orbit
-                </h3>
-                <div className="text-muted-foreground space-y-3 text-sm">
+          <TabsContent value="deployments">
+            <div className="space-y-6">
+              {deploymentId && (
+                <DeploymentStatus deploymentId={deploymentId} />
+              )}
+              <ConfigList
+                onSelectConfig={setSelectedConfig}
+                onDeploymentStart={(depId) => setDeploymentId(depId)}
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        {/* Info accordion */}
+        <div className="mt-10">
+          <Separator className="mb-6" />
+          <Accordion type="single" collapsible>
+            <AccordionItem value="about" className="border-none">
+              <AccordionTrigger className="py-3 hover:no-underline">
+                <span className="text-sm font-medium">About Arbitrum Orbit</span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-4 text-sm text-muted-foreground pt-1">
                   <p>
-                    <strong className="text-foreground">Arbitrum Orbit</strong> allows you to create your own dedicated Layer 3 (L3) 
+                    <strong className="text-foreground font-medium">Arbitrum Orbit</strong> allows you to create your own dedicated Layer 3 (L3)
                     chains that settle to Arbitrum Layer 2 networks.
                   </p>
+
                   <div>
-                    <strong className="text-foreground">Benefits:</strong>
-                    <ul className="list-disc list-inside ml-2 space-y-1 mt-1">
-                      <li>Full control over chain parameters and governance</li>
-                      <li>Custom gas tokens and fee structures</li>
-                      <li>Dedicated throughput and block space</li>
-                      <li>Lower fees than L2, faster than L1</li>
-                      <li>Seamless Arbitrum ecosystem interoperability</li>
+                    <p className="text-foreground font-medium mb-2">Benefits</p>
+                    <ul className="space-y-1.5">
+                      {[
+                        'Full control over chain parameters and governance',
+                        'Custom gas tokens and fee structures',
+                        'Dedicated throughput and block space',
+                        'Lower fees than L2, faster than L1',
+                        'Seamless Arbitrum ecosystem interoperability',
+                      ].map((item) => (
+                        <li key={item} className="flex items-center gap-2">
+                          <ChevronRight className="size-3 text-muted-foreground/60 shrink-0" />
+                          {item}
+                        </li>
+                      ))}
                     </ul>
                   </div>
-                  <p>
-                    <strong className="text-foreground">Use Cases:</strong> Gaming, DeFi protocols, enterprise applications, 
-                    NFT platforms, and high-throughput applications.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
-      {/* AI Chat Assistant */}
-      <OrbitAIChat 
-        open={aiChatOpen}
-        onOpenChange={setAiChatOpen}
-        onApplyConfig={handleApplyAIConfig}
-      />
+                  <div>
+                    <p className="text-foreground font-medium mb-2">Use Cases</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['Gaming', 'DeFi Protocols', 'Enterprise', 'NFT Platforms', 'High-Throughput Apps'].map((tag) => (
+                        <Badge key={tag} variant="outline" className="font-normal">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
+      </div>
     </div>
   );
 }
