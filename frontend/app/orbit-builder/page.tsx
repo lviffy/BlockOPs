@@ -3,10 +3,9 @@
 import { useState } from 'react';
 import { Layers, Settings, Shield, Zap, ChevronRight, Plus, List, User, Wallet, LogOut } from 'lucide-react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
-import { OrbitConfigForm } from '@/components/orbit/OrbitConfigForm';
+import { OrbitBuilderChat } from '@/components/orbit/OrbitBuilderChat';
 import { DeploymentStatus } from '@/components/orbit/DeploymentStatus';
 import { ConfigList } from '@/components/orbit/ConfigList';
-import { OrbitAIChat } from '@/components/orbit/OrbitAIChat';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -39,17 +38,10 @@ export default function OrbitBuilderPage() {
   const [activeTab, setActiveTab] = useState('create');
   const [selectedConfig, setSelectedConfig] = useState<string | null>(null);
   const [deploymentId, setDeploymentId] = useState<string | null>(null);
-  const [aiGeneratedConfig, setAiGeneratedConfig] = useState<any>(null);
-
   const walletAddress = wallets && wallets.length > 0 ? wallets[0].address : null;
   const truncatedAddress = walletAddress 
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
     : 'Not connected';
-
-  const handleApplyAIConfig = (config: any) => {
-    setAiGeneratedConfig(config);
-    setActiveTab('create');
-  };
 
   const handleDisconnect = () => {
     logout();
@@ -138,18 +130,13 @@ export default function OrbitBuilderPage() {
           </TabsList>
 
           <TabsContent value="create">
-            <div className="space-y-6">
-              <OrbitAIChat
-                onApplyConfig={handleApplyAIConfig}
-              />
-              <OrbitConfigForm
-                initialConfig={aiGeneratedConfig}
-                onDeploymentStart={(depId) => {
-                  setDeploymentId(depId);
-                  setActiveTab('deployments');
-                }}
-              />
-            </div>
+            <OrbitBuilderChat
+              className="min-h-[500px]"
+              onDeploymentStart={(depId) => {
+                setDeploymentId(depId);
+                setActiveTab('deployments');
+              }}
+            />
           </TabsContent>
 
           <TabsContent value="deployments">

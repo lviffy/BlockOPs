@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  orbit-ai-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orbit-ai-backend
+    ports:
+      - "8002:8000"
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - BACKEND_URL=${BACKEND_URL:-http://host.docker.internal:3000}
+      - SESSION_TTL_SECONDS=${SESSION_TTL_SECONDS:-7200}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
