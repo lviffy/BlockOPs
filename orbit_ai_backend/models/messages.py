@@ -35,6 +35,7 @@ class SessionResponse(BaseModel):
     current_step: Optional[str] = None
     config_progress: Optional[ConfigProgress] = None
     config: Optional[dict] = None
+    collected_params: Optional[dict] = None  # Current collected configuration values
     messages: list[dict] = Field(default_factory=list)
 
 

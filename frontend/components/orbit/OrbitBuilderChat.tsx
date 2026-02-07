@@ -13,6 +13,17 @@ import { cn } from '@/lib/utils';
 // API base URL for the AI backend
 const AI_BACKEND_URL = process.env.NEXT_PUBLIC_ORBIT_AI_URL || 'http://localhost:8002';
 
+// Simple markdown parser for bold text
+function parseMarkdown(text: string): React.ReactNode[] {
+  const parts = text.split(/(\*\*[^*]+\*\*)/);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -115,6 +126,10 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
         setCurrentStep(data.current_step);
         setConfigProgress(data.config_progress);
         setConfig(data.config);
+        // Populate config form with collected params
+        if (data.collected_params) {
+          setCollectedParams(data.collected_params);
+        }
         setMessages(data.messages.map((m: any) => ({
           id: m.id,
           role: m.role,
@@ -391,7 +406,12 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
                   : 'bg-muted/60',
               )}
             >
-              <p className="whitespace-pre-wrap">{message.content}</p>
+              <p className="whitespace-pre-wrap">
+                {message.role === 'assistant' 
+                  ? parseMarkdown(message.content)
+                  : message.content
+                }
+              </p>
               
               {/* Quick action buttons */}
               {message.quickActions && message.quickActions.length > 0 && (

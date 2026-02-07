@@ -137,6 +137,7 @@ async def get_session(session_id: str):
         current_step=session.current_step.value,
         config_progress=session.get_progress(),
         config=session.config,
+        collected_params=session.collected_params,
         messages=[
             {"id": m.id, "role": m.role, "content": m.content, "timestamp": m.timestamp.isoformat()}
             for m in session.messages
