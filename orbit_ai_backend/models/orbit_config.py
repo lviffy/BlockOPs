@@ -92,24 +92,32 @@ class OrbitConfig(BaseModel):
     
     def to_backend_format(self) -> dict:
         """Convert to format expected by Node.js backend."""
+        # Use owner_address as sequencer if not set separately
+        sequencer = self.sequencer_address or self.owner_address
+        
         return {
-            "name": self.name,
-            "chainId": str(self.chain_id),
+            "name": self.chain_config.chain_name,
+            "chainId": self.chain_id,
             "parentChain": self.parent_chain.value,
-            "owner": self.owner_address,
+            "description": f"L3 chain for {self.use_case or 'general'} use case",
+            # Required by backend deploy endpoint
+            "ownerAddress": self.owner_address,
+            "sequencerAddress": sequencer,
+            "batchPosterAddress": self.batch_poster_address or sequencer,
             "validators": self.validators,
-            "chainConfig": {
-                "chainName": self.chain_config.chain_name,
-                "nativeToken": {
-                    "name": self.chain_config.native_token.name,
-                    "symbol": self.chain_config.native_token.symbol,
-                    "decimals": self.chain_config.native_token.decimals,
-                },
-                "sequencerUrl": self.chain_config.sequencer_url or f"https://sequencer-{self.name}.example.com",
-                "blockTime": self.chain_config.block_time,
-                "gasLimit": self.chain_config.gas_limit,
-            },
             "dataAvailability": self.data_availability.value,
+            "challengePeriod": self.chain_config.challenge_period_days * 86400,  # days to seconds
+            # Gas config
+            "l2GasPrice": "0.1",
+            "l1GasPrice": "10",
+            # Chain config details
+            "nativeToken": {
+                "name": self.chain_config.native_token.name,
+                "symbol": self.chain_config.native_token.symbol,
+                "decimals": self.chain_config.native_token.decimals,
+            },
+            "blockTime": self.chain_config.block_time,
+            "gasLimit": self.chain_config.gas_limit,
         }
 
 

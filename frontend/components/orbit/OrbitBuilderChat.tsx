@@ -493,80 +493,112 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
         </div>
       )}
       
-      {/* Live Config Form - shows collected values as user provides input */}
-      {Object.keys(collectedParams).filter(k => !k.startsWith('_')).length > 0 && (
-        <div className="border-t border-border">
-          <div className="px-4 py-3 bg-muted/20">
-            <h4 className="text-xs font-medium text-muted-foreground mb-2">Configuration Values</h4>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-              {collectedParams.use_case && (
-                <>
-                  <div className="text-muted-foreground">Use Case</div>
-                  <div className="capitalize">{collectedParams.use_case}</div>
-                </>
-              )}
-              {collectedParams.chain_name && (
-                <>
-                  <div className="text-muted-foreground">Chain Name</div>
-                  <div className="font-mono">{collectedParams.chain_name}</div>
-                </>
-              )}
-              {collectedParams.parent_chain && (
-                <>
-                  <div className="text-muted-foreground">Parent Chain</div>
-                  <div>{collectedParams.parent_chain}</div>
-                </>
-              )}
-              {collectedParams.data_availability && (
-                <>
-                  <div className="text-muted-foreground">DA Mode</div>
-                  <div className="capitalize">{collectedParams.data_availability}</div>
-                </>
-              )}
-              {collectedParams.validators && (
-                <>
-                  <div className="text-muted-foreground">Validators</div>
-                  <div>{collectedParams.validators}</div>
-                </>
-              )}
-              {collectedParams.owner_address && (
-                <>
-                  <div className="text-muted-foreground">Owner</div>
-                  <div className="font-mono truncate" title={collectedParams.owner_address}>
-                    {collectedParams.owner_address.slice(0, 10)}...{collectedParams.owner_address.slice(-6)}
-                  </div>
-                </>
-              )}
-              {collectedParams.native_token && (
-                <>
-                  <div className="text-muted-foreground">Gas Token</div>
-                  <div>{typeof collectedParams.native_token === 'object' 
-                    ? collectedParams.native_token.symbol 
-                    : collectedParams.native_token}</div>
-                </>
-              )}
-              {collectedParams.block_time && (
-                <>
-                  <div className="text-muted-foreground">Block Time</div>
-                  <div>{collectedParams.block_time}s</div>
-                </>
-              )}
-              {collectedParams.gas_limit && (
-                <>
-                  <div className="text-muted-foreground">Gas Limit</div>
-                  <div>{(collectedParams.gas_limit / 1_000_000).toFixed(0)}M</div>
-                </>
-              )}
-              {collectedParams.challenge_period && (
-                <>
-                  <div className="text-muted-foreground">Challenge Period</div>
-                  <div>{collectedParams.challenge_period} days</div>
-                </>
+      {/* Config Form - styled as input boxes */}
+      <div className="border-t border-border bg-muted/30 p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-sm font-medium">Chain Configuration</h4>
+          <span className="text-xs text-muted-foreground">
+            {Object.keys(collectedParams).filter(k => !k.startsWith('_')).length}/10 fields
+          </span>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-3">
+          {/* Use Case */}
+          <div>
+            <label className="block text-[11px] text-muted-foreground mb-1">Use Case</label>
+            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm">
+              {collectedParams.use_case ? (
+                <span className="capitalize">{collectedParams.use_case}</span>
+              ) : (
+                <span className="text-muted-foreground italic">Waiting...</span>
               )}
             </div>
           </div>
+          
+          {/* Chain Name */}
+          <div>
+            <label className="block text-[11px] text-muted-foreground mb-1">Chain Name</label>
+            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm font-mono">
+              {collectedParams.chain_name || <span className="text-muted-foreground italic font-sans">Waiting...</span>}
+            </div>
+          </div>
+          
+          {/* Parent Chain */}
+          <div>
+            <label className="block text-[11px] text-muted-foreground mb-1">Parent Chain</label>
+            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm">
+              {collectedParams.parent_chain || <span className="text-muted-foreground italic">Waiting...</span>}
+            </div>
+          </div>
+          
+          {/* Data Availability */}
+          <div>
+            <label className="block text-[11px] text-muted-foreground mb-1">Data Availability</label>
+            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm capitalize">
+              {collectedParams.data_availability || <span className="text-muted-foreground italic normal-case">Waiting...</span>}
+            </div>
+          </div>
+          
+          {/* Validators */}
+          <div>
+            <label className="block text-[11px] text-muted-foreground mb-1">Validators</label>
+            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm">
+              {collectedParams.validators || <span className="text-muted-foreground italic">Waiting...</span>}
+            </div>
+          </div>
+          
+          {/* Owner Address */}
+          <div>
+            <label className="block text-[11px] text-muted-foreground mb-1">Owner Address</label>
+            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm font-mono truncate"
+                 title={collectedParams.owner_address || undefined}>
+              {collectedParams.owner_address ? (
+                `${collectedParams.owner_address.slice(0,10)}...${collectedParams.owner_address.slice(-6)}`
+              ) : (
+                <span className="text-muted-foreground italic font-sans">Waiting...</span>
+              )}
+            </div>
+          </div>
+          
+          {/* Gas Token */}
+          <div>
+            <label className="block text-[11px] text-muted-foreground mb-1">Gas Token</label>
+            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm">
+              {collectedParams.native_token ? (
+                typeof collectedParams.native_token === 'object' 
+                  ? collectedParams.native_token.symbol 
+                  : collectedParams.native_token
+              ) : (
+                <span className="text-muted-foreground italic">Waiting...</span>
+              )}
+            </div>
+          </div>
+          
+          {/* Block Time */}
+          <div>
+            <label className="block text-[11px] text-muted-foreground mb-1">Block Time</label>
+            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm">
+              {collectedParams.block_time ? `${collectedParams.block_time}s` : <span className="text-muted-foreground italic">Waiting...</span>}
+            </div>
+          </div>
+          
+          {/* Gas Limit */}
+          <div>
+            <label className="block text-[11px] text-muted-foreground mb-1">Gas Limit</label>
+            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm">
+              {collectedParams.gas_limit ? `${(collectedParams.gas_limit / 1_000_000).toFixed(0)}M` : <span className="text-muted-foreground italic">Waiting...</span>}
+            </div>
+          </div>
+          
+          {/* Challenge Period */}
+          <div>
+            <label className="block text-[11px] text-muted-foreground mb-1">Challenge Period</label>
+            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm">
+              {collectedParams.challenge_period ? `${collectedParams.challenge_period} days` : <span className="text-muted-foreground italic">Waiting...</span>}
+            </div>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

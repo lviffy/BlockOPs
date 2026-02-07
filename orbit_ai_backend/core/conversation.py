@@ -249,13 +249,14 @@ class ConversationManager:
         elif step == ConfigStep.DATA_AVAILABILITY:
             if "anytrust" in msg_lower or "trust" in msg_lower:
                 return "anytrust"
-            elif "rollup" in msg_lower:
+            elif "rollup" in msg_lower or "roll up" in msg_lower or "roll-up" in msg_lower:
                 return "rollup"
             elif msg_lower in ["yes", "yeah", "ok", "sure", "sounds good", "yep"]:
                 # Use preset default
                 preset = session.collected_params.get("_preset", {})
                 return preset.get("defaults", {}).get("data_availability", "anytrust")
-            return "anytrust"
+            # Don't default - return None so AI can clarify
+            return None
         
         elif step == ConfigStep.VALIDATORS:
             count = parse_validator_count_from_text(message)

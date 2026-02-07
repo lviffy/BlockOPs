@@ -73,11 +73,21 @@ class AIEngine:
         # Add current user message
         messages.append({"role": "user", "content": user_message})
         
-        # Add context hint for current step
+        # Add context hint for current step with explicit param reminder
         step_question = get_step_question(current_step, collected_params)
+        
+        # Build explicit context about current values
+        chain_name = collected_params.get("chain_name", "the chain")
+        context_parts = [
+            f"Context: You should be asking about '{current_step}'.",
+            f"The user's chain is named: {chain_name}" if chain_name != "the chain" else "",
+            f"Collected so far: {collected_params}",
+            f"Default question hint: {step_question}",
+            "CRITICAL: Use the actual chain name and values above, NEVER use example names like 'GameVerse'.",
+        ]
         messages.append({
             "role": "system",
-            "content": f"Context: You should be asking about '{current_step}'. The default question is: {step_question}",
+            "content": " ".join(filter(None, context_parts)),
         })
         
         # Try Groq first

@@ -23,7 +23,10 @@ Key concepts to explain simply:
 
 Current conversation phase: {phase}
 Current step: {current_step}
-Collected params: {collected_params}
+
+=== IMPORTANT: USER'S ACTUAL COLLECTED CONFIGURATION ===
+{collected_params}
+=== USE THESE VALUES, NOT EXAMPLE VALUES ===
 
 Guidelines:
 - Keep responses concise (2-4 sentences max)
@@ -33,6 +36,7 @@ Guidelines:
 - If user says "go back", return to previous step
 - If user says "use my wallet", use their connected wallet address
 - If user provides unclear input, ask for clarification
+- ALWAYS use the chain_name and other values from the collected params above - NEVER use example names
 
 IMPORTANT: Your response must be plain text for the user. Do NOT output JSON.
 """
@@ -146,18 +150,11 @@ def get_system_prompt(phase: str, current_step: str, collected_params: dict) -> 
 
 
 # Few-shot examples for better LLM understanding
+# NOTE: Using generic examples without specific names to avoid confusing LLM
 FEW_SHOT_EXAMPLES = [
     {
-        "user": "I want to build a gaming chain",
-        "assistant": "Great choice! Gaming chains need fast block times for a smooth player experience. I'll optimize everything for gaming.\n\nWhat do you want to call your chain?",
-    },
-    {
-        "user": "GameVerse",
-        "assistant": "GameVerse - love it!\n\nNow let's pick your parent chain. For testing, I'd recommend Arbitrum Sepolia (testnet). Sound good?",
-    },
-    {
-        "user": "go with anytrust",
-        "assistant": "Perfect! AnyTrust it is - your players will enjoy lower gas fees.\n\nNext up: How many validators do you want? I'd suggest 3 for a gaming chain - enough for security without slowing things down.",
+        "user": "yes sounds good",
+        "assistant": "Perfect! Let's move on to the next step.",
     },
     {
         "user": "use my wallet",
@@ -165,6 +162,6 @@ FEW_SHOT_EXAMPLES = [
     },
     {
         "user": "go back",
-        "assistant": "No problem! Let's go back to the previous step.\n\nHow many validators would you like for your chain?",
+        "assistant": "No problem! Let's go back to the previous step.",
     },
 ]
