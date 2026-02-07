@@ -10,6 +10,8 @@ const priceRoutes = require('./routes/priceRoutes');
 const nlExecutorRoutes = require('./routes/nlExecutorRoutes');
 const orbitRoutes = require('./routes/orbitRoutes');
 const conversationRoutes = require('./routes/conversationRoutes');
+const walletRoutes = require('./routes/walletRoutes');
+const allowanceRoutes = require('./routes/allowanceRoutes');
 
 // Initialize Express app
 const app = express();
@@ -44,6 +46,8 @@ app.use('/price', priceRoutes);
 app.use('/nl-executor', nlExecutorRoutes);
 app.use('/api/orbit', orbitRoutes);
 app.use('/api', conversationRoutes);
+app.use('/wallet', walletRoutes);
+app.use('/allowance', allowanceRoutes);
 
 // Legacy routes for backwards compatibility
 app.post('/deploy-token', require('./controllers/tokenController').deployToken);

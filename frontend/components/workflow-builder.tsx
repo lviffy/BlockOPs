@@ -68,6 +68,12 @@ const toolTypes = [
   "airdrop",
   "fetch_price",
   "deposit_yield",
+  "wrap_eth",
+  "token_metadata",
+  "tx_status",
+  "wallet_history",
+  "approve_token",
+  "revoke_approval",
 ]
 
 const nodeTypes: NodeTypes = {
@@ -81,6 +87,12 @@ const nodeTypes: NodeTypes = {
   airdrop: ToolNode,
   fetch_price: ToolNode,
   deposit_yield: ToolNode,
+  wrap_eth: ToolNode,
+  token_metadata: ToolNode,
+  tx_status: ToolNode,
+  wallet_history: ToolNode,
+  approve_token: ToolNode,
+  revoke_approval: ToolNode,
 }
 
 const edgeTypes: EdgeTypes = {

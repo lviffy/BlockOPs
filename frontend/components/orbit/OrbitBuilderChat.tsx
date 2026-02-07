@@ -208,6 +208,7 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
   };
   
   const handleChatResponse = (data: any) => {
+    console.log('[OrbitAI] Received response:', JSON.stringify(data, null, 2));
     setPhase(data.phase);
     setCurrentStep(data.current_step);
     setConfigProgress(data.config_progress);
@@ -215,6 +216,7 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
     
     // Always sync collected_params from backend (source of truth)
     if (data.collected_params) {
+      console.log('[OrbitAI] Backend collected_params:', JSON.stringify(data.collected_params, null, 2));
       // Extract clean params (without internal _ keys) and merge
       const backendParams = { ...data.collected_params };
       const backendDefaults: string[] = backendParams._defaults || [];
@@ -229,7 +231,9 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
       
       // Only update if there are actual config values
       if (Object.keys(cleanParams).length > 0) {
+        console.log('[OrbitAI] Clean params to apply:', JSON.stringify(cleanParams, null, 2));
         setCollectedParams(prev => {
+          console.log('[OrbitAI] Previous collectedParams:', JSON.stringify(prev, null, 2));
           // Backend is source of truth - its values always override frontend state
           const updated = { ...prev };
           
@@ -252,6 +256,7 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
             }
           }
           
+          console.log('[OrbitAI] Final updated collectedParams:', JSON.stringify(updated, null, 2));
           return updated;
         });
         

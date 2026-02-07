@@ -7,6 +7,12 @@ import {
   Coins,
   Image as ImageIcon,
   TrendingUp,
+  Repeat,
+  FileText,
+  Clock,
+  History,
+  CheckCircle,
+  XCircle,
 } from "lucide-react"
 
 const toolTypes = [
@@ -39,6 +45,42 @@ const toolTypes = [
     label: "Fetch Price",
     description: "Fetch token price",
     icon: TrendingUp,
+  },
+  {
+    type: "wrap_eth",
+    label: "Wrap ETH",
+    description: "Convert ETH ↔ WETH",
+    icon: Repeat,
+  },
+  {
+    type: "token_metadata",
+    label: "Token Metadata",
+    description: "Get token info",
+    icon: FileText,
+  },
+  {
+    type: "tx_status",
+    label: "Transaction Status",
+    description: "Check tx confirmations",
+    icon: Clock,
+  },
+  {
+    type: "wallet_history",
+    label: "Wallet History",
+    description: "Fetch recent transactions",
+    icon: History,
+  },
+  {
+    type: "approve_token",
+    label: "Approve Token",
+    description: "Grant spending approval",
+    icon: CheckCircle,
+  },
+  {
+    type: "revoke_approval",
+    label: "Revoke Approval",
+    description: "Remove token allowance",
+    icon: XCircle,
   },
 ]
 

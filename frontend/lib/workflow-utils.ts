@@ -40,6 +40,12 @@ const getDefaultLabel = (type: string): string => {
     airdrop: "Airdrop",
     fetch_price: "Fetch Price",
     deposit_yield: "Deposit Yield",
+    wrap_eth: "Wrap ETH",
+    token_metadata: "Token Metadata",
+    tx_status: "Transaction Status",
+    wallet_history: "Wallet History",
+    approve_token: "Approve Token",
+    revoke_approval: "Revoke Approval",
   }
   return labels[type] || "Tool"
 }
@@ -55,6 +61,12 @@ const getDefaultDescription = (type: string): string => {
     airdrop: "Airdrop tokens to addresses",
     fetch_price: "Fetch token price",
     deposit_yield: "Deposit to yield farming",
+    wrap_eth: "Convert ETH ↔ WETH",
+    token_metadata: "Get token info",
+    tx_status: "Check tx confirmations",
+    wallet_history: "Fetch recent transactions",
+    approve_token: "Grant spending approval",
+    revoke_approval: "Remove token allowance",
   }
   return descriptions[type] || "Workflow tool"
 }

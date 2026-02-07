@@ -12,6 +12,12 @@ import {
   Gift,
   TrendingUp,
   PiggyBank,
+  Repeat,
+  FileText,
+  Clock,
+  History,
+  CheckCircle,
+  XCircle,
 } from "lucide-react"
 import type { NodeData } from "@/lib/types"
 
@@ -25,6 +31,12 @@ const toolIcons: Record<string, React.ReactNode> = {
   airdrop: <Gift className="h-4 w-4" />,
   fetch_price: <TrendingUp className="h-4 w-4" />,
   deposit_yield: <PiggyBank className="h-4 w-4" />,
+  wrap_eth: <Repeat className="h-4 w-4" />,
+  token_metadata: <FileText className="h-4 w-4" />,
+  tx_status: <Clock className="h-4 w-4" />,
+  wallet_history: <History className="h-4 w-4" />,
+  approve_token: <CheckCircle className="h-4 w-4" />,
+  revoke_approval: <XCircle className="h-4 w-4" />,
 }
 
 const toolColors: Record<string, { border: string; bg: string; text: string }> = {
@@ -37,6 +49,12 @@ const toolColors: Record<string, { border: string; bg: string; text: string }> =
   airdrop: { border: "border-foreground/40", bg: "bg-foreground/5", text: "text-foreground" },
   fetch_price: { border: "border-foreground/50", bg: "bg-foreground/10", text: "text-foreground" },
   deposit_yield: { border: "border-foreground/60", bg: "bg-foreground/15", text: "text-foreground" },
+  wrap_eth: { border: "border-foreground/40", bg: "bg-foreground/5", text: "text-foreground" },
+  token_metadata: { border: "border-foreground/50", bg: "bg-foreground/10", text: "text-foreground" },
+  tx_status: { border: "border-foreground/60", bg: "bg-foreground/15", text: "text-foreground" },
+  wallet_history: { border: "border-foreground/40", bg: "bg-foreground/5", text: "text-foreground" },
+  approve_token: { border: "border-foreground/50", bg: "bg-foreground/10", text: "text-foreground" },
+  revoke_approval: { border: "border-foreground/60", bg: "bg-foreground/15", text: "text-foreground" },
 }
 
 export const ToolNode = memo(({ data, type, isConnectable }: NodeProps<NodeData>) => {

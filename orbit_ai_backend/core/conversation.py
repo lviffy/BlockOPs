@@ -169,12 +169,19 @@ class ConversationManager:
                 if step_key in defaults_list:
                     defaults_list.remove(step_key)
                     session.collected_params["_defaults"] = defaults_list
+                
+                # Transition to configuration phase after first extraction
+                if session.phase == ConversationPhase.GREETING:
+                    session.phase = ConversationPhase.CONFIGURATION
+                    logger.info("Phase transitioned to CONFIGURATION")
+                
                 session.advance_step()
                 logger.info(f"Advanced to step: {session.current_step.value}")
                 
                 # Transition phases
                 if session.current_step == ConfigStep.COMPLETE:
                     session.phase = ConversationPhase.REVIEW
+                    logger.info("Phase transitioned to REVIEW")
         
         # Get AI response
         ai_engine = get_ai_engine()
@@ -199,6 +206,9 @@ class ConversationManager:
             role="assistant",
             content=ai_response,
         ))
+        
+        # Log final state before returning
+        logger.info(f"Session state before return: step={session.current_step.value}, collected_params={session.collected_params}")
         
         session.updated_at = datetime.utcnow()
         return session
@@ -280,12 +290,16 @@ class ConversationManager:
         step = session.current_step
         msg_lower = message.lower().strip()
         
+        logger.info(f"_extract_value called: step={step.value}, message='{message}'")
+        
         # Don't advance on casual greetings
         if self._is_casual_message(message):
+            logger.info(f"Message '{message}' detected as casual, skipping extraction")
             return None
         
         if step == ConfigStep.USE_CASE:
             use_case = parse_use_case_from_text(message)
+            logger.info(f"USE_CASE extraction: parse_use_case_from_text('{message}') = {use_case}")
             if use_case:
                 # Also set defaults based on use case
                 preset = get_preset(use_case)
@@ -367,23 +381,29 @@ class ConversationManager:
             return "arbitrum-sepolia"
         
         elif step == ConfigStep.DATA_AVAILABILITY:
+            logger.info(f"DATA_AVAILABILITY extraction for message: '{msg_lower}'")
             # Check for rollup FIRST (more specific patterns)
             # This ensures "roll up", "rollup", "roll-up" are detected before "trust" pattern
             rollup_patterns = ["rollup", "roll up", "roll-up", "ethereum da", "full rollup", "full security"]
             if any(pattern in msg_lower for pattern in rollup_patterns):
+                logger.info(f"Detected rollup pattern in '{msg_lower}'")
                 return "rollup"
             
             # Check for anytrust patterns
             anytrust_patterns = ["anytrust", "any trust", "any-trust", "cheaper", "fast", "dac"]
             if any(pattern in msg_lower for pattern in anytrust_patterns):
+                logger.info(f"Detected anytrust pattern in '{msg_lower}'")
                 return "anytrust"
             
             # Default confirmations use preset
             if msg_lower in ["yes", "yeah", "ok", "sure", "sounds good", "yep", "that's fine", "works for me"]:
                 preset = session.collected_params.get("_preset", {})
-                return preset.get("defaults", {}).get("data_availability", "anytrust")
+                result = preset.get("defaults", {}).get("data_availability", "anytrust")
+                logger.info(f"Default confirmation, using preset: {result}")
+                return result
             
             # Don't default - return None so AI can clarify
+            logger.info(f"No DATA_AVAILABILITY pattern matched for '{msg_lower}'")
             return None
         
         elif step == ConfigStep.VALIDATORS:
