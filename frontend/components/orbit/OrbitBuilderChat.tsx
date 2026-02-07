@@ -230,7 +230,14 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
       // Only update if there are actual config values
       if (Object.keys(cleanParams).length > 0) {
         setCollectedParams(prev => {
-          const updated = { ...prev, ...cleanParams };
+          // Backend is source of truth - its values always override frontend state
+          const updated = { ...prev };
+          
+          // Apply all backend values, overwriting any existing values
+          for (const [key, value] of Object.entries(cleanParams)) {
+            // Always update with backend value (source of truth)
+            updated[key] = value;
+          }
           
           // If use_case was just detected and we don't have defaults yet,
           // fill in frontend preset defaults for any missing fields
@@ -238,7 +245,8 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
             const presetKey = String(updated.use_case || 'general').toLowerCase();
             const preset = useCasePresets[presetKey] || useCasePresets.general;
             for (const [key, val] of Object.entries(preset)) {
-              if (updated[key] === undefined || updated[key] === null) {
+              // Only set preset defaults for fields NOT provided by backend
+              if (!(key in cleanParams) && (updated[key] === undefined || updated[key] === null)) {
                 updated[key] = val;
               }
             }
@@ -270,7 +278,10 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
           const updated = { ...prev };
           
           for (const step of newlyCompleted) {
-            if (step in updated) continue;
+            // Only infer value if not already set by backend
+            // Skip chain_name inference - it often gets wrong values from use_case messages
+            if (step === 'chain_name') continue;
+            if (step in updated && updated[step] !== undefined && updated[step] !== null) continue;
             const val = inferValueForStep(step, userMsg);
             if (val !== null) {
               updated[step] = val;

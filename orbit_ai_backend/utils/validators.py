@@ -119,10 +119,11 @@ def extract_chain_name_from_text(text: str) -> Optional[str]:
     patterns = [
         r"(?:called|named|name\s+is|name:)\s+[\"']?([a-zA-Z0-9\s]+)[\"']?",
         r"^([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)*)",  # Title case words at start
+        r"^([a-zA-Z][a-zA-Z0-9]+)$",  # Single word name (any case)
     ]
     
     for pattern in patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
+        match = re.search(pattern, text.strip(), re.IGNORECASE)
         if match:
             name = match.group(1).strip()
             if len(name) >= 2 and len(name) <= 50:

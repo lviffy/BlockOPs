@@ -143,11 +143,13 @@ class ConversationManager:
         
         if target_step and target_step != session.current_step:
             # User is answering a different step — extract for that step instead
+            logger.info(f"Cross-step detection: user message matches {target_step.value} instead of current {session.current_step.value}")
             saved_step = session.current_step
             session.current_step = target_step
             extracted = self._extract_value(session, user_message)
             if extracted:
                 session.collected_params[target_step.value] = extracted
+                logger.info(f"Cross-step extracted: {target_step.value} = {extracted}")
                 defaults_list = session.collected_params.get("_defaults", [])
                 if target_step.value in defaults_list:
                     defaults_list.remove(target_step.value)
@@ -160,6 +162,7 @@ class ConversationManager:
             
             if extracted:
                 session.collected_params[session.current_step.value] = extracted
+                logger.info(f"Extracted for {session.current_step.value}: {extracted}")
                 # Mark this param as user-confirmed (remove from defaults list)
                 defaults_list = session.collected_params.get("_defaults", [])
                 step_key = session.current_step.value
@@ -167,6 +170,7 @@ class ConversationManager:
                     defaults_list.remove(step_key)
                     session.collected_params["_defaults"] = defaults_list
                 session.advance_step()
+                logger.info(f"Advanced to step: {session.current_step.value}")
                 
                 # Transition phases
                 if session.current_step == ConfigStep.COMPLETE:
@@ -220,7 +224,8 @@ class ConversationManager:
             ],
             ConfigStep.DATA_AVAILABILITY: [
                 "anytrust", "any trust", "rollup", "roll up", "roll-up",
-                "data availability",
+                "data availability", "full rollup", "full security",
+                "ethereum da", "dac committee",
             ],
             ConfigStep.VALIDATORS: [
                 "validator",
@@ -330,11 +335,23 @@ class ConversationManager:
                 if any(kw in name.lower() for kw in config_keywords):
                     return None
                 return name
-            # Only use whole message if it looks like a name (no common words)
-            skip_words = ["the", "a", "an", "my", "is", "be", "call", "name", "it", "want", "like"]
+            
+            # Accept short single-word or multi-word inputs as chain names
+            # Common patterns: "gamify", "my chain", "orbit gaming"
+            skip_words = ["the", "a", "an", "is", "be", "it"]
             words = msg_lower.split()
-            if len(message) <= 50 and len(message) >= 3 and not any(w in skip_words for w in words[:2]):
+            
+            # Single word like "gamify" - very likely a chain name
+            if len(words) == 1 and len(message) >= 3 and len(message) <= 50:
                 return message.strip()
+            
+            # Multi-word - check first words aren't just filler
+            if len(message) <= 50 and len(message) >= 3:
+                # Filter out common filler words to get actual name
+                name_parts = [w for w in words if w.lower() not in skip_words]
+                if name_parts:
+                    return " ".join(name_parts).title()  # Title case for nicer formatting
+            
             return None
         
         elif step == ConfigStep.PARENT_CHAIN:
@@ -350,14 +367,22 @@ class ConversationManager:
             return "arbitrum-sepolia"
         
         elif step == ConfigStep.DATA_AVAILABILITY:
-            if "anytrust" in msg_lower or "trust" in msg_lower:
-                return "anytrust"
-            elif "rollup" in msg_lower or "roll up" in msg_lower or "roll-up" in msg_lower:
+            # Check for rollup FIRST (more specific patterns)
+            # This ensures "roll up", "rollup", "roll-up" are detected before "trust" pattern
+            rollup_patterns = ["rollup", "roll up", "roll-up", "ethereum da", "full rollup", "full security"]
+            if any(pattern in msg_lower for pattern in rollup_patterns):
                 return "rollup"
-            elif msg_lower in ["yes", "yeah", "ok", "sure", "sounds good", "yep"]:
-                # Use preset default
+            
+            # Check for anytrust patterns
+            anytrust_patterns = ["anytrust", "any trust", "any-trust", "cheaper", "fast", "dac"]
+            if any(pattern in msg_lower for pattern in anytrust_patterns):
+                return "anytrust"
+            
+            # Default confirmations use preset
+            if msg_lower in ["yes", "yeah", "ok", "sure", "sounds good", "yep", "that's fine", "works for me"]:
                 preset = session.collected_params.get("_preset", {})
                 return preset.get("defaults", {}).get("data_availability", "anytrust")
+            
             # Don't default - return None so AI can clarify
             return None
         
