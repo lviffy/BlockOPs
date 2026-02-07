@@ -56,10 +56,41 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
   const [configProgress, setConfigProgress] = useState<ConfigProgress | null>(null);
   const [config, setConfig] = useState<any>(null);
   const [collectedParams, setCollectedParams] = useState<Record<string, any>>({});
+  const [defaultParams, setDefaultParams] = useState<string[]>([]);
+  const [changedFields, setChangedFields] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   
+  const prevParamsRef = useRef<Record<string, any>>({});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Track which fields changed for highlight animation
+  useEffect(() => {
+    const prev = prevParamsRef.current;
+    const newChanged = new Set<string>();
+    
+    const paramKeys = ['use_case', 'chain_name', 'parent_chain', 'data_availability', 
+                       'validators', 'owner_address', 'native_token', 'block_time', 
+                       'gas_limit', 'challenge_period'];
+    
+    for (const key of paramKeys) {
+      const prevVal = JSON.stringify(prev[key]);
+      const newVal = JSON.stringify(collectedParams[key]);
+      if (prevVal !== newVal && collectedParams[key] !== undefined) {
+        newChanged.add(key);
+      }
+    }
+    
+    if (newChanged.size > 0) {
+      setChangedFields(newChanged);
+      // Clear highlights after animation
+      const timer = setTimeout(() => setChangedFields(new Set()), 1500);
+      prevParamsRef.current = { ...collectedParams };
+      return () => clearTimeout(timer);
+    }
+    
+    prevParamsRef.current = { ...collectedParams };
+  }, [collectedParams]);
   
   const walletAddress = wallets && wallets.length > 0 ? wallets[0].address : null;
   
@@ -129,6 +160,9 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
         // Populate config form with collected params
         if (data.collected_params) {
           setCollectedParams(data.collected_params);
+          if (data.collected_params._defaults) {
+            setDefaultParams(data.collected_params._defaults);
+          }
         }
         setMessages(data.messages.map((m: any) => ({
           id: m.id,
@@ -158,6 +192,10 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
     // Update collected params for live form
     if (data.collected_params) {
       setCollectedParams(data.collected_params);
+      // Track which params are defaults vs user-confirmed
+      if (data.collected_params._defaults) {
+        setDefaultParams(data.collected_params._defaults);
+      }
     }
     
     // Add AI message
@@ -281,6 +319,8 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
       setMessages([]);
       setConfig(null);
       setCollectedParams({});
+      setDefaultParams([]);
+      setChangedFields(new Set());
       setPhase('greeting');
       setCurrentStep('use_case');
       setConfigProgress(null);
@@ -314,7 +354,9 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
   };
   
   return (
-    <div className={cn("rounded-lg border border-border flex flex-col", className)}>
+    <div className={cn("flex flex-col gap-4", className)}>
+      {/* AI Chat Box */}
+      <div className="rounded-lg border border-border flex flex-col h-[520px]">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
@@ -377,7 +419,7 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
       )}
       
       {/* Messages */}
-      <div ref={scrollContainerRef} className="flex-1 max-h-[400px] overflow-y-auto px-4 py-4 space-y-4">
+      <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -512,9 +554,10 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
           <p className="text-xs text-destructive">{error}</p>
         </div>
       )}
+      </div>
       
-      {/* Config Form - styled as input boxes */}
-      <div className="border-t border-border bg-muted/30 p-4">
+      {/* Chain Configuration - separate box */}
+      <div className="rounded-lg border border-border bg-muted/30 p-4">
         <div className="flex items-center justify-between mb-4">
           <h4 className="text-sm font-medium">Chain Configuration</h4>
           <span className="text-xs text-muted-foreground">
@@ -524,100 +567,170 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
         
         <div className="grid grid-cols-2 gap-3">
           {/* Use Case */}
-          <div>
-            <label className="block text-[11px] text-muted-foreground mb-1">Use Case</label>
-            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm">
-              {collectedParams.use_case ? (
-                <span className="capitalize">{collectedParams.use_case}</span>
-              ) : (
-                <span className="text-muted-foreground italic">Waiting...</span>
-              )}
-            </div>
-          </div>
+          <ConfigField 
+            label="Use Case" 
+            fieldKey="use_case"
+            value={collectedParams.use_case}
+            isDefault={defaultParams.includes('use_case')}
+            isHighlighted={changedFields.has('use_case')}
+            render={(val) => <span className="capitalize">{val}</span>}
+          />
           
           {/* Chain Name */}
-          <div>
-            <label className="block text-[11px] text-muted-foreground mb-1">Chain Name</label>
-            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm font-mono">
-              {collectedParams.chain_name || <span className="text-muted-foreground italic font-sans">Waiting...</span>}
-            </div>
-          </div>
+          <ConfigField 
+            label="Chain Name" 
+            fieldKey="chain_name"
+            value={collectedParams.chain_name}
+            isDefault={defaultParams.includes('chain_name')}
+            isHighlighted={changedFields.has('chain_name')}
+            className="font-mono"
+          />
           
           {/* Parent Chain */}
-          <div>
-            <label className="block text-[11px] text-muted-foreground mb-1">Parent Chain</label>
-            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm">
-              {collectedParams.parent_chain || <span className="text-muted-foreground italic">Waiting...</span>}
-            </div>
-          </div>
+          <ConfigField 
+            label="Parent Chain" 
+            fieldKey="parent_chain"
+            value={collectedParams.parent_chain}
+            isDefault={defaultParams.includes('parent_chain')}
+            isHighlighted={changedFields.has('parent_chain')}
+          />
           
           {/* Data Availability */}
-          <div>
-            <label className="block text-[11px] text-muted-foreground mb-1">Data Availability</label>
-            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm capitalize">
-              {collectedParams.data_availability || <span className="text-muted-foreground italic normal-case">Waiting...</span>}
-            </div>
-          </div>
+          <ConfigField 
+            label="Data Availability" 
+            fieldKey="data_availability"
+            value={collectedParams.data_availability}
+            isDefault={defaultParams.includes('data_availability')}
+            isHighlighted={changedFields.has('data_availability')}
+            render={(val) => <span className="capitalize">{val}</span>}
+          />
           
           {/* Validators */}
-          <div>
-            <label className="block text-[11px] text-muted-foreground mb-1">Validators</label>
-            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm">
-              {collectedParams.validators || <span className="text-muted-foreground italic">Waiting...</span>}
-            </div>
-          </div>
+          <ConfigField 
+            label="Validators" 
+            fieldKey="validators"
+            value={collectedParams.validators}
+            isDefault={defaultParams.includes('validators')}
+            isHighlighted={changedFields.has('validators')}
+          />
           
           {/* Owner Address */}
-          <div>
-            <label className="block text-[11px] text-muted-foreground mb-1">Owner Address</label>
-            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm font-mono truncate"
-                 title={collectedParams.owner_address || undefined}>
-              {collectedParams.owner_address ? (
-                `${collectedParams.owner_address.slice(0,10)}...${collectedParams.owner_address.slice(-6)}`
-              ) : (
-                <span className="text-muted-foreground italic font-sans">Waiting...</span>
-              )}
-            </div>
-          </div>
+          <ConfigField 
+            label="Owner Address" 
+            fieldKey="owner_address"
+            value={collectedParams.owner_address}
+            isDefault={defaultParams.includes('owner_address')}
+            isHighlighted={changedFields.has('owner_address')}
+            render={(val) => (
+              <span className="font-mono truncate" title={val}>
+                {`${val.slice(0,10)}...${val.slice(-6)}`}
+              </span>
+            )}
+          />
           
           {/* Gas Token */}
-          <div>
-            <label className="block text-[11px] text-muted-foreground mb-1">Gas Token</label>
-            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm">
-              {collectedParams.native_token ? (
-                typeof collectedParams.native_token === 'object' 
-                  ? collectedParams.native_token.symbol 
-                  : collectedParams.native_token
-              ) : (
-                <span className="text-muted-foreground italic">Waiting...</span>
-              )}
-            </div>
-          </div>
+          <ConfigField 
+            label="Gas Token" 
+            fieldKey="native_token"
+            value={collectedParams.native_token}
+            isDefault={defaultParams.includes('native_token')}
+            isHighlighted={changedFields.has('native_token')}
+            render={(val) => (
+              <span>{typeof val === 'object' ? val.symbol : val}</span>
+            )}
+          />
           
           {/* Block Time */}
-          <div>
-            <label className="block text-[11px] text-muted-foreground mb-1">Block Time</label>
-            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm">
-              {collectedParams.block_time ? `${collectedParams.block_time}s` : <span className="text-muted-foreground italic">Waiting...</span>}
-            </div>
-          </div>
+          <ConfigField 
+            label="Block Time" 
+            fieldKey="block_time"
+            value={collectedParams.block_time}
+            isDefault={defaultParams.includes('block_time')}
+            isHighlighted={changedFields.has('block_time')}
+            render={(val) => <span>{val}s</span>}
+          />
           
           {/* Gas Limit */}
-          <div>
-            <label className="block text-[11px] text-muted-foreground mb-1">Gas Limit</label>
-            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm">
-              {collectedParams.gas_limit ? `${(collectedParams.gas_limit / 1_000_000).toFixed(0)}M` : <span className="text-muted-foreground italic">Waiting...</span>}
-            </div>
-          </div>
+          <ConfigField 
+            label="Gas Limit" 
+            fieldKey="gas_limit"
+            value={collectedParams.gas_limit}
+            isDefault={defaultParams.includes('gas_limit')}
+            isHighlighted={changedFields.has('gas_limit')}
+            render={(val) => <span>{(val / 1_000_000).toFixed(0)}M</span>}
+          />
           
           {/* Challenge Period */}
-          <div>
-            <label className="block text-[11px] text-muted-foreground mb-1">Challenge Period</label>
-            <div className="px-3 py-2 rounded-md border border-border bg-background text-sm">
-              {collectedParams.challenge_period ? `${collectedParams.challenge_period} days` : <span className="text-muted-foreground italic">Waiting...</span>}
-            </div>
-          </div>
+          <ConfigField 
+            label="Challenge Period" 
+            fieldKey="challenge_period"
+            value={collectedParams.challenge_period}
+            isDefault={defaultParams.includes('challenge_period')}
+            isHighlighted={changedFields.has('challenge_period')}
+            render={(val) => <span>{val} days</span>}
+          />
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Config field component with real-time update animations.
+ * Shows a highlight pulse when value changes, and differentiates
+ * between preset defaults and user-confirmed values.
+ */
+function ConfigField({ 
+  label, 
+  fieldKey,
+  value, 
+  isDefault = false,
+  isHighlighted = false,
+  className = '',
+  render,
+}: { 
+  label: string;
+  fieldKey: string;
+  value: any;
+  isDefault?: boolean;
+  isHighlighted?: boolean;
+  className?: string;
+  render?: (val: any) => React.ReactNode;
+}) {
+  const hasValue = value !== undefined && value !== null && value !== '';
+  
+  return (
+    <div>
+      <label className="block text-[11px] text-muted-foreground mb-1">
+        {label}
+        {hasValue && isDefault && (
+          <span className="ml-1 text-[10px] text-blue-500/70">(recommended)</span>
+        )}
+      </label>
+      <div 
+        className={cn(
+          "px-3 py-2 rounded-md border bg-background text-sm transition-all duration-500",
+          className,
+          isHighlighted 
+            ? "border-green-500/70 bg-green-500/5 ring-1 ring-green-500/20" 
+            : hasValue && !isDefault
+              ? "border-border"
+              : hasValue && isDefault
+                ? "border-blue-500/30 bg-blue-500/[0.03]"
+                : "border-border",
+          hasValue ? "opacity-100" : "opacity-100"
+        )}
+      >
+        {hasValue ? (
+          <span className={cn(
+            "transition-opacity duration-300",
+            isDefault && !isHighlighted ? "text-muted-foreground" : "text-foreground"
+          )}>
+            {render ? render(value) : String(value)}
+          </span>
+        ) : (
+          <span className="text-muted-foreground italic">Waiting...</span>
+        )}
       </div>
     </div>
   );

@@ -131,7 +131,6 @@ export default function OrbitBuilderPage() {
 
           <TabsContent value="create">
             <OrbitBuilderChat
-              className="min-h-[500px]"
               onDeploymentStart={(depId) => {
                 setDeploymentId(depId);
                 setActiveTab('deployments');

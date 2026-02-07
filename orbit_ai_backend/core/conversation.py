@@ -140,6 +140,12 @@ class ConversationManager:
         
         if extracted:
             session.collected_params[session.current_step.value] = extracted
+            # Mark this param as user-confirmed (remove from defaults list)
+            defaults_list = session.collected_params.get("_defaults", [])
+            step_key = session.current_step.value
+            if step_key in defaults_list:
+                defaults_list.remove(step_key)
+                session.collected_params["_defaults"] = defaults_list
             session.advance_step()
             
             # Transition phases
@@ -216,6 +222,23 @@ class ConversationManager:
                 # Also set defaults based on use case
                 preset = get_preset(use_case)
                 session.collected_params["_preset"] = preset
+                # Pre-fill all config fields with preset defaults
+                # so the configuration panel updates immediately
+                defaults = preset.get("defaults", {})
+                default_mapping = {
+                    "data_availability": defaults.get("data_availability"),
+                    "block_time": defaults.get("block_time"),
+                    "gas_limit": defaults.get("gas_limit"),
+                    "validators": defaults.get("validators"),
+                    "challenge_period": defaults.get("challenge_period_days"),
+                    "native_token": {"name": "Ether", "symbol": "ETH", "decimals": 18},
+                    "parent_chain": "arbitrum-sepolia",
+                }
+                for key, value in default_mapping.items():
+                    if value is not None and key not in session.collected_params:
+                        session.collected_params[key] = value
+                # Track which params are defaults vs user-confirmed
+                session.collected_params["_defaults"] = list(default_mapping.keys())
                 return use_case
             # Only return general if message contains use-case keywords
             use_case_keywords = ["app", "chain", "project", "build", "create", "making", "platform"]
