@@ -61,8 +61,19 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
   const [error, setError] = useState<string | null>(null);
   
   const prevParamsRef = useRef<Record<string, any>>({});
+  const prevCompletedRef = useRef<string[]>([]);
+  const latestUserMsgRef = useRef<string>('');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Use-case presets for auto-filling recommended defaults
+  const useCasePresets: Record<string, Record<string, any>> = {
+    gaming: { data_availability: 'anytrust', block_time: 1, gas_limit: 50000000, validators: 3, challenge_period: 7, native_token: { name: 'Ether', symbol: 'ETH', decimals: 18 }, parent_chain: 'arbitrum-sepolia' },
+    defi: { data_availability: 'rollup', block_time: 2, gas_limit: 30000000, validators: 5, challenge_period: 7, native_token: { name: 'Ether', symbol: 'ETH', decimals: 18 }, parent_chain: 'arbitrum-sepolia' },
+    enterprise: { data_availability: 'anytrust', block_time: 3, gas_limit: 30000000, validators: 5, challenge_period: 14, native_token: { name: 'Ether', symbol: 'ETH', decimals: 18 }, parent_chain: 'arbitrum-sepolia' },
+    nft: { data_availability: 'anytrust', block_time: 2, gas_limit: 40000000, validators: 3, challenge_period: 7, native_token: { name: 'Ether', symbol: 'ETH', decimals: 18 }, parent_chain: 'arbitrum-sepolia' },
+    general: { data_availability: 'anytrust', block_time: 2, gas_limit: 30000000, validators: 3, challenge_period: 7, native_token: { name: 'Ether', symbol: 'ETH', decimals: 18 }, parent_chain: 'arbitrum-sepolia' },
+  };
   
   // Track which fields changed for highlight animation
   useEffect(() => {
@@ -159,7 +170,15 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
         setConfig(data.config);
         // Populate config form with collected params
         if (data.collected_params) {
-          setCollectedParams(data.collected_params);
+          const cleanParams: Record<string, any> = {};
+          for (const [key, value] of Object.entries(data.collected_params)) {
+            if (!key.startsWith('_')) {
+              cleanParams[key] = value;
+            }
+          }
+          if (Object.keys(cleanParams).length > 0) {
+            setCollectedParams(cleanParams);
+          }
           if (data.collected_params._defaults) {
             setDefaultParams(data.collected_params._defaults);
           }
@@ -171,7 +190,8 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
           timestamp: new Date(m.timestamp),
         })));
       } else {
-        // Session expired, start new
+        // Session expired or not found — start fresh
+        sessionStorage.removeItem('orbit-ai-session');
         const newId = crypto.randomUUID();
         setSessionId(newId);
         sessionStorage.setItem('orbit-ai-session', newId);
@@ -179,7 +199,11 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
       }
     } catch (err) {
       console.error('Fetch session error:', err);
-      initSession(sid);
+      sessionStorage.removeItem('orbit-ai-session');
+      const newId = crypto.randomUUID();
+      setSessionId(newId);
+      sessionStorage.setItem('orbit-ai-session', newId);
+      initSession(newId);
     }
   };
   
@@ -189,12 +213,89 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
     setConfigProgress(data.config_progress);
     if (data.config) setConfig(data.config);
     
-    // Update collected params for live form
+    // Always sync collected_params from backend (source of truth)
     if (data.collected_params) {
-      setCollectedParams(data.collected_params);
-      // Track which params are defaults vs user-confirmed
-      if (data.collected_params._defaults) {
-        setDefaultParams(data.collected_params._defaults);
+      // Extract clean params (without internal _ keys) and merge
+      const backendParams = { ...data.collected_params };
+      const backendDefaults: string[] = backendParams._defaults || [];
+      
+      // Remove internal keys from params before setting state
+      const cleanParams: Record<string, any> = {};
+      for (const [key, value] of Object.entries(backendParams)) {
+        if (!key.startsWith('_')) {
+          cleanParams[key] = value;
+        }
+      }
+      
+      // Only update if there are actual config values
+      if (Object.keys(cleanParams).length > 0) {
+        setCollectedParams(prev => {
+          const updated = { ...prev, ...cleanParams };
+          
+          // If use_case was just detected and we don't have defaults yet,
+          // fill in frontend preset defaults for any missing fields
+          if (updated.use_case && !prev.use_case) {
+            const presetKey = String(updated.use_case || 'general').toLowerCase();
+            const preset = useCasePresets[presetKey] || useCasePresets.general;
+            for (const [key, val] of Object.entries(preset)) {
+              if (updated[key] === undefined || updated[key] === null) {
+                updated[key] = val;
+              }
+            }
+          }
+          
+          return updated;
+        });
+        
+        // Sync default field tracking from backend (outside the updater)
+        if (backendDefaults.length > 0) {
+          setDefaultParams(backendDefaults);
+        }
+      }
+      
+      if (data.config_progress?.completed) {
+        prevCompletedRef.current = [...data.config_progress.completed];
+      }
+    } else {
+      // Backend didn't provide collected_params — infer from completed steps diff
+      const newCompleted = data.config_progress?.completed || [];
+      const oldCompleted = prevCompletedRef.current;
+      const newlyCompleted = newCompleted.filter((s: string) => !oldCompleted.includes(s));
+      prevCompletedRef.current = [...newCompleted];
+      
+      if (newlyCompleted.length > 0 && latestUserMsgRef.current) {
+        const userMsg = latestUserMsgRef.current;
+        
+        setCollectedParams(prev => {
+          const updated = { ...prev };
+          
+          for (const step of newlyCompleted) {
+            if (step in updated) continue;
+            const val = inferValueForStep(step, userMsg);
+            if (val !== null) {
+              updated[step] = val;
+            }
+          }
+          
+          // If use_case was just detected, pre-fill defaults
+          if (updated.use_case && !prev.use_case) {
+            const presetKey = String(updated.use_case || 'general').toLowerCase();
+            const preset = useCasePresets[presetKey] || useCasePresets.general;
+            const dKeys: string[] = [];
+            for (const [key, val] of Object.entries(preset)) {
+              if (updated[key] === undefined || updated[key] === null) {
+                updated[key] = val;
+                dKeys.push(key);
+              }
+            }
+            // Set defaults outside the updater via a timeout to avoid side effects
+            setTimeout(() => setDefaultParams(dKeys), 0);
+          } else {
+            setTimeout(() => setDefaultParams(dp => dp.filter(k => !newlyCompleted.includes(k))), 0);
+          }
+          
+          return updated;
+        });
       }
     }
     
@@ -208,10 +309,79 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
     }]);
   };
   
+  /** Handle direct edits to config fields from the form */
+  const handleParamChange = (key: string, value: any) => {
+    setCollectedParams(prev => ({ ...prev, [key]: value }));
+    // Remove from defaults since user explicitly set it
+    setDefaultParams(prev => prev.filter(k => k !== key));
+    // Highlight the changed field
+    setChangedFields(new Set([key]));
+    setTimeout(() => setChangedFields(new Set()), 1500);
+  };
+  
+  /** Infer the config value from user text based on which step it corresponds to */
+  const inferValueForStep = (step: string, text: string): any => {
+    const t = text.toLowerCase().trim();
+    switch (step) {
+      case 'use_case': {
+        if (t.includes('gaming') || t.includes('game')) return 'gaming';
+        if (t.includes('defi') || t.includes('finance') || t.includes('trading')) return 'defi';
+        if (t.includes('enterprise') || t.includes('business')) return 'enterprise';
+        if (t.includes('nft') || t.includes('collectible')) return 'nft';
+        return 'general';
+      }
+      case 'chain_name':
+        return text.trim();
+      case 'parent_chain': {
+        if (t.includes('sepolia') || t.includes('test')) return 'arbitrum-sepolia';
+        if (t.includes('one') || t.includes('main')) return 'arbitrum-one';
+        if (t.includes('nova')) return 'arbitrum-nova';
+        return 'arbitrum-sepolia';
+      }
+      case 'data_availability': {
+        if (t.includes('rollup')) return 'rollup';
+        return 'anytrust';
+      }
+      case 'validators': {
+        const m = t.match(/(\d+)/);
+        return m ? parseInt(m[1]) : 3;
+      }
+      case 'owner_address': {
+        const m = t.match(/0x[a-fA-F0-9]{40}/);
+        if (m) return m[0];
+        if (walletAddress && (t.includes('wallet') || t.includes('my') || t.includes('yes') || t.includes('sure') || t.includes('ok'))) {
+          return walletAddress;
+        }
+        return null;
+      }
+      case 'native_token': {
+        if (t.includes('custom')) return { name: 'Custom', symbol: 'TOKEN', decimals: 18 };
+        return { name: 'Ether', symbol: 'ETH', decimals: 18 };
+      }
+      case 'block_time': {
+        const m = t.match(/(\d+)/);
+        return m ? parseInt(m[1]) : 2;
+      }
+      case 'gas_limit': {
+        const m = t.match(/(\d{7,9})/);
+        if (m) return parseInt(m[0]);
+        if (t.includes('50') || t.includes('high')) return 50000000;
+        return 30000000;
+      }
+      case 'challenge_period': {
+        if (t.includes('14')) return 14;
+        return 7;
+      }
+      default:
+        return null;
+    }
+  };
+  
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isLoading) return;
     
     setError(null);
+    latestUserMsgRef.current = text.trim();
     
     // Add user message immediately
     const userMessage: Message = {
@@ -321,6 +491,8 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
       setCollectedParams({});
       setDefaultParams([]);
       setChangedFields(new Set());
+      prevCompletedRef.current = [];
+      latestUserMsgRef.current = '';
       setPhase('greeting');
       setCurrentStep('use_case');
       setConfigProgress(null);
@@ -556,12 +728,12 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
       )}
       </div>
       
-      {/* Chain Configuration - separate box */}
+      {/* Chain Configuration - editable form */}
       <div className="rounded-lg border border-border bg-muted/30 p-4">
         <div className="flex items-center justify-between mb-4">
           <h4 className="text-sm font-medium">Chain Configuration</h4>
           <span className="text-xs text-muted-foreground">
-            {Object.keys(collectedParams).filter(k => !k.startsWith('_')).length}/10 fields
+            {Object.keys(collectedParams).filter(k => !k.startsWith('_') && collectedParams[k] !== undefined && collectedParams[k] !== null && collectedParams[k] !== '').length}/10 fields
           </span>
         </div>
         
@@ -573,7 +745,15 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
             value={collectedParams.use_case}
             isDefault={defaultParams.includes('use_case')}
             isHighlighted={changedFields.has('use_case')}
-            render={(val) => <span className="capitalize">{val}</span>}
+            inputType="select"
+            options={[
+              { value: 'gaming', label: 'Gaming' },
+              { value: 'defi', label: 'DeFi' },
+              { value: 'enterprise', label: 'Enterprise' },
+              { value: 'nft', label: 'NFT' },
+              { value: 'general', label: 'General' },
+            ]}
+            onChange={(val) => handleParamChange('use_case', val)}
           />
           
           {/* Chain Name */}
@@ -583,7 +763,9 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
             value={collectedParams.chain_name}
             isDefault={defaultParams.includes('chain_name')}
             isHighlighted={changedFields.has('chain_name')}
+            inputType="text"
             className="font-mono"
+            onChange={(val) => handleParamChange('chain_name', val)}
           />
           
           {/* Parent Chain */}
@@ -593,6 +775,13 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
             value={collectedParams.parent_chain}
             isDefault={defaultParams.includes('parent_chain')}
             isHighlighted={changedFields.has('parent_chain')}
+            inputType="select"
+            options={[
+              { value: 'arbitrum-sepolia', label: 'Arbitrum Sepolia' },
+              { value: 'arbitrum-one', label: 'Arbitrum One' },
+              { value: 'arbitrum-nova', label: 'Arbitrum Nova' },
+            ]}
+            onChange={(val) => handleParamChange('parent_chain', val)}
           />
           
           {/* Data Availability */}
@@ -602,7 +791,12 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
             value={collectedParams.data_availability}
             isDefault={defaultParams.includes('data_availability')}
             isHighlighted={changedFields.has('data_availability')}
-            render={(val) => <span className="capitalize">{val}</span>}
+            inputType="select"
+            options={[
+              { value: 'anytrust', label: 'Anytrust' },
+              { value: 'rollup', label: 'Rollup' },
+            ]}
+            onChange={(val) => handleParamChange('data_availability', val)}
           />
           
           {/* Validators */}
@@ -612,6 +806,10 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
             value={collectedParams.validators}
             isDefault={defaultParams.includes('validators')}
             isHighlighted={changedFields.has('validators')}
+            inputType="number"
+            numberMin={1}
+            numberMax={20}
+            onChange={(val) => handleParamChange('validators', val)}
           />
           
           {/* Owner Address */}
@@ -621,11 +819,10 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
             value={collectedParams.owner_address}
             isDefault={defaultParams.includes('owner_address')}
             isHighlighted={changedFields.has('owner_address')}
-            render={(val) => (
-              <span className="font-mono truncate" title={val}>
-                {`${val.slice(0,10)}...${val.slice(-6)}`}
-              </span>
-            )}
+            inputType="text"
+            placeholder={walletAddress ? `${walletAddress.slice(0,10)}...` : '0x...'}
+            className="font-mono"
+            onChange={(val) => handleParamChange('owner_address', val)}
           />
           
           {/* Gas Token */}
@@ -635,9 +832,16 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
             value={collectedParams.native_token}
             isDefault={defaultParams.includes('native_token')}
             isHighlighted={changedFields.has('native_token')}
-            render={(val) => (
-              <span>{typeof val === 'object' ? val.symbol : val}</span>
-            )}
+            inputType="select"
+            options={[
+              { value: 'ETH', label: 'ETH' },
+              { value: 'CUSTOM', label: 'Custom Token' },
+            ]}
+            displayValue={typeof collectedParams.native_token === 'object' ? collectedParams.native_token?.symbol : collectedParams.native_token}
+            onChange={(val) => {
+              if (val === 'ETH') handleParamChange('native_token', { name: 'Ether', symbol: 'ETH', decimals: 18 });
+              else handleParamChange('native_token', { name: 'Custom', symbol: 'TOKEN', decimals: 18 });
+            }}
           />
           
           {/* Block Time */}
@@ -647,7 +851,11 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
             value={collectedParams.block_time}
             isDefault={defaultParams.includes('block_time')}
             isHighlighted={changedFields.has('block_time')}
-            render={(val) => <span>{val}s</span>}
+            inputType="number"
+            numberMin={1}
+            numberMax={30}
+            suffix="s"
+            onChange={(val) => handleParamChange('block_time', val)}
           />
           
           {/* Gas Limit */}
@@ -657,7 +865,14 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
             value={collectedParams.gas_limit}
             isDefault={defaultParams.includes('gas_limit')}
             isHighlighted={changedFields.has('gas_limit')}
-            render={(val) => <span>{(val / 1_000_000).toFixed(0)}M</span>}
+            inputType="select"
+            options={[
+              { value: '30000000', label: '30M' },
+              { value: '40000000', label: '40M' },
+              { value: '50000000', label: '50M' },
+            ]}
+            displayValue={collectedParams.gas_limit ? `${(collectedParams.gas_limit / 1_000_000).toFixed(0)}M` : undefined}
+            onChange={(val) => handleParamChange('gas_limit', parseInt(val))}
           />
           
           {/* Challenge Period */}
@@ -667,7 +882,13 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
             value={collectedParams.challenge_period}
             isDefault={defaultParams.includes('challenge_period')}
             isHighlighted={changedFields.has('challenge_period')}
-            render={(val) => <span>{val} days</span>}
+            inputType="select"
+            options={[
+              { value: '7', label: '7 days' },
+              { value: '14', label: '14 days' },
+            ]}
+            displayValue={collectedParams.challenge_period ? `${collectedParams.challenge_period} days` : undefined}
+            onChange={(val) => handleParamChange('challenge_period', parseInt(val))}
           />
         </div>
       </div>
@@ -676,9 +897,9 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
 }
 
 /**
- * Config field component with real-time update animations.
- * Shows a highlight pulse when value changes, and differentiates
- * between preset defaults and user-confirmed values.
+ * Editable config field component with real-time update animations.
+ * Supports text, number, and select inputs. Highlights on change
+ * and differentiates between preset defaults and user-confirmed values.
  */
 function ConfigField({ 
   label, 
@@ -687,7 +908,14 @@ function ConfigField({
   isDefault = false,
   isHighlighted = false,
   className = '',
-  render,
+  inputType = 'text',
+  options,
+  placeholder,
+  suffix,
+  numberMin,
+  numberMax,
+  displayValue,
+  onChange,
 }: { 
   label: string;
   fieldKey: string;
@@ -695,9 +923,21 @@ function ConfigField({
   isDefault?: boolean;
   isHighlighted?: boolean;
   className?: string;
-  render?: (val: any) => React.ReactNode;
+  inputType?: 'text' | 'number' | 'select';
+  options?: { value: string; label: string }[];
+  placeholder?: string;
+  suffix?: string;
+  numberMin?: number;
+  numberMax?: number;
+  displayValue?: string;
+  onChange?: (value: any) => void;
 }) {
   const hasValue = value !== undefined && value !== null && value !== '';
+  
+  // For select inputs with complex values (like native_token), use displayValue
+  const selectValue = displayValue !== undefined 
+    ? (options?.find(o => o.label === displayValue)?.value ?? String(value))
+    : String(value ?? '');
   
   return (
     <div>
@@ -709,8 +949,7 @@ function ConfigField({
       </label>
       <div 
         className={cn(
-          "px-3 py-2 rounded-md border bg-background text-sm transition-all duration-500",
-          className,
+          "rounded-md border bg-background text-sm transition-all duration-500",
           isHighlighted 
             ? "border-green-500/70 bg-green-500/5 ring-1 ring-green-500/20" 
             : hasValue && !isDefault
@@ -718,18 +957,58 @@ function ConfigField({
               : hasValue && isDefault
                 ? "border-blue-500/30 bg-blue-500/[0.03]"
                 : "border-border",
-          hasValue ? "opacity-100" : "opacity-100"
         )}
       >
-        {hasValue ? (
-          <span className={cn(
-            "transition-opacity duration-300",
-            isDefault && !isHighlighted ? "text-muted-foreground" : "text-foreground"
-          )}>
-            {render ? render(value) : String(value)}
-          </span>
+        {inputType === 'select' && options ? (
+          <select
+            value={selectValue}
+            onChange={(e) => onChange?.(e.target.value)}
+            className={cn(
+              "w-full px-3 py-2 bg-transparent text-sm rounded-md outline-none cursor-pointer",
+              className,
+              !hasValue && "text-muted-foreground",
+              isDefault && !isHighlighted ? "text-muted-foreground" : "text-foreground"
+            )}
+          >
+            {!hasValue && <option value="">Waiting...</option>}
+            {options.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        ) : inputType === 'number' ? (
+          <div className="flex items-center">
+            <input
+              type="number"
+              value={hasValue ? value : ''}
+              min={numberMin}
+              max={numberMax}
+              placeholder={placeholder || 'Waiting...'}
+              onChange={(e) => {
+                const num = parseInt(e.target.value);
+                if (!isNaN(num)) onChange?.(num);
+              }}
+              className={cn(
+                "w-full px-3 py-2 bg-transparent text-sm rounded-md outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                className,
+                isDefault && !isHighlighted ? "text-muted-foreground" : "text-foreground"
+              )}
+            />
+            {suffix && hasValue && (
+              <span className="pr-3 text-sm text-muted-foreground shrink-0">{suffix}</span>
+            )}
+          </div>
         ) : (
-          <span className="text-muted-foreground italic">Waiting...</span>
+          <input
+            type="text"
+            value={hasValue ? String(value) : ''}
+            placeholder={placeholder || 'Waiting...'}
+            onChange={(e) => onChange?.(e.target.value)}
+            className={cn(
+              "w-full px-3 py-2 bg-transparent text-sm rounded-md outline-none",
+              className,
+              isDefault && !isHighlighted ? "text-muted-foreground" : "text-foreground"
+            )}
+          />
         )}
       </div>
     </div>

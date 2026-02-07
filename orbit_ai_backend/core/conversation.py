@@ -135,22 +135,42 @@ class ConversationManager:
             ))
             return session
         
-        # Extract value from message based on current step
-        extracted = self._extract_value(session, user_message)
+        # Cross-step intent detection: check if the user's response
+        # matches a DIFFERENT step better than the current one.
+        # This fixes desync when the AI asks about steps out of order.
+        target_step = self._detect_intent_step(session, user_message)
+        original_step = session.current_step
         
-        if extracted:
-            session.collected_params[session.current_step.value] = extracted
-            # Mark this param as user-confirmed (remove from defaults list)
-            defaults_list = session.collected_params.get("_defaults", [])
-            step_key = session.current_step.value
-            if step_key in defaults_list:
-                defaults_list.remove(step_key)
-                session.collected_params["_defaults"] = defaults_list
-            session.advance_step()
+        if target_step and target_step != session.current_step:
+            # User is answering a different step — extract for that step instead
+            saved_step = session.current_step
+            session.current_step = target_step
+            extracted = self._extract_value(session, user_message)
+            if extracted:
+                session.collected_params[target_step.value] = extracted
+                defaults_list = session.collected_params.get("_defaults", [])
+                if target_step.value in defaults_list:
+                    defaults_list.remove(target_step.value)
+                    session.collected_params["_defaults"] = defaults_list
+            # Restore to original step (don't advance from a different step)
+            session.current_step = saved_step
+        else:
+            # Normal flow: extract for the current step
+            extracted = self._extract_value(session, user_message)
             
-            # Transition phases
-            if session.current_step == ConfigStep.COMPLETE:
-                session.phase = ConversationPhase.REVIEW
+            if extracted:
+                session.collected_params[session.current_step.value] = extracted
+                # Mark this param as user-confirmed (remove from defaults list)
+                defaults_list = session.collected_params.get("_defaults", [])
+                step_key = session.current_step.value
+                if step_key in defaults_list:
+                    defaults_list.remove(step_key)
+                    session.collected_params["_defaults"] = defaults_list
+                session.advance_step()
+                
+                # Transition phases
+                if session.current_step == ConfigStep.COMPLETE:
+                    session.phase = ConversationPhase.REVIEW
         
         # Get AI response
         ai_engine = get_ai_engine()
@@ -178,6 +198,49 @@ class ConversationManager:
         
         session.updated_at = datetime.utcnow()
         return session
+    
+    def _detect_intent_step(self, session: ConversationSession, message: str) -> Optional[ConfigStep]:
+        """Detect if the user's message is answering a different step than the current one.
+        
+        This handles the case where the AI asks about a step out of order,
+        so the user's response needs to be mapped to the correct config field.
+        Returns the matching step, or None if the current step is correct.
+        """
+        msg_lower = message.lower().strip()
+        
+        # Skip detection for casual messages
+        if self._is_casual_message(message):
+            return None
+        
+        # Intent patterns: keyword → ConfigStep mapping
+        intent_signals = {
+            ConfigStep.PARENT_CHAIN: [
+                "mainnet", "testnet", "sepolia", "arbitrum one",
+                "arbitrum nova", "production", "main net",
+            ],
+            ConfigStep.DATA_AVAILABILITY: [
+                "anytrust", "any trust", "rollup", "roll up", "roll-up",
+                "data availability",
+            ],
+            ConfigStep.VALIDATORS: [
+                "validator",
+            ],
+            ConfigStep.OWNER_ADDRESS: [
+                "0x", "my wallet", "connected wallet", "my address",
+            ],
+            ConfigStep.NATIVE_TOKEN: [
+                "custom token", "native token", "gas token",
+            ],
+        }
+        
+        # Check if message matches a different step
+        for step, keywords in intent_signals.items():
+            if step == session.current_step:
+                continue  # Skip the current step
+            if any(kw in msg_lower for kw in keywords):
+                return step
+        
+        return None
     
     def _is_casual_message(self, message: str) -> bool:
         """Check if message is casual chat that shouldn't advance config."""
@@ -247,8 +310,25 @@ class ConversationManager:
             return None
         
         elif step == ConfigStep.CHAIN_NAME:
+            # Reject messages that are clearly about other config steps
+            config_keywords = [
+                "mainnet", "testnet", "sepolia", "nova", "arbitrum",
+                "rollup", "anytrust", "trust",
+                "validator", "eth", "ether", "custom token",
+                "wallet", "address", "0x",
+                "second", "fast", "slow",
+                "million", "gas",
+                "days", "week", "challenge",
+                "production", "deploy",
+            ]
+            if any(kw in msg_lower for kw in config_keywords):
+                return None
+            
             name = extract_chain_name_from_text(message)
             if name:
+                # Double-check extracted name isn't a config keyword
+                if any(kw in name.lower() for kw in config_keywords):
+                    return None
                 return name
             # Only use whole message if it looks like a name (no common words)
             skip_words = ["the", "a", "an", "my", "is", "be", "call", "name", "it", "want", "like"]
