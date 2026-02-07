@@ -112,6 +112,7 @@ async def chat(request: ChatRequest):
             phase=session.phase.value,
             current_step=session.current_step.value,
             config_progress=session.get_progress(),
+            collected_params=session.collected_params,
             config=config_dict,
             quick_actions=last_message.quick_actions if last_message else None,
         )

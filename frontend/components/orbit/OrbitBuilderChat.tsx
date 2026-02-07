@@ -44,6 +44,7 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
   const [currentStep, setCurrentStep] = useState<string>('use_case');
   const [configProgress, setConfigProgress] = useState<ConfigProgress | null>(null);
   const [config, setConfig] = useState<any>(null);
+  const [collectedParams, setCollectedParams] = useState<Record<string, any>>({});
   const [error, setError] = useState<string | null>(null);
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -99,7 +100,7 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
       setMessages([{
         id: '1',
         role: 'assistant',
-        content: "Hey! I'll help you build your own L3 chain. Let's start simple — what are you building?\n\nFor example:\n• A gaming platform 🎮\n• A DeFi protocol 💰\n• An enterprise app 🏢\n• Something else",
+        content: "Hey! I'll help you build your own L3 chain. Let's start simple - what are you building?\n\nFor example:\n- A gaming platform\n- A DeFi protocol\n- An enterprise app\n- Something else",
         timestamp: new Date(),
       }]);
     }
@@ -138,6 +139,11 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
     setCurrentStep(data.current_step);
     setConfigProgress(data.config_progress);
     if (data.config) setConfig(data.config);
+    
+    // Update collected params for live form
+    if (data.collected_params) {
+      setCollectedParams(data.collected_params);
+    }
     
     // Add AI message
     setMessages(prev => [...prev, {
@@ -208,6 +214,8 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
     if (!config) return;
     
     setIsLoading(true);
+    setError(null);
+    
     try {
       const response = await fetch(`${AI_BACKEND_URL}/api/orbit-ai/deploy`, {
         method: 'POST',
@@ -217,21 +225,34 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
         }),
       });
       
-      if (!response.ok) throw new Error('Deployment failed');
+      const data = await response.json().catch(() => ({}));
       
-      const data = await response.json();
+      if (!response.ok) {
+        const errorMsg = data.detail || data.message || 'Deployment failed';
+        throw new Error(errorMsg);
+      }
+      
       onDeploymentStart?.(data.deployment_id);
       
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'assistant',
-        content: `🚀 ${data.message}\n\nDeployment ID: ${data.deployment_id}`,
+        content: `Deployment started: ${data.message}\n\nDeployment ID: ${data.deployment_id}`,
         timestamp: new Date(),
       }]);
       setPhase('deploying');
       
     } catch (err: any) {
-      setError(err.message);
+      const errorMessage = err.message || 'Unknown error occurred';
+      setError(errorMessage);
+      
+      // Show deployment failure in chat
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: `Deployment Failed\n\n${errorMessage}\n\nPlease check your configuration and try again. You can type "deploy" to retry.`,
+        timestamp: new Date(),
+      }]);
     } finally {
       setIsLoading(false);
     }
@@ -244,9 +265,11 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
       });
       setMessages([]);
       setConfig(null);
+      setCollectedParams({});
       setPhase('greeting');
       setCurrentStep('use_case');
       setConfigProgress(null);
+      setError(null);
       initSession(sessionId);
     } catch (err) {
       console.error('Reset error:', err);
@@ -467,6 +490,81 @@ export function OrbitBuilderChat({ onDeploymentStart, className }: OrbitBuilderC
       {error && (
         <div className="px-4 pb-2">
           <p className="text-xs text-destructive">{error}</p>
+        </div>
+      )}
+      
+      {/* Live Config Form - shows collected values as user provides input */}
+      {Object.keys(collectedParams).filter(k => !k.startsWith('_')).length > 0 && (
+        <div className="border-t border-border">
+          <div className="px-4 py-3 bg-muted/20">
+            <h4 className="text-xs font-medium text-muted-foreground mb-2">Configuration Values</h4>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+              {collectedParams.use_case && (
+                <>
+                  <div className="text-muted-foreground">Use Case</div>
+                  <div className="capitalize">{collectedParams.use_case}</div>
+                </>
+              )}
+              {collectedParams.chain_name && (
+                <>
+                  <div className="text-muted-foreground">Chain Name</div>
+                  <div className="font-mono">{collectedParams.chain_name}</div>
+                </>
+              )}
+              {collectedParams.parent_chain && (
+                <>
+                  <div className="text-muted-foreground">Parent Chain</div>
+                  <div>{collectedParams.parent_chain}</div>
+                </>
+              )}
+              {collectedParams.data_availability && (
+                <>
+                  <div className="text-muted-foreground">DA Mode</div>
+                  <div className="capitalize">{collectedParams.data_availability}</div>
+                </>
+              )}
+              {collectedParams.validators && (
+                <>
+                  <div className="text-muted-foreground">Validators</div>
+                  <div>{collectedParams.validators}</div>
+                </>
+              )}
+              {collectedParams.owner_address && (
+                <>
+                  <div className="text-muted-foreground">Owner</div>
+                  <div className="font-mono truncate" title={collectedParams.owner_address}>
+                    {collectedParams.owner_address.slice(0, 10)}...{collectedParams.owner_address.slice(-6)}
+                  </div>
+                </>
+              )}
+              {collectedParams.native_token && (
+                <>
+                  <div className="text-muted-foreground">Gas Token</div>
+                  <div>{typeof collectedParams.native_token === 'object' 
+                    ? collectedParams.native_token.symbol 
+                    : collectedParams.native_token}</div>
+                </>
+              )}
+              {collectedParams.block_time && (
+                <>
+                  <div className="text-muted-foreground">Block Time</div>
+                  <div>{collectedParams.block_time}s</div>
+                </>
+              )}
+              {collectedParams.gas_limit && (
+                <>
+                  <div className="text-muted-foreground">Gas Limit</div>
+                  <div>{(collectedParams.gas_limit / 1_000_000).toFixed(0)}M</div>
+                </>
+              )}
+              {collectedParams.challenge_period && (
+                <>
+                  <div className="text-muted-foreground">Challenge Period</div>
+                  <div>{collectedParams.challenge_period} days</div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

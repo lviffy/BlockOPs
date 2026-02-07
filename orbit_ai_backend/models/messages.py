@@ -22,6 +22,7 @@ class ChatResponse(BaseModel):
     phase: str  # greeting, discovery, configuration, review, deploying, deployed
     current_step: Optional[str] = None
     config_progress: Optional[ConfigProgress] = None
+    collected_params: Optional[dict] = None  # Live collected values for form
     config: Optional[dict] = None  # Full config when in review/deployed phase
     deployment: Optional[dict] = None  # Deployment info when deploying/deployed
     quick_actions: Optional[list[dict]] = None  # [{label, value}] for inline buttons
