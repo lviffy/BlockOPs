@@ -79,7 +79,8 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
   }, [chatMessages, isChatLoading])
 
   const isValidAddress = (address: string) => {
-    return ethers.isAddress(address)
+    // Normalize to lowercase first to avoid EIP-55 checksum rejections
+    return ethers.isAddress(address.toLowerCase())
   }
 
   const fetchContractABI = async () => {
@@ -92,6 +93,9 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
       return
     }
 
+    // Normalize address to lowercase to avoid EIP-55 checksum issues throughout
+    const normalizedAddress = contractAddress.toLowerCase()
+
     setIsLoading(true)
     setShowManualABI(false)
     setContractABI(null)
@@ -102,7 +106,7 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
     // 1) Try backend discovery first
     if (useBackendDiscovery) {
       try {
-        const response = await discoverContract(contractAddress)
+        const response = await discoverContract(normalizedAddress)
 
         if (response.success && response.data) {
           const { allFunctions, totalFunctions } = response.data
@@ -139,19 +143,19 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
       }
     }
 
-    // 2) Fallback: direct Etherscan API
+    // 2) Fallback: direct Etherscan API (Arbitrum Sepolia)
     if (!loaded) {
       try {
         const provider = new ethers.JsonRpcProvider(
-          process.env.NEXT_PUBLIC_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com"
+          process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL || process.env.NEXT_PUBLIC_RPC_URL || "https://sepolia-rollup.arbitrum.io/rpc"
         )
 
-        const code = await provider.getCode(contractAddress)
+        const code = await provider.getCode(normalizedAddress)
 
         if (code === "0x") {
           toast({
             title: "Contract Not Found",
-            description: "No contract deployed at this address",
+            description: "No contract deployed at this address on Arbitrum Sepolia",
             variant: "destructive",
           })
           setIsLoading(false)
@@ -159,7 +163,7 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
         }
 
         const apiKey = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || "YourApiKeyToken"
-        const apiUrl = `https://api.etherscan.io/v2/api?chainid=11155111&module=contract&action=getabi&address=${contractAddress}&apikey=${apiKey}`
+        const apiUrl = `https://api.etherscan.io/v2/api?chainid=421614&module=contract&action=getabi&address=${normalizedAddress}&apikey=${apiKey}`
 
         const response = await fetch(apiUrl)
         const data = await response.json()
@@ -294,7 +298,7 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
     setExecutingFunction(func.name)
     try {
       const provider = new ethers.JsonRpcProvider(
-        process.env.NEXT_PUBLIC_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com"
+        process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL || process.env.NEXT_PUBLIC_RPC_URL || "https://sepolia-rollup.arbitrum.io/rpc"
       )
       const contract = new ethers.Contract(contractAddress, contractABI, provider)
 
@@ -369,7 +373,7 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
     setExecutingFunction(func.name)
     try {
       const provider = new ethers.JsonRpcProvider(
-        process.env.NEXT_PUBLIC_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com"
+        process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL || process.env.NEXT_PUBLIC_RPC_URL || "https://sepolia-rollup.arbitrum.io/rpc"
       )
       
       let contract: ethers.Contract
@@ -467,7 +471,7 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
         false // Don't execute yet, just get plan
       )
 
-      if (planResponse.success && planResponse.data.executionPlan) {
+      if (planResponse.success && planResponse.data?.executionPlan) {
         const plan = planResponse.data.executionPlan
         setExecutionPlan(plan)
         
@@ -491,6 +495,16 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
         setChatMessages(prev => [...prev, { 
           role: 'assistant', 
           content: planMessage 
+        }])
+      } else if (planResponse.data?.message) {
+        setChatMessages(prev => [...prev, { 
+          role: 'assistant' as const, 
+          content: String(planResponse.data.message)
+        }])
+      } else {
+        setChatMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: planResponse.message || 'I couldn\'t process that request. Try asking about a specific function.' 
         }])
       }
     } catch (error: any) {
@@ -729,53 +743,6 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
         <>
           <Separator />
 
-          {/* Functions */}
-          <section className="space-y-4">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-sm font-medium">Functions</h2>
-              <span className="text-xs text-muted-foreground">
-                {functions.read.length + functions.write.length} total
-              </span>
-            </div>
-
-            <Tabs defaultValue="read" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 h-9">
-                <TabsTrigger value="read" className="text-xs gap-1.5">
-                  <BookOpen className="size-3" />
-                  Read ({functions.read.length})
-                </TabsTrigger>
-                <TabsTrigger value="write" className="text-xs gap-1.5">
-                  <PenLine className="size-3" />
-                  Write ({functions.write.length})
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="read" className="mt-3">
-                {functions.read.length > 0 ? (
-                  <Accordion type="single" collapsible className="w-full">
-                    {functions.read.map((func) => renderFunctionCard(func, false))}
-                  </Accordion>
-                ) : (
-                  <p className="text-center py-10 text-sm text-muted-foreground">
-                    No read functions found
-                  </p>
-                )}
-              </TabsContent>
-              <TabsContent value="write" className="mt-3">
-                {functions.write.length > 0 ? (
-                  <Accordion type="single" collapsible className="w-full">
-                    {functions.write.map((func) => renderFunctionCard(func, true))}
-                  </Accordion>
-                ) : (
-                  <p className="text-center py-10 text-sm text-muted-foreground">
-                    No write functions found
-                  </p>
-                )}
-              </TabsContent>
-            </Tabs>
-          </section>
-
-          <Separator />
-
           {/* AI Chat */}
           <section className="space-y-4">
             <div>
@@ -866,6 +833,53 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
                 </div>
               </div>
             </div>
+          </section>
+
+          <Separator />
+
+          {/* Functions */}
+          <section className="space-y-4">
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-sm font-medium">Functions</h2>
+              <span className="text-xs text-muted-foreground">
+                {functions.read.length + functions.write.length} total
+              </span>
+            </div>
+
+            <Tabs defaultValue="read" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 h-9">
+                <TabsTrigger value="read" className="text-xs gap-1.5">
+                  <BookOpen className="size-3" />
+                  Read ({functions.read.length})
+                </TabsTrigger>
+                <TabsTrigger value="write" className="text-xs gap-1.5">
+                  <PenLine className="size-3" />
+                  Write ({functions.write.length})
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="read" className="mt-3">
+                {functions.read.length > 0 ? (
+                  <Accordion type="single" collapsible className="w-full">
+                    {functions.read.map((func) => renderFunctionCard(func, false))}
+                  </Accordion>
+                ) : (
+                  <p className="text-center py-10 text-sm text-muted-foreground">
+                    No read functions found
+                  </p>
+                )}
+              </TabsContent>
+              <TabsContent value="write" className="mt-3">
+                {functions.write.length > 0 ? (
+                  <Accordion type="single" collapsible className="w-full">
+                    {functions.write.map((func) => renderFunctionCard(func, true))}
+                  </Accordion>
+                ) : (
+                  <p className="text-center py-10 text-sm text-muted-foreground">
+                    No write functions found
+                  </p>
+                )}
+              </TabsContent>
+            </Tabs>
           </section>
         </>
       )}

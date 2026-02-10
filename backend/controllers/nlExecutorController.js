@@ -258,8 +258,8 @@ async function discoverContract(req, res) {
   try {
     const { contractAddress } = req.params;
 
-    // Validate contract address
-    if (!ethers.isAddress(contractAddress)) {
+    // Validate contract address (normalize to lowercase to avoid EIP-55 checksum rejections)
+    if (!ethers.isAddress(contractAddress.toLowerCase())) {
       return res.status(400).json(
         errorResponse('Invalid contract address format')
       );
@@ -336,8 +336,8 @@ async function executeCommand(req, res) {
       return res.status(400).json(validationError);
     }
 
-    // Validate contract address
-    if (!ethers.isAddress(contractAddress)) {
+    // Validate contract address (normalize to lowercase to avoid EIP-55 checksum rejections)
+    if (!ethers.isAddress(contractAddress.toLowerCase())) {
       return res.status(400).json(
         errorResponse('Invalid contract address format')
       );
