@@ -15,9 +15,11 @@ import { useAuth } from "@/lib/auth"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import ReactMarkdown from "react-markdown"
 import { 
   discoverContract, 
-  executeNaturalLanguageCommand 
+  executeNaturalLanguageCommand,
+  askContractQuestion 
 } from "@/lib/contract-backend"
 
 // Extend Window interface for ethereum
@@ -451,61 +453,85 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
     setIsChatLoading(true)
 
     try {
-      // Check if user has a private key (either agent wallet or Privy wallet)
-      const privateKey = dbUser?.private_key
-      
-      if (!privateKey) {
-        setChatMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: 'Please connect your wallet to execute contract functions via natural language.' 
-        }])
-        setIsChatLoading(false)
-        return
-      }
+      // Detect if this is an execution command or an informational question
+      const executionKeywords = /\b(call|execute|run|invoke|send|transfer|approve|mint|burn|swap|deposit|withdraw|stake|unstake|claim|set|update|change|modify)\b/i
+      const isExecutionCommand = executionKeywords.test(userMessage) && !userMessage.trim().endsWith('?')
 
-      // First, get execution plan without confirming
-      const planResponse = await executeNaturalLanguageCommand(
-        contractAddress,
-        userMessage,
-        privateKey,
-        false // Don't execute yet, just get plan
-      )
-
-      if (planResponse.success && planResponse.data?.executionPlan) {
-        const plan = planResponse.data.executionPlan
-        setExecutionPlan(plan)
+      if (isExecutionCommand) {
+        // --- Execution flow (existing) - requires wallet ---
+        const privateKey = dbUser?.private_key
         
-        // Format execution plan for display
-        let planMessage = `I've analyzed your request:\n\n`
-        planMessage += `**Function:** ${plan.functionName}\n`
-        planMessage += `**Signature:** ${plan.signature}\n`
-        planMessage += `**Type:** ${plan.isReadOnly ? 'Read-Only' : 'Write (requires transaction)'}\n\n`
-        
-        if (plan.parameters && plan.parameters.length > 0) {
-          planMessage += `**Parameters:**\n`
-          plan.parameters.forEach((param: any) => {
-            planMessage += `- ${param.name} (${param.type}): ${param.rawValue}\n`
-          })
-          planMessage += `\n`
+        if (!privateKey) {
+          setChatMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: 'Please connect your wallet to execute contract functions. You can still ask questions about the contract without a wallet!' 
+          }])
+          setIsChatLoading(false)
+          return
         }
-        
-        planMessage += `**Reasoning:** ${plan.reasoning}\n\n`
-        planMessage += `Would you like me to execute this? Reply with "yes" or "execute" to proceed.`
-        
-        setChatMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: planMessage 
-        }])
-      } else if (planResponse.data?.message) {
-        setChatMessages(prev => [...prev, { 
-          role: 'assistant' as const, 
-          content: String(planResponse.data.message)
-        }])
+
+        const planResponse = await executeNaturalLanguageCommand(
+          contractAddress,
+          userMessage,
+          privateKey,
+          false
+        )
+
+        if (planResponse.success && planResponse.data?.executionPlan) {
+          const plan = planResponse.data.executionPlan
+          setExecutionPlan(plan)
+          
+          let planMessage = `I've analyzed your request:\n\n`
+          planMessage += `**Function:** ${plan.functionName}\n`
+          planMessage += `**Signature:** ${plan.signature}\n`
+          planMessage += `**Type:** ${plan.isReadOnly ? 'Read-Only' : 'Write (requires transaction)'}\n\n`
+          
+          if (plan.parameters && plan.parameters.length > 0) {
+            planMessage += `**Parameters:**\n`
+            plan.parameters.forEach((param: any) => {
+              planMessage += `- ${param.name} (${param.type}): ${param.rawValue}\n`
+            })
+            planMessage += `\n`
+          }
+          
+          planMessage += `**Reasoning:** ${plan.reasoning}\n\n`
+          planMessage += `Would you like me to execute this? Reply with "yes" or "execute" to proceed.`
+          
+          setChatMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: planMessage 
+          }])
+        } else if (planResponse.data?.message) {
+          setChatMessages(prev => [...prev, { 
+            role: 'assistant' as const, 
+            content: String(planResponse.data.message)
+          }])
+        } else {
+          setChatMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: planResponse.message || 'I couldn\'t process that request. Try asking about a specific function.' 
+          }])
+        }
       } else {
-        setChatMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: planResponse.message || 'I couldn\'t process that request. Try asking about a specific function.' 
-        }])
+        // --- Question/Chat flow (new) - no wallet needed ---
+        const chatResponse = await askContractQuestion(
+          contractAddress,
+          userMessage,
+          contractABI,
+          chatMessages.slice(-10) // Send last 10 messages for context
+        )
+
+        if (chatResponse.success && chatResponse.data?.answer) {
+          setChatMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: chatResponse.data.answer 
+          }])
+        } else {
+          setChatMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: chatResponse.message || 'I couldn\'t answer that question. Try rephrasing.' 
+          }])
+        }
       }
     } catch (error: any) {
       console.error('AI Chat error:', error)
@@ -778,7 +804,13 @@ export function ContractInteraction({ onInteraction }: ContractInteractionProps)
                               : 'bg-muted'
                           }`}
                         >
-                          <p className="whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
+                          {msg.role === 'assistant' ? (
+                            <div className="prose prose-xs dark:prose-invert max-w-none break-words leading-relaxed [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_h1]:text-sm [&_h1]:font-semibold [&_h1]:my-2 [&_h2]:text-xs [&_h2]:font-semibold [&_h2]:my-1.5 [&_h3]:text-xs [&_h3]:font-medium [&_h3]:my-1 [&_code]:text-[10px] [&_code]:bg-background/50 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_pre]:text-[10px] [&_pre]:bg-background/50 [&_pre]:p-2 [&_pre]:rounded [&_hr]:my-2 [&_strong]:font-semibold [&_a]:text-primary [&_a]:underline">
+                              <ReactMarkdown>{msg.content}</ReactMarkdown>
+                            </div>
+                          ) : (
+                            <p className="whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
+                          )}
                         </div>
                       </div>
                     ))}

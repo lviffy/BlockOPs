@@ -221,3 +221,54 @@ export function categorizeFunctions(functions: ContractFunction[]): {
   
   return { read, write }
 }
+
+/**
+ * Contract Chat Response
+ */
+export interface ContractChatResponse {
+  success: boolean
+  data: {
+    answer: string
+    contractAddress: string
+    question: string
+  }
+  message?: string
+  error?: string
+}
+
+/**
+ * Ask AI a question about a loaded contract
+ * Calls POST /contract-chat/ask
+ */
+export async function askContractQuestion(
+  contractAddress: string,
+  question: string,
+  abi: any[],
+  chatHistory: Array<{ role: string; content: string }> = []
+): Promise<ContractChatResponse> {
+  const response = await fetch(
+    `${BLOCKCHAIN_BACKEND_URL}/contract-chat/ask`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contractAddress,
+        question,
+        abi,
+        chatHistory,
+      }),
+    }
+  )
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ 
+      error: 'Failed to get answer' 
+    }))
+    const errorMessage = errorData.details || errorData.error || errorData.message || `Request failed with status ${response.status}`
+    throw new Error(errorMessage)
+  }
+
+  return response.json()
+}
