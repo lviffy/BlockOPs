@@ -177,6 +177,25 @@ TOOL_DEFINITIONS = {
         "endpoint": f"{BACKEND_URL}/nft/info/{{collectionAddress}}/{{tokenId}}",
         "method": "GET"
     },
+    "send_email": {
+        "name": "send_email",
+        "description": "Send an email to one or more recipients. You MUST use this tool (function call) to send emails — do NOT just compose JSON text. Extract the recipient from the user's message, generate a professional subject line and body, then call this function. The email will be sent via Gmail SMTP.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "to": {"type": "string", "description": "Recipient email address(es), comma-separated for multiple"},
+                "subject": {"type": "string", "description": "Email subject line — generate a clear, professional subject based on the user's intent"},
+                "text": {"type": "string", "description": "Plain text email body — compose a professional, friendly message based on the user's request"},
+                "html": {"type": "string", "description": "HTML email body (optional, use for rich formatting)"},
+                "cc": {"type": "string", "description": "CC recipients (optional)"},
+                "bcc": {"type": "string", "description": "BCC recipients (optional)"},
+                "replyTo": {"type": "string", "description": "Reply-to address (optional)"}
+            },
+            "required": ["to", "subject", "text"]
+        },
+        "endpoint": f"{BACKEND_URL}/email/send",
+        "method": "POST"
+    },
     "calculate": {
         "name": "calculate",
         "description": "Perform mathematical calculations with support for variables. You can use variable names in the expression and provide their values in the 'variables' parameter. Example: expression='eth_price * amount / sol_price', variables={'eth_price': 2500.50, 'amount': 1, 'sol_price': 105.20}",
@@ -507,6 +526,14 @@ EXECUTION MODE: Independent tool execution
 """
     
     system_prompt += """
+
+EMAIL TOOL RULES (when send_email is available):
+- When the user asks to send, compose, or email someone, you MUST use the send_email function call.
+- Do NOT just write out the email as text. You MUST invoke the send_email tool so it actually gets sent.
+- Compose a professional subject and body based on the user's intent.
+- After the tool returns successfully, confirm to the user that the email was sent with the recipient and subject.
+- Do NOT echo the raw JSON payload in your response.
+- Keep your final response short and conversational, e.g.: "Done! I've sent a good morning email to contact.rohan.here@gmail.com."
 
 EXECUTION GUIDELINES:
 

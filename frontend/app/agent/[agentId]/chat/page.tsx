@@ -102,7 +102,21 @@ function ToolDetailsView({ toolResults }: { toolResults: ToolResults }) {
 }
 
 function formatContent(content: string): string {
-  return content
+  // Clean up AI thinking / reasoning that leaks into the response
+  let cleaned = content
+    // Remove lines like "The user wants to..." or "I need to use the send_email tool..."
+    .replace(/^(The user wants to[\s\S]*?(?:\n\n|$))/m, '')
+    .replace(/^(I need to use the \w+ tool[\s\S]*?(?:\n\n|$))/m, '')
+    .replace(/^(I'?ll compose[\s\S]*?(?:\n\n|$))/m, '')
+    // Remove standalone raw JSON blocks that aren't in code fences
+    .replace(/^\{\n\s+"to":[\s\S]*?^\}$/gm, '')
+    // Remove duplicate JSON echo like {"to": "...", "subject": "...", "body": "..."}
+    .replace(/^\{"to":\s*"[^"]+",\s*"subject":\s*"[^"]+",\s*"(?:body|text)":\s*"[^"]*"\}$/gm, '')
+    // Trim leading/trailing whitespace and collapse excessive newlines
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+
+  return cleaned
     .replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2 hover:text-foreground/80 transition-colors">$1</a>')
     .replace(/(https?:\/\/[^\s<]+)/g, (match) => {
       if (match.includes('href="')) return match

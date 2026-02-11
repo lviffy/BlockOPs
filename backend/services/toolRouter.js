@@ -119,7 +119,7 @@ async function intelligentToolRouting(userMessage, conversationHistory = []) {
 4. What parameters need to be extracted from the user's message
 5. Any dependencies between tool calls
 
-IMPORTANT: If the user's request is NOT related to blockchain operations (e.g., general knowledge questions, current events, weather, entertainment, politics, etc.), you must flag it as off-topic.
+IMPORTANT: If the user's request is NOT related to blockchain operations or email notifications (e.g., general knowledge questions, current events, weather, entertainment, politics, etc.), you must flag it as off-topic. Email-related requests (e.g., 'send an email', 'email someone about...', 'notify via email') are ON-TOPIC and should use the send_email tool.
 
 Available Tools:
 ${toolsList}

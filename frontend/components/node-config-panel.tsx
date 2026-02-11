@@ -37,8 +37,8 @@ export default function NodeConfigPanel({ node, updateNodeData, onClose }: NodeC
   }
 
   const handleSendEmail = async () => {
-    if (!to || !subject || !body) {
-      setSendResult({ success: false, message: "To, Subject and Body are required." })
+    if (!to) {
+      setSendResult({ success: false, message: "At least the 'To' field is required to send." })
       return
     }
     setSending(true)
@@ -85,7 +85,7 @@ export default function NodeConfigPanel({ node, updateNodeData, onClose }: NodeC
           {/* To */}
           <div className="space-y-1">
             <Label htmlFor="email-to" className="text-xs font-medium">
-              To <span className="text-red-500">*</span>
+              To
             </Label>
             <Input
               id="email-to"
@@ -99,7 +99,7 @@ export default function NodeConfigPanel({ node, updateNodeData, onClose }: NodeC
           {/* Subject */}
           <div className="space-y-1">
             <Label htmlFor="email-subject" className="text-xs font-medium">
-              Subject <span className="text-red-500">*</span>
+              Subject
             </Label>
             <Input
               id="email-subject"
@@ -113,7 +113,7 @@ export default function NodeConfigPanel({ node, updateNodeData, onClose }: NodeC
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <Label htmlFor="email-body" className="text-xs font-medium">
-                Body <span className="text-red-500">*</span>
+                Body
               </Label>
               <button
                 type="button"
@@ -187,13 +187,18 @@ export default function NodeConfigPanel({ node, updateNodeData, onClose }: NodeC
               <span className="break-all">{sendResult.message}</span>
             </div>
           )}
+
+          {/* AI hint */}
+          <div className="p-2 rounded-md bg-blue-50 border border-blue-200 text-[10px] text-blue-700">
+            💡 Tip: You can also ask the AI chatbot to compose and send emails for you. Just say something like &quot;Send an email to alice@example.com about the token deployment.&quot;
+          </div>
         </div>
 
         {/* Send button */}
         <div className="pt-3 border-t mt-3">
           <Button
             onClick={handleSendEmail}
-            disabled={sending || !to || !subject || !body}
+            disabled={sending || !to}
             className="w-full"
           >
             {sending ? (

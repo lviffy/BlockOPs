@@ -173,6 +173,16 @@ async function chat(req, res) {
         const agentData = await agentResponse.json();
         aiResponse = agentData.agent_response;
         
+        // Clean up AI thinking/reasoning that leaks into responses
+        aiResponse = aiResponse
+          .replace(/^The user wants to[\s\S]*?(?:\n\n)/m, '')
+          .replace(/^I need to use the \w+ tool[\s\S]*?(?:\n\n)/m, '')
+          .replace(/^I'?ll compose[\s\S]*?(?:\n\n)/m, '')
+          .replace(/^\{\n\s+"to":[\s\S]*?^\}$/gm, '')
+          .replace(/^\{"to":\s*"[^"]+",\s*"subject":\s*"[^"]+",\s*"(?:body|text)":\s*"[^"]*"\}$/gm, '')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+        
         // Format JSON data in the response for better display
         aiResponse = aiResponse.replace(/```json\n([\s\S]*?)```/g, (match, json) => {
           try {
@@ -195,9 +205,11 @@ async function chat(req, res) {
         
         // Fallback to simple chat with routing context
         const defaultSystemPrompt = systemPrompt || 
-          `You are a specialized blockchain operations assistant. You ONLY help with blockchain-related tasks: cryptocurrency prices, wallet operations, token/NFT deployment, smart contracts, and blockchain transactions. 
+          `You are a specialized blockchain operations assistant. You help with blockchain-related tasks: cryptocurrency prices, wallet operations, token/NFT deployment, smart contracts, blockchain transactions, and sending email notifications about these operations.
           
-          If asked about topics unrelated to blockchain (politics, news, general knowledge, weather, entertainment, etc.), respond: "I'm a blockchain operations assistant and can only help with blockchain-related tasks. Please ask me something about cryptocurrency, tokens, NFTs, or blockchain operations."
+          You can also compose and send emails when users ask. Extract the recipient, subject, and body from the user's request and use the send_email tool.
+          
+          If asked about topics unrelated to blockchain or email notifications (politics, news, general knowledge, weather, entertainment, etc.), respond: "I'm a blockchain operations assistant and can only help with blockchain-related tasks and email notifications. Please ask me something about cryptocurrency, tokens, NFTs, blockchain operations, or sending an email."
           
           The user's request analysis: ${routingPlan.analysis}. Provide clear, accurate, and concise responses. Use **bold** formatting sparingly and only for important terms or key points that need emphasis.`;
         
@@ -209,9 +221,11 @@ async function chat(req, res) {
       console.log('[Chat] Simple conversation, using direct AI');
       
       const defaultSystemPrompt = systemPrompt || 
-        `You are a specialized blockchain operations assistant. You ONLY help with blockchain-related tasks: cryptocurrency prices, wallet operations, token/NFT deployment, smart contracts, and blockchain transactions.
+        `You are a specialized blockchain operations assistant. You help with blockchain-related tasks: cryptocurrency prices, wallet operations, token/NFT deployment, smart contracts, blockchain transactions, and sending email notifications about these operations.
         
-        If asked about topics unrelated to blockchain (politics, news, general knowledge, weather, entertainment, etc.), respond EXACTLY: "I'm a blockchain operations assistant and can only help with blockchain-related tasks. Please ask me something about cryptocurrency, tokens, NFTs, or blockchain operations."
+        You can also compose and send emails when users ask. Extract the recipient, subject, and body from the user's request and use the send_email tool.
+        
+        If asked about topics unrelated to blockchain or email notifications (politics, news, general knowledge, weather, entertainment, etc.), respond EXACTLY: "I'm a blockchain operations assistant and can only help with blockchain-related tasks and email notifications. Please ask me something about cryptocurrency, tokens, NFTs, blockchain operations, or sending an email."
         
         Provide clear, accurate, and concise responses. Use **bold** formatting sparingly and only for important terms or key points that need emphasis.`;
       

@@ -68,7 +68,8 @@ AVAILABLE_TOOLS = [
     "get_balance",
     "deploy_erc20",
     "deploy_erc721",
-    "fetch_token_price"
+    "fetch_token_price",
+    "send_email"
 ]
 
 SYSTEM_PROMPT = """You are an AI that converts natural language descriptions of blockchain agent workflows into structured JSON for the Arbitrum Sepolia blockchain.
@@ -79,6 +80,7 @@ Available tools:
 - deploy_erc20: Deploy ERC-20 tokens on Arbitrum Sepolia
 - deploy_erc721: Deploy ERC-721 NFT tokens on Arbitrum Sepolia
 - fetch_token_price: Get the current price of any token using AI-powered search
+- send_email: Send email notifications to recipients (compose subject & body from user intent)
 
 Your task is to analyze the user's request and create a workflow structure with:
 1. An agent node (always present, id: "agent_1")
