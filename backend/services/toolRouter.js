@@ -63,6 +63,12 @@ const AVAILABLE_TOOLS = {
     description: 'Performs mathematical calculations or conversions',
     parameters: ['expression', 'values'],
     examples: ['How much can I buy with X ETH?', 'Calculate 100 / 83.92', 'Convert ETH to tokens']
+  },
+  send_email: {
+    name: 'send_email',
+    description: 'Sends an email to one or more recipients. Supports plain text, HTML, CC, BCC, reply-to, and attachments.',
+    parameters: ['to', 'subject', 'text (optional)', 'html (optional)', 'cc (optional)', 'bcc (optional)', 'replyTo (optional)'],
+    examples: ['Send an email to alice@example.com', 'Email Bob the transaction receipt', 'Notify team about the deployment']
   }
 };
 
@@ -260,6 +266,15 @@ function detectToolsWithRegex(message) {
     tools.push({ 
       tool: 'deploy_erc721', 
       reason: 'User wants to deploy NFT',
+      parameters: {},
+      depends_on: [] 
+    });
+  }
+
+  if (/\b(email|send.*email|mail|notify|notification)\b/i.test(message)) {
+    tools.push({ 
+      tool: 'send_email', 
+      reason: 'User wants to send an email',
       parameters: {},
       depends_on: [] 
     });

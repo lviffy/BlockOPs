@@ -13,6 +13,7 @@ import {
   History,
   CheckCircle,
   XCircle,
+  Mail,
 } from "lucide-react"
 
 const toolTypes = [
@@ -81,6 +82,12 @@ const toolTypes = [
     label: "Revoke Approval",
     description: "Remove token allowance",
     icon: XCircle,
+  },
+  {
+    type: "send_email",
+    label: "Send Email",
+    description: "Send email notifications",
+    icon: Mail,
   },
 ]
 

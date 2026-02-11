@@ -18,6 +18,7 @@ import {
   History,
   CheckCircle,
   XCircle,
+  Mail,
 } from "lucide-react"
 import type { NodeData } from "@/lib/types"
 
@@ -37,6 +38,7 @@ const toolIcons: Record<string, React.ReactNode> = {
   wallet_history: <History className="h-4 w-4" />,
   approve_token: <CheckCircle className="h-4 w-4" />,
   revoke_approval: <XCircle className="h-4 w-4" />,
+  send_email: <Mail className="h-4 w-4" />,
 }
 
 const toolColors: Record<string, { border: string; bg: string; text: string }> = {
@@ -55,6 +57,7 @@ const toolColors: Record<string, { border: string; bg: string; text: string }> =
   wallet_history: { border: "border-foreground/40", bg: "bg-foreground/5", text: "text-foreground" },
   approve_token: { border: "border-foreground/50", bg: "bg-foreground/10", text: "text-foreground" },
   revoke_approval: { border: "border-foreground/60", bg: "bg-foreground/15", text: "text-foreground" },
+  send_email: { border: "border-foreground/40", bg: "bg-foreground/5", text: "text-foreground" },
 }
 
 export const ToolNode = memo(({ data, type, isConnectable }: NodeProps<NodeData>) => {

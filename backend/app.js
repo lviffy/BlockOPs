@@ -13,6 +13,7 @@ const conversationRoutes = require('./routes/conversationRoutes');
 const walletRoutes = require('./routes/walletRoutes');
 const allowanceRoutes = require('./routes/allowanceRoutes');
 const contractChatRoutes = require('./routes/contractChatRoutes');
+const emailRoutes = require('./routes/emailRoutes');
 
 // Initialize Express app
 const app = express();
@@ -50,6 +51,7 @@ app.use('/api', conversationRoutes);
 app.use('/wallet', walletRoutes);
 app.use('/allowance', allowanceRoutes);
 app.use('/contract-chat', contractChatRoutes);
+app.use('/email', emailRoutes);
 
 // Legacy routes for backwards compatibility
 app.post('/deploy-token', require('./controllers/tokenController').deployToken);
@@ -109,6 +111,10 @@ const server = app.listen(PORT, () => {
   console.log('    POST /nl-executor/quick-execute');
   console.log('\n  Contract Chat:');
   console.log('    POST /contract-chat/ask             - Ask AI about a contract');
+  console.log('\n  Email:');
+  console.log('    POST /email/send                   - Send email (text/HTML/attachments)');
+  console.log('    POST /email/send-html              - Send HTML email');
+  console.log('    GET  /email/verify                 - Verify email connection');
   console.log('\n  Arbitrum Orbit L3:');
   console.log('    POST /api/orbit/config          - Create L3 config');
   console.log('    GET  /api/orbit/config/:id      - Get config');

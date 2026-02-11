@@ -46,6 +46,7 @@ const getDefaultLabel = (type: string): string => {
     wallet_history: "Wallet History",
     approve_token: "Approve Token",
     revoke_approval: "Revoke Approval",
+    send_email: "Send Email",
   }
   return labels[type] || "Tool"
 }
@@ -67,6 +68,7 @@ const getDefaultDescription = (type: string): string => {
     wallet_history: "Fetch recent transactions",
     approve_token: "Grant spending approval",
     revoke_approval: "Remove token allowance",
+    send_email: "Send email notifications",
   }
   return descriptions[type] || "Workflow tool"
 }

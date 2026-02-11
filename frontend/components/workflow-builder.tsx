@@ -74,6 +74,7 @@ const toolTypes = [
   "wallet_history",
   "approve_token",
   "revoke_approval",
+  "send_email",
 ]
 
 const nodeTypes: NodeTypes = {
@@ -93,6 +94,7 @@ const nodeTypes: NodeTypes = {
   wallet_history: ToolNode,
   approve_token: ToolNode,
   revoke_approval: ToolNode,
+  send_email: ToolNode,
 }
 
 const edgeTypes: EdgeTypes = {
