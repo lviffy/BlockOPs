@@ -10,30 +10,10 @@ import { PrivateKeySetupModal } from "@/components/private-key-setup-modal"
 import FeaturesExpandableCards from "@/components/features-expandable-cards"
 import { Modal, ModalBody, ModalContent, ModalFooter, ModalTrigger } from "@/components/ui/animated-modal"
 import { motion, useInView, useSpring } from "motion/react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
+import Lenis from 'lenis'
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.1,
-    },
-  },
-}
 
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { 
-    opacity: 1, 
-    y: 0,
-    transition: {
-      duration: 0.5,
-      ease: "easeOut" as const
-    }
-  },
-}
 
 function NumberTicker({ 
   value, 
@@ -81,7 +61,30 @@ export default function Home() {
   const [loadingLink, setLoadingLink] = useState<string | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  const handleGetStarted = async () => {
+  // Initialize Lenis smooth scrolling
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      orientation: 'vertical',
+      smoothWheel: true,
+      wheelMultiplier: 1,
+      touchMultiplier: 2,
+    })
+
+    function raf(time: number) {
+      lenis.raf(time)
+      requestAnimationFrame(raf)
+    }
+
+    requestAnimationFrame(raf)
+
+    return () => {
+      lenis.destroy()
+    }
+  }, [])
+
+  const handleGetStarted = useCallback(async () => {
     console.log('Get Started clicked!')
     setIsLoggingIn(true)
     try {
@@ -91,7 +94,7 @@ export default function Home() {
     } finally {
       setIsLoggingIn(false)
     }
-  }
+  }, [login])
 
   if (!ready || loading) {
     return (
@@ -124,12 +127,7 @@ export default function Home() {
       </div>
 
       {/* Navigation */}
-      <motion.nav 
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="sticky top-2 sm:top-4 z-50 px-3 sm:px-6"
-      >
+      <nav className="sticky top-2 sm:top-4 z-50 px-3 sm:px-6">
         <div className="container mx-auto max-w-6xl bg-white/80 backdrop-blur-md rounded-xl sm:rounded-2xl border border-slate-200 shadow-lg shadow-slate-900/5">
           <div className="px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
             {/* Logo */}
@@ -139,6 +137,7 @@ export default function Home() {
                   src="/logo.jpeg" 
                   alt="BlockOps Logo" 
                   fill
+                  priority
                   className="object-cover"
                 />
               </div>
@@ -220,12 +219,7 @@ export default function Home() {
           
           {/* Mobile Menu */}
           {mobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="md:hidden border-t border-slate-200 px-3 py-4"
-            >
+            <div className="md:hidden border-t border-slate-200 px-3 py-4">
               <div className="flex flex-col gap-3">
                 <Link 
                   href="#features" 
@@ -259,40 +253,35 @@ export default function Home() {
                   Contract Explorer
                 </Link>
               </div>
-            </motion.div>
+            </div>
           )}
         </div>
-      </motion.nav>
+      </nav>
 
       {/* Hero Section */}
       <main className="relative container mx-auto px-4 sm:px-6 pt-12 sm:pt-20 lg:pt-24 pb-12 sm:pb-16 max-w-6xl">
-        <motion.div 
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="relative flex flex-col items-center text-center"
-        >
+        <div className="relative flex flex-col items-center text-center">
           {/* Social Proof Badge */}
-          <motion.div variants={itemVariants} className="mb-6 sm:mb-10 inline-flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-3 sm:px-4 py-1.5 sm:py-2">
+          <div className="mb-6 sm:mb-10 inline-flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-3 sm:px-4 py-1.5 sm:py-2">
             <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
             <span className="text-xs sm:text-sm text-slate-700">Build your army of agents</span>
             <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400" />
-          </motion.div>
+          </div>
 
           {/* Main Heading */}
-          <motion.h1 variants={itemVariants} className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-4 sm:mb-6 max-w-4xl mt-2 sm:mt-4 px-4">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-4 sm:mb-6 max-w-4xl mt-2 sm:mt-4 px-4">
             <span className="text-slate-900">Build AI agents that</span>
             <br />
             <span className="text-blue-500">automate blockchain</span>
-          </motion.h1>
+          </h1>
 
           {/* Subheading */}
-          <motion.p variants={itemVariants} className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed px-4">
-            At BlockOps, we believe automation should be simple, scalable, and accessible—creating a experience where ideas thrive and boundaries fade.
-          </motion.p>
+          <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed px-4">
+            At BlockOps, we believe automation should be simple, scalable, and accessible creating a experience where ideas thrive and boundaries fade.
+          </p>
 
           {/* CTA Buttons */}
-          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-12 sm:mb-16 w-full max-w-sm sm:max-w-none px-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-12 sm:mb-16 w-full max-w-sm sm:max-w-none px-4">
             {authenticated ? (
               <>
                 <Button 
@@ -334,10 +323,10 @@ export default function Home() {
                 </Button>
               </>
             )}
-          </motion.div>
+          </div>
 
           {/* Hero Image */}
-          <motion.div variants={itemVariants} className="w-full max-w-3xl mx-auto px-4">
+          <div className="w-full max-w-3xl mx-auto px-4">
             <Image
               src="/hero-diagram.png"
               alt="BlockOps Platform"
@@ -346,8 +335,8 @@ export default function Home() {
               className="w-full h-auto"
               priority
             />
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       </main>
 
       {/* By the Numbers Section */}
@@ -363,25 +352,13 @@ export default function Home() {
         <div className="container mx-auto px-4 sm:px-6 max-w-6xl relative z-10 py-12 sm:py-16">
           {/* Section Header */}
           <div className="mb-12 sm:mb-16">
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5 }}
-              className="text-white/50 text-xs sm:text-sm font-medium mb-3 sm:mb-4 tracking-wide"
-            >
+            <p className="text-white/50 text-xs sm:text-sm font-medium mb-3 sm:mb-4 tracking-wide">
               Limitless Possibilities
-            </motion.p>
-            <motion.h2 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 max-w-4xl"
-            >
+            </p>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 max-w-4xl">
               Automate anything on-chain{" "}
               <span className="text-white/50">with powerful, composable blocks.</span>
-            </motion.h2>
+            </h2>
           </div>
 
           {/* Use Cases Grid */}
@@ -424,12 +401,8 @@ export default function Home() {
                 )
               },
             ].map((item, index) => (
-              <motion.div
+              <div
                 key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
                 className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl sm:rounded-2xl p-6 sm:p-8 flex flex-col h-full"
               >
                 <div className="mb-4 sm:mb-6 p-2.5 sm:p-3 bg-white/5 rounded-lg sm:rounded-xl w-fit border border-white/10">
@@ -439,7 +412,7 @@ export default function Home() {
                 <p className="text-white/60 text-sm leading-relaxed">
                   {item.description}
                 </p>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
@@ -447,154 +420,202 @@ export default function Home() {
 
       {/* Features Section */}
       <section className="bg-slate-50 py-16 sm:py-20 lg:py-24">
-        <motion.div 
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={containerVariants}
-          className="container mx-auto px-4 sm:px-6 max-w-6xl"
-        >
-          <motion.div variants={itemVariants} className="text-center mb-12 sm:mb-16 lg:mb-20">
+        <div className="container mx-auto px-4 sm:px-6 max-w-6xl">
+          <div className="text-center mb-12 sm:mb-16 lg:mb-20">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-3 sm:mb-4">
               Everything you need
             </h2>
             <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto px-4">
               Build, deploy, and manage AI agents for blockchain automation
             </p>
-          </motion.div>
+          </div>
 
-          <motion.div variants={itemVariants}>
+          <div>
             <FeaturesExpandableCards />
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       </section>
 
       {/* How It Works Section */}
-      <section className="bg-white py-16 sm:py-20 lg:py-24">
-        <motion.div 
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={containerVariants}
-          className="container mx-auto px-4 sm:px-6 max-w-6xl"
-        >
-          <motion.div variants={itemVariants} className="text-center mb-12 sm:mb-16">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-3 sm:mb-4">
-              How it works
-            </h2>
-            <p className="text-base sm:text-lg text-slate-600">
-              Get started in three simple steps
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-10 lg:gap-12">
-            {/* Step 1 */}
-            <motion.div variants={itemVariants} className="text-center">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-slate-900 text-white rounded-full flex items-center justify-center text-lg sm:text-xl font-bold mx-auto mb-4 sm:mb-6">
-                1
+      <section className="relative w-full pt-12 lg:pt-20 pb-8 lg:pb-12 bg-slate-50 overflow-hidden">
+        <div className="w-full px-[2vw]">
+          <div className="max-w-[2000px] mx-auto">
+            <div className="relative bg-[#05163d] rounded-3xl overflow-hidden">
+            <div className="px-8 sm:px-12 lg:px-16 py-12 lg:py-20">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center mx-auto">
+            
+            {/* LEGO Cube Stack - Left Side */}
+            <div className="relative h-[500px] sm:h-[600px] lg:h-[700px] order-2 lg:order-1">
+              <div className="absolute bottom-0 left-0 h-full w-full translate-x-[-100px] translate-y-[280px] scale-50 lg:translate-x-0 lg:translate-y-0 lg:scale-100" style={{ willChange: 'transform' }}>
+                {/* Column 1 (rightmost) - 2 cubes */}
+                <Image
+                  alt="cube"
+                  width={220}
+                  height={288}
+                  loading="lazy"
+                  className="absolute hover:z-10 hover:mix-blend-soft-light transition-all duration-300 max-sm:block xl:block hidden"
+                  style={{ bottom: '-100px', left: '434px' }}
+                  src="/lego_cube.webp"
+                />
+                <Image
+                  alt="cube"
+                  width={220}
+                  height={288}
+                  loading="lazy"
+                  className="absolute hover:z-10 hover:mix-blend-soft-light transition-all duration-300 max-sm:block xl:block hidden"
+                  style={{ bottom: '54px', left: '434px' }}
+                  src="/lego_cube.webp"
+                />
+                
+                {/* Column 2 - 3 cubes */}
+                <Image
+                  alt="cube"
+                  width={220}
+                  height={288}
+                  className="absolute hover:z-10 hover:mix-blend-soft-light transition-all duration-300 max-sm:block xl:block"
+                  style={{ bottom: '-100px', left: '316px' }}
+                  src="/lego_cube.webp"
+                />
+                <Image
+                  alt="cube"
+                  width={220}
+                  height={288}
+                  className="absolute hover:z-10 hover:mix-blend-soft-light transition-all duration-300 max-sm:block xl:block"
+                  style={{ bottom: '54px', left: '316px' }}
+                  src="/lego_cube.webp"
+                />
+                <Image
+                  alt="cube"
+                  width={220}
+                  height={288}
+                  className="absolute hover:z-10 hover:mix-blend-soft-light transition-all duration-300 max-sm:block xl:block"
+                  style={{ bottom: '208px', left: '316px' }}
+                  src="/lego_cube.webp"
+                />
+                
+                {/* Column 3 - 4 cubes */}
+                <Image
+                  alt="cube"
+                  width={220}
+                  height={288}
+                  className="absolute hover:z-10 hover:mix-blend-soft-light transition-all duration-300 max-sm:block xl:block"
+                  style={{ bottom: '-100px', left: '198px' }}
+                  src="/lego_cube.webp"
+                />
+                <Image
+                  alt="cube"
+                  width={220}
+                  height={288}
+                  className="absolute hover:z-10 hover:mix-blend-soft-light transition-all duration-300 max-sm:block xl:block"
+                  style={{ bottom: '54px', left: '198px' }}
+                  src="/lego_cube.webp"
+                />
+                <Image
+                  alt="cube"
+                  width={220}
+                  height={288}
+                  className="absolute hover:z-10 hover:mix-blend-soft-light transition-all duration-300 max-sm:block xl:block"
+                  style={{ bottom: '208px', left: '198px' }}
+                  src="/lego_cube.webp"
+                />
+                <Image
+                  alt="cube"
+                  width={220}
+                  height={288}
+                  className="absolute hover:z-10 hover:mix-blend-soft-light transition-all duration-300 max-sm:block xl:block"
+                  style={{ bottom: '362px', left: '198px' }}
+                  src="/lego_cube.webp"
+                />
+                
+                {/* Column 4 (leftmost) - 5 cubes */}
+                <Image
+                  alt="cube"
+                  width={220}
+                  height={288}
+                  className="absolute hover:z-10 hover:mix-blend-soft-light transition-all duration-300 max-sm:block xl:block"
+                  style={{ bottom: '-180px', left: '80px' }}
+                  src="/lego_cube.webp"
+                />
+                <Image
+                  alt="cube"
+                  width={220}
+                  height={288}
+                  className="absolute hover:z-10 hover:mix-blend-soft-light transition-all duration-300 max-sm:block xl:block"
+                  style={{ bottom: '-26px', left: '80px' }}
+                  src="/lego_cube.webp"
+                />
+                <Image
+                  alt="cube"
+                  width={220}
+                  height={288}
+                  className="absolute hover:z-10 hover:mix-blend-soft-light transition-all duration-300 max-sm:block xl:block"
+                  style={{ bottom: '128px', left: '80px' }}
+                  src="/lego_cube.webp"
+                />
+                <Image
+                  alt="cube"
+                  width={220}
+                  height={288}
+                  className="absolute hover:z-10 hover:mix-blend-soft-light transition-all duration-300 max-sm:block xl:block"
+                  style={{ bottom: '282px', left: '80px' }}
+                  src="/lego_cube.webp"
+                />
+                <Image
+                  alt="cube"
+                  width={220}
+                  height={288}
+                  className="absolute hover:z-10 hover:mix-blend-soft-light transition-all duration-300 max-sm:block xl:block"
+                  style={{ bottom: '441px', left: '80px' }}
+                  src="/lego_cube.webp"
+                />
               </div>
-              <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-2 sm:mb-3">Create Your Agent</h3>
-              <p className="text-slate-600 text-sm leading-relaxed px-4">
-                Use our visual builder to create your first AI agent. Choose from templates or start from scratch.
-              </p>
-            </motion.div>
+            </div>
 
-            {/* Step 2 */}
-            <motion.div variants={itemVariants} className="text-center">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-slate-900 text-white rounded-full flex items-center justify-center text-lg sm:text-xl font-bold mx-auto mb-4 sm:mb-6">
-                2
+            {/* Content - Right Side */}
+            <div className="text-white space-y-6 order-1 lg:order-2">
+              <div className="space-y-4">
+                <p className="text-xs sm:text-sm font-semibold tracking-widest uppercase text-emerald-400">
+                  HOW IT WORKS
+                </p>
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold leading-tight text-white">
+                  Automation Made Simple
+                </h1>
               </div>
-              <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-2 sm:mb-3">Configure Workflows</h3>
-              <p className="text-slate-600 text-sm leading-relaxed px-4">
-                Set up your automation workflows by connecting nodes and configuring triggers.
+              
+              <p className="text-base sm:text-lg text-gray-300 leading-relaxed max-w-xl">
+                BlockOps transforms complex blockchain operations into simple, automated workflows. Build powerful AI agents with our visual builder, connect to any smart contract, and let your agents handle everything from DeFi strategies to NFT operations—no coding required.
               </p>
-            </motion.div>
-
-            {/* Step 3 */}
-            <motion.div variants={itemVariants} className="text-center">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-slate-900 text-white rounded-full flex items-center justify-center text-lg sm:text-xl font-bold mx-auto mb-4 sm:mb-6">
-                3
+              
+              <button className="inline-flex items-center gap-2 bg-black hover:bg-gray-900 text-white px-6 py-3.5 rounded-lg font-medium transition-all duration-200 hover:gap-3 mt-4">
+                Explore Documentation
+                <svg 
+                  className="w-4 h-4" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M9 5l7 7-7 7" 
+                  />
+                </svg>
+              </button>
+            </div>
               </div>
-              <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-2 sm:mb-3">Deploy & Automate</h3>
-              <p className="text-slate-600 text-sm leading-relaxed px-4">
-                Deploy your agent to the blockchain and automate its performance in real-time.
-              </p>
-            </motion.div>
+            </div>
           </div>
-        </motion.div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="bg-slate-50 py-16 sm:py-20 lg:py-24 border-t border-slate-200">
-        <motion.div 
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={containerVariants}
-          className="container mx-auto px-4 sm:px-6 max-w-4xl text-center"
-        >
-          <motion.h2 variants={itemVariants} className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-3 sm:mb-4">
-            Ready to get started?
-          </motion.h2>
-          <motion.p variants={itemVariants} className="text-base sm:text-lg text-slate-600 mb-8 sm:mb-10 max-w-2xl mx-auto px-4">
-            Join thousands of users building the future of blockchain automation.
-          </motion.p>
-          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 max-w-sm sm:max-w-none mx-auto px-4">
-            {authenticated ? (
-              <Button 
-                asChild
-                size="lg" 
-                className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-6 sm:px-8 rounded-lg w-full sm:w-auto"
-              >
-                <Link href="/agent-builder">
-                  Start Building
-                </Link>
-              </Button>
-            ) : (
-              <>
-                <Button 
-                  onClick={handleGetStarted}
-                  size="lg" 
-                  disabled={isLoggingIn}
-                  className="bg-slate-900 hover:bg-slate-800 text-white font-medium px-6 sm:px-8 rounded-lg w-full sm:w-auto"
-                >
-                  {isLoggingIn ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
-                      Connecting...
-                    </>
-                  ) : (
-                    "Get Started Free"
-                  )}
-                </Button>
-                <Button 
-                  asChild
-                  size="lg" 
-                  variant="outline"
-                  className="border-slate-300 text-slate-700 hover:bg-white font-medium px-6 sm:px-8 rounded-lg w-full sm:w-auto"
-                >
-                  <Link href="/api-docs">
-                    View Documentation
-                  </Link>
-                </Button>
-              </>
-            )}
-          </motion.div>
-        </motion.div>
+        </div>
+        </div>
       </section>
 
       {/* Footer */}
       <footer className="bg-slate-900 text-white py-12 sm:py-16">
-        <motion.div 
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={containerVariants}
-          className="container mx-auto px-4 sm:px-6 max-w-6xl"
-        >
+        <div className="container mx-auto px-4 sm:px-6 max-w-6xl">
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10 lg:gap-12 mb-10 sm:mb-12">
             {/* Company Info */}
-            <motion.div variants={itemVariants} className="col-span-2 sm:col-span-1">
+            <div className="col-span-2 sm:col-span-1">
               <Link href="/" className="flex items-center gap-2 mb-4 group">
                 <div className="w-8 h-8 sm:w-9 sm:h-9 relative rounded-lg overflow-hidden transition-transform group-hover:scale-105">
                   <Image 
@@ -609,10 +630,10 @@ export default function Home() {
               <p className="text-slate-400 text-sm leading-relaxed">
                 Building the future of blockchain automation.
               </p>
-            </motion.div>
+            </div>
 
             {/* Product */}
-            <motion.div variants={itemVariants}>
+            <div>
               <h4 className="font-semibold mb-3 sm:mb-4 text-sm">Product</h4>
               <ul className="space-y-2 sm:space-y-3">
                 <li><Link href="/agent-builder" className="text-slate-400 hover:text-white transition-colors text-sm">Agent Builder</Link></li>
@@ -621,28 +642,28 @@ export default function Home() {
                 <li><Link href="/contract-explorer" className="text-slate-400 hover:text-white transition-colors text-sm">Contract Explorer</Link></li>
                 <li><Link href="/api-docs" className="text-slate-400 hover:text-white transition-colors text-sm">API Docs</Link></li>
               </ul>
-            </motion.div>
+            </div>
 
             {/* Resources */}
-            <motion.div variants={itemVariants}>
+            <div>
               <h4 className="font-semibold mb-3 sm:mb-4 text-sm">Resources</h4>
               <ul className="space-y-2 sm:space-y-3">
                 <li><Link href="/api-docs" className="text-slate-400 hover:text-white transition-colors text-sm">API Documentation</Link></li>
                 <li><a href="https://github.com" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors text-sm">GitHub</a></li>
               </ul>
-            </motion.div>
+            </div>
 
             {/* Company */}
-            <motion.div variants={itemVariants}>
+            <div>
               <h4 className="font-semibold mb-3 sm:mb-4 text-sm">Company</h4>
               <ul className="space-y-2 sm:space-y-3">
                 <li><a href="mailto:contact@blockops.com" className="text-slate-400 hover:text-white transition-colors text-sm">Contact</a></li>
               </ul>
-            </motion.div>
+            </div>
           </div>
 
           {/* Bottom Bar */}
-          <motion.div variants={itemVariants} className="border-t border-slate-800 pt-6 sm:pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="border-t border-slate-800 pt-6 sm:pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-slate-400 text-xs sm:text-sm text-center sm:text-left">
               © 2025 BlockOps. All rights reserved.
             </p>
@@ -663,8 +684,8 @@ export default function Home() {
                 </svg>
               </a>
             </div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       </footer>
 
       {/* Private Key Setup Modal */}
