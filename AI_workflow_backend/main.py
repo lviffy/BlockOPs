@@ -28,21 +28,31 @@ app.add_middleware(
 )
 
 # Configure API Keys
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_API_KEYS = [
+    os.getenv("GROQ_API_KEY1"),
+    os.getenv("GROQ_API_KEY2"),
+    os.getenv("GROQ_API_KEY3")
+]
+GROQ_API_KEYS = [key for key in GROQ_API_KEYS if key]  # Filter out None values
+
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Initialize clients
-groq_client = None
-if GROQ_API_KEY:
-    groq_client = Groq(api_key=GROQ_API_KEY)
-    logger.info("Groq client initialized (Primary)")
+groq_clients = []
+if GROQ_API_KEYS:
+    for i, key in enumerate(GROQ_API_KEYS, 1):
+        groq_clients.append(Groq(api_key=key))
+        logger.info(f"Groq client {i} initialized")
+    logger.info(f"Total {len(groq_clients)} Groq client(s) initialized (Primary)")
+else:
+    logger.warning("No Groq API keys configured")
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
     logger.info("Gemini configured (Fallback)")
 
-if not GROQ_API_KEY and not GEMINI_API_KEY:
-    raise ValueError("At least one of GROQ_API_KEY or GEMINI_API_KEY must be set")
+if not GROQ_API_KEYS and not GEMINI_API_KEY:
+    raise ValueError("At least one of GROQ_API_KEY1-3 or GEMINI_API_KEY must be set")
 
 class WorkflowRequest(BaseModel):
     prompt: str
@@ -134,28 +144,50 @@ async def create_workflow(request: WorkflowRequest):
         raw_content = None
         provider_used = None
         
-        # Try Groq first (Primary)
-        if groq_client:
-            try:
-                logger.info("Attempting Groq API (Primary)...")
-                
-                groq_response = groq_client.chat.completions.create(
-                    model="moonshotai/kimi-k2-instruct-0905",
-                    messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": f"User Query: {request.prompt}\n\nGenerate the workflow JSON:"}
-                    ],
-                    temperature=request.temperature,
-                    max_tokens=request.max_tokens,
-                    response_format={"type": "json_object"}
-                )
-                
-                raw_content = groq_response.choices[0].message.content
-                provider_used = "Groq (moonshotai/kimi-k2-instruct-0905)"
-                logger.info(f"Groq response received successfully")
-                
-            except Exception as groq_error:
-                logger.warning(f"Groq API failed: {str(groq_error)}, falling back to Gemini...")
+        # Try all Groq clients (Primary)
+        if groq_clients:
+            for client_idx, groq_client in enumerate(groq_clients, 1):
+                try:
+                    logger.info(f"Attempting Groq API key {client_idx}/{len(groq_clients)}...")
+                    
+                    groq_response = groq_client.chat.completions.create(
+                        model="moonshotai/kimi-k2-instruct-0905",
+                        messages=[
+                            {"role": "system", "content": SYSTEM_PROMPT},
+                            {"role": "user", "content": f"User Query: {request.prompt}\n\nGenerate the workflow JSON:"}
+                        ],
+                        temperature=request.temperature,
+                        max_tokens=request.max_tokens,
+                        response_format={"type": "json_object"}
+                    )
+                    
+                    raw_content = groq_response.choices[0].message.content
+                    provider_used = f"Groq key {client_idx} (moonshotai/kimi-k2-instruct-0905)"
+                    logger.info(f"✓ Groq key {client_idx} response received successfully")
+                    break  # Success, exit loop
+                    
+                except Exception as groq_error:
+                    error_msg = str(groq_error)
+                    logger.warning(f"Groq API key {client_idx} failed: {error_msg}")
+                    
+                    # Check for rate limit (429)
+                    if "rate_limit" in error_msg.lower() or "429" in error_msg:
+                        logger.warning(f"Groq key {client_idx} rate limited (429)")
+                        # Try next key if available
+                        if client_idx < len(groq_clients):
+                            logger.info("Trying next Groq key...")
+                            continue
+                        else:
+                            logger.warning("All Groq keys rate limited, falling back to Gemini...")
+                            break
+                    else:
+                        # For other errors, try next key
+                        if client_idx < len(groq_clients):
+                            logger.info(f"Error with Groq key {client_idx}, trying next key...")
+                            continue
+                        else:
+                            logger.warning("All Groq keys failed, falling back to Gemini...")
+                            break
         
         # Fallback to Gemini if Groq failed or not available
         if raw_content is None and GEMINI_API_KEY:

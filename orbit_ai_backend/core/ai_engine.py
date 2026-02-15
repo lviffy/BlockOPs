@@ -17,16 +17,25 @@ class AIEngine:
     """Manages LLM calls with fallback."""
     
     def __init__(self):
-        self.groq_client: Optional[Groq] = None
+        self.groq_clients: list[Groq] = []
         self.gemini_model = None
         
-        # Initialize Groq
-        groq_key = os.getenv("GROQ_API_KEY")
-        if groq_key:
-            self.groq_client = Groq(api_key=groq_key)
-            logger.info("Groq client initialized")
+        # Initialize all Groq API keys
+        groq_keys = [
+            os.getenv("GROQ_API_KEY1"),
+            os.getenv("GROQ_API_KEY2"),
+            os.getenv("GROQ_API_KEY3")
+        ]
+        
+        for i, key in enumerate(groq_keys, 1):
+            if key:
+                self.groq_clients.append(Groq(api_key=key))
+                logger.info(f"Groq client {i} initialized")
+        
+        if not self.groq_clients:
+            logger.warning("No GROQ_API_KEY (1-3) configured")
         else:
-            logger.warning("GROQ_API_KEY not set")
+            logger.info(f"Total {len(self.groq_clients)} Groq client(s) initialized")
         
         # Initialize Gemini
         gemini_key = os.getenv("GEMINI_API_KEY")
@@ -90,14 +99,37 @@ class AIEngine:
             "content": " ".join(filter(None, context_parts)),
         })
         
-        # Try Groq first
-        if self.groq_client:
-            try:
-                response = await self._call_groq(messages)
-                if response:
-                    return response
-            except Exception as e:
-                logger.error(f"Groq error: {e}")
+        # Try Groq first - cycle through all available keys
+        if self.groq_clients:
+            for i, client in enumerate(self.groq_clients, 1):
+                try:
+                    logger.info(f"Trying Groq client {i}/{len(self.groq_clients)}")
+                    response = await self._call_groq(client, messages)
+                    if response:
+                        logger.info(f"Groq client {i} succeeded")
+                        return response
+                except Exception as e:
+                    error_msg = str(e)
+                    logger.error(f"Groq client {i} error: {error_msg}")
+                    
+                    # Check if it's a rate limit error (429)
+                    if "rate_limit" in error_msg.lower() or "429" in error_msg:
+                        logger.warning(f"Groq client {i} rate limited (429)")
+                        # Continue to next key
+                        if i < len(self.groq_clients):
+                            logger.info(f"Trying next Groq key...")
+                            continue
+                        else:
+                            logger.warning("All Groq keys rate limited, falling back to Gemini")
+                            break
+                    else:
+                        # For other errors, try next key if available
+                        if i < len(self.groq_clients):
+                            logger.info(f"Error with Groq client {i}, trying next key...")
+                            continue
+                        else:
+                            logger.warning("All Groq clients failed")
+                            break
         
         # Fallback to Gemini
         if self.gemini_model:
@@ -112,16 +144,16 @@ class AIEngine:
         logger.warning("Both LLMs failed, using default question")
         return step_question
     
-    async def _call_groq(self, messages: list[dict]) -> Optional[str]:
-        """Call Groq API."""
-        if not self.groq_client:
+    async def _call_groq(self, client: Groq, messages: list[dict]) -> Optional[str]:
+        """Call Groq API with a specific client."""
+        if not client:
             return None
         
         # Groq uses synchronous API, wrap it
         import asyncio
         
         def call():
-            response = self.groq_client.chat.completions.create(
+            response = client.chat.completions.create(
                 model="moonshotai/kimi-k2-instruct-0905",
                 messages=messages,
                 temperature=0.7,
