@@ -74,11 +74,11 @@ TOOL_DEFINITIONS = {
     },
     "get_balance": {
         "name": "get_balance",
-        "description": "Get ETH balance of a wallet address. Requires only the wallet address.",
+        "description": "Get ETH balance of a wallet address. If the user asks for 'my balance', use their connected wallet address. Otherwise, use the specified address.",
         "parameters": {
             "type": "object",
             "properties": {
-                "address": {"type": "string", "description": "Wallet address to check balance"}
+                "address": {"type": "string", "description": "Wallet address to check balance. Use the user's connected wallet address if they ask for 'my balance'."}
             },
             "required": ["address"]
         },
@@ -862,6 +862,10 @@ def process_agent_conversation(
                             if wallet_address and function_name == "transfer":
                                 if "fromAddress" not in function_args:
                                     function_args["fromAddress"] = wallet_address
+                            # Add wallet address for get_balance if asking for "my balance"
+                            elif wallet_address and function_name == "get_balance":
+                                if "address" not in function_args or not function_args["address"]:
+                                    function_args["address"] = wallet_address
                             # Fallback to private key if needed and available
                             elif private_key and function_name in TOOL_DEFINITIONS:
                                 tool_params = TOOL_DEFINITIONS[function_name]["parameters"]["properties"]
@@ -1037,6 +1041,10 @@ def process_agent_conversation(
                 if wallet_address and function_name == "transfer":
                     if "fromAddress" not in function_args:
                         function_args["fromAddress"] = wallet_address
+                # Add wallet address for get_balance if asking for "my balance"
+                elif wallet_address and function_name == "get_balance":
+                    if "address" not in function_args or not function_args["address"]:
+                        function_args["address"] = wallet_address
                 # Fallback to private key if needed and available
                 elif private_key and function_name in TOOL_DEFINITIONS:
                     tool_params = TOOL_DEFINITIONS[function_name]["parameters"]["properties"]

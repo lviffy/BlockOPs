@@ -12,14 +12,14 @@ const AVAILABLE_TOOLS = {
   },
   get_balance: {
     name: 'get_balance',
-    description: 'Gets the ETH balance of a wallet address',
-    parameters: ['wallet_address'],
+    description: 'Gets the ETH balance of a wallet address. If the user asks for "my balance", the connected wallet address will be used automatically.',
+    parameters: ['wallet_address (optional if user is asking for their own balance)'],
     examples: ['What is the balance of 0x123...?', 'Check my wallet balance', 'How much ETH do I have?']
   },
   transfer: {
     name: 'transfer',
-    description: 'Transfers ETH or ERC20 tokens from one wallet to another',
-    parameters: ['from_address', 'to_address', 'amount', 'token_address (optional)'],
+    description: 'Transfers ETH or ERC20 tokens from user\'s connected wallet to another wallet. The user\'s wallet address is used automatically.',
+    parameters: ['to_address', 'amount', 'token_address (optional)'],
     examples: ['Send 1 ETH to 0x123...', 'Transfer 100 USDC to Alice', 'Pay Bob 0.5 ETH']
   },
   deploy_erc20: {
@@ -119,6 +119,8 @@ async function intelligentToolRouting(userMessage, conversationHistory = []) {
 4. What parameters need to be extracted from the user's message
 5. Any dependencies between tool calls
 
+WALLET CONTEXT: The user has a connected wallet. When they ask for "my balance", "my wallet", or similar, the wallet address is AUTOMATICALLY AVAILABLE - DO NOT add wallet_address to missing_info.
+
 IMPORTANT: If the user's request is NOT related to blockchain operations or email notifications (e.g., general knowledge questions, current events, weather, entertainment, politics, etc.), you must flag it as off-topic. Email-related requests (e.g., 'send an email', 'email someone about...', 'notify via email') are ON-TOPIC and should use the send_email tool.
 
 Available Tools:
@@ -156,14 +158,16 @@ IMPORTANT RULES:
 4. Extract as many parameters as possible from the user's message
 5. For calculations involving tool results, add a "calculate" tool step
 6. If information is ambiguous or missing, add it to "missing_info"
-7. Common pattern: "How much X can I buy with balance Y" = get_balance → fetch_price → calculate (sequential)
-8. Ethereum addresses must be 42 characters starting with "0x" - validate before including
-9. Network: Arbitrum Sepolia (Chain ID: 421614) - all operations are on this testnet
+7. NEVER ask for wallet_address when user says "my balance", "my wallet", etc. - it's automatically available
+8. Common pattern: "How much X can I buy with balance Y" = get_balance → fetch_price → calculate (sequential)
+9. Ethereum addresses must be 42 characters starting with "0x" - validate before including
+10. Network: Arbitrum Sepolia (Chain ID: 421614) - all operations are on this testnet
 
 Examples:
 - "What is the price of Solana?" → Simple, single tool (fetch_price)
 - "Check balance and get ETH price" → Parallel, two independent tools
 - "How much Solana can I buy with my wallet balance?" → Sequential: get_balance → fetch_price → calculate
+- "Can you tell me my wallet balance" → Simple, single tool (get_balance), NO missing_info needed
 
 Respond ONLY with valid JSON, no other text.`;
 
