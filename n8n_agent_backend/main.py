@@ -57,19 +57,20 @@ BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:3000")
 TOOL_DEFINITIONS = {
     "transfer": {
         "name": "transfer",
-        "description": "Transfer tokens from one address to another. Requires privateKey, toAddress, amount, and optionally tokenId for ERC20 transfers (omit for native ETH).",
+        "description": "Prepare a transfer transaction for the user to sign with their wallet (MetaMask). Use the user's connected wallet address as fromAddress. Requires fromAddress, toAddress, amount, and optionally tokenId for ERC20 transfers (omit for native ETH).",
         "parameters": {
             "type": "object",
             "properties": {
-                "privateKey": {"type": "string", "description": "Private key of the sender wallet"},
+                "fromAddress": {"type": "string", "description": "Sender wallet address (user's connected wallet)"},
                 "toAddress": {"type": "string", "description": "Recipient wallet address"},
                 "amount": {"type": "string", "description": "Amount of tokens to transfer"},
                 "tokenId": {"type": "string", "description": "Token ID from factory (optional, for ERC20 transfers only, omit for ETH)"}
             },
-            "required": ["privateKey", "toAddress", "amount"]
+            "required": ["fromAddress", "toAddress", "amount"]
         },
-        "endpoint": f"{BACKEND_URL}/transfer",
-        "method": "POST"
+        "endpoint": f"{BACKEND_URL}/transfer/prepare",
+        "method": "POST",
+        "requires_metamask": True
     },
     "get_balance": {
         "name": "get_balance",
@@ -232,6 +233,7 @@ class AgentRequest(BaseModel):
     tools: List[ToolConnection]
     user_message: str
     private_key: Optional[str] = None
+    wallet_address: Optional[str] = None
 
 class AgentResponse(BaseModel):
     agent_response: str
@@ -797,6 +799,7 @@ def process_agent_conversation(
     available_tools: List[str],
     tool_flow: Dict[str, str],
     private_key: Optional[str] = None,
+    wallet_address: Optional[str] = None,
     max_iterations: int = 10
 ) -> Dict[str, Any]:
     """
@@ -805,8 +808,10 @@ def process_agent_conversation(
     Fallback: Google Gemini
     """
     
-    # Add private key context if available
-    if private_key:
+    # Add wallet context if available (preferred over private key)
+    if wallet_address:
+        system_prompt += f"\n\nCONTEXT: User's connected wallet address is: {wallet_address}. Use this as the fromAddress for transfers."
+    elif private_key:
         system_prompt += f"\n\nCONTEXT: User's private key is available: {private_key}"
     
     all_tool_calls = []
@@ -853,8 +858,12 @@ def process_agent_conversation(
                             function_name = tool_call.function.name
                             function_args = json.loads(tool_call.function.arguments)
                             
-                            # Add private key if needed and available
-                            if private_key and function_name in TOOL_DEFINITIONS:
+                            # Add wallet address for transfer tool if available and needed
+                            if wallet_address and function_name == "transfer":
+                                if "fromAddress" not in function_args:
+                                    function_args["fromAddress"] = wallet_address
+                            # Fallback to private key if needed and available
+                            elif private_key and function_name in TOOL_DEFINITIONS:
                                 tool_params = TOOL_DEFINITIONS[function_name]["parameters"]["properties"]
                                 if "privateKey" in tool_params and "privateKey" not in function_args:
                                     function_args["privateKey"] = private_key
@@ -1024,7 +1033,12 @@ def process_agent_conversation(
                 function_name = function_call.name
                 function_args = dict(function_call.args)
                 
-                if private_key and function_name in TOOL_DEFINITIONS:
+                # Add wallet address for transfer tool if available and needed
+                if wallet_address and function_name == "transfer":
+                    if "fromAddress" not in function_args:
+                        function_args["fromAddress"] = wallet_address
+                # Fallback to private key if needed and available
+                elif private_key and function_name in TOOL_DEFINITIONS:
                     tool_params = TOOL_DEFINITIONS[function_name]["parameters"]["properties"]
                     if "privateKey" in tool_params and "privateKey" not in function_args:
                         function_args["privateKey"] = private_key
@@ -1090,7 +1104,8 @@ async def chat_with_agent(request: AgentRequest):
             user_message=request.user_message,
             available_tools=available_tools,
             tool_flow=tool_flow,
-            private_key=request.private_key
+            private_key=request.private_key,
+            wallet_address=request.wallet_address
         )
         
         return AgentResponse(

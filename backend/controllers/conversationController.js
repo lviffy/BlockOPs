@@ -15,13 +15,20 @@ async function chat(req, res) {
   }
 
   try {
-    const { agentId, userId, message, conversationId, systemPrompt } = req.body;
+    const { agentId, userId, message, conversationId, systemPrompt, walletAddress } = req.body;
 
     // Validation
     if (!agentId || !userId || !message) {
       return res.status(400).json({ 
         error: 'Missing required fields: agentId, userId, message' 
       });
+    }
+
+    // Log wallet address for debugging
+    if (walletAddress) {
+      console.log('[Chat] User wallet address:', walletAddress);
+    } else {
+      console.log('[Chat] No wallet address provided');
     }
 
     // Truncate message if too long
@@ -161,7 +168,8 @@ async function chat(req, res) {
           body: JSON.stringify({
             tools: tools,
             user_message: enhancedMessage,
-            private_key: null
+            private_key: null,
+            wallet_address: walletAddress || null
           })
         });
 
