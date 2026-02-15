@@ -168,26 +168,36 @@ async def create_workflow(request: WorkflowRequest):
                     
                 except Exception as groq_error:
                     error_msg = str(groq_error)
-                    logger.warning(f"Groq API key {client_idx} failed: {error_msg}")
                     
-                    # Check for rate limit (429)
-                    if "rate_limit" in error_msg.lower() or "429" in error_msg:
-                        logger.warning(f"Groq key {client_idx} rate limited (429)")
-                        # Try next key if available
-                        if client_idx < len(groq_clients):
-                            logger.info("Trying next Groq key...")
-                            continue
-                        else:
-                            logger.warning("All Groq keys rate limited, falling back to Gemini...")
-                            break
+                    # Enhanced rate limit detection
+                    is_rate_limit = (
+                        "rate_limit" in error_msg.lower() or 
+                        "429" in error_msg or
+                        "rate limit" in error_msg.lower() or
+                        hasattr(groq_error, 'status_code') and groq_error.status_code == 429 or
+                        hasattr(groq_error, 'status') and groq_error.status == 429
+                    )
+                    
+                    # Enhanced invalid key detection
+                    is_invalid_key = (
+                        "invalid_api_key" in error_msg.lower() or
+                        "invalid api key" in error_msg.lower() or
+                        "authentication" in error_msg.lower() or
+                        hasattr(groq_error, 'status_code') and groq_error.status_code == 401 or
+                        hasattr(groq_error, 'status') and groq_error.status == 401
+                    )
+                    
+                    if is_rate_limit:
+                        logger.warning(f"⚠️ Groq key {client_idx} rate limited - trying next key or fallback...")
+                        # Continue to next key or fallback
+                        continue
+                    elif is_invalid_key:
+                        logger.warning(f"⚠️ Groq key {client_idx} is invalid - trying next key...")
+                        continue
                     else:
-                        # For other errors, try next key
-                        if client_idx < len(groq_clients):
-                            logger.info(f"Error with Groq key {client_idx}, trying next key...")
-                            continue
-                        else:
-                            logger.warning("All Groq keys failed, falling back to Gemini...")
-                            break
+                        logger.warning(f"⚠️ Groq API key {client_idx} failed: {error_msg}")
+                        # For other errors, also try next key
+                        continue
         
         # Fallback to Gemini if Groq failed or not available
         if raw_content is None and GEMINI_API_KEY:

@@ -9,7 +9,9 @@ services:
     ports:
       - "8002:8000"
     environment:
-      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_API_KEY1=${GROQ_API_KEY1}
+      - GROQ_API_KEY2=${GROQ_API_KEY2}
+      - GROQ_API_KEY3=${GROQ_API_KEY3}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - BACKEND_URL=${BACKEND_URL:-http://host.docker.internal:3000}
       - SESSION_TTL_SECONDS=${SESSION_TTL_SECONDS:-7200}

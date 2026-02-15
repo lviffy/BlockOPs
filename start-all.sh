@@ -18,22 +18,22 @@ sleep 3
 # Start AI_workflow_backend with docker compose
 echo "🐳 Starting AI_workflow_backend..."
 cd /home/lviffy/Projects/blockops/AI_workflow_backend
-sudo docker compose down
-sudo docker compose up -d
+sudo docker-compose down
+sudo docker-compose up -d
 echo "✅ AI_workflow_backend started"
 
 # Start n8n_agent_backend with docker compose
 echo "🐳 Starting n8n_agent_backend..."
 cd /home/lviffy/Projects/blockops/n8n_agent_backend
-sudo docker compose down
-sudo docker compose up -d
+sudo docker-compose down
+sudo docker-compose up -d
 echo "✅ n8n_agent_backend started"
 
 # Start orbit_ai_backend with docker compose
 echo "🐳 Starting orbit_ai_backend..."
 cd /home/lviffy/Projects/blockops/orbit_ai_backend
-sudo docker compose down
-sudo docker compose up -d
+sudo docker-compose down
+sudo docker-compose up -d
 echo "✅ orbit_ai_backend started"
 
 # Start frontend with npm run dev

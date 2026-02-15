@@ -36,6 +36,8 @@ const genAI = process.env.GEMINI_API_KEY
 async function chatWithAI(messages, model = 'moonshotai/kimi-k2-instruct-0905', options = {}) {
   // Try all Groq keys in sequence
   if (groqClients.length > 0) {
+    let lastError = null;
+    
     for (let i = 0; i < groqClients.length; i++) {
       try {
         console.log(`🔑 Trying Groq API key ${i + 1}/${groqClients.length}...`);
@@ -54,42 +56,63 @@ async function chatWithAI(messages, model = 'moonshotai/kimi-k2-instruct-0905', 
         console.log(`✓ Groq API key ${i + 1} succeeded`);
         return completion.choices[0]?.message?.content || 'No response generated';
       } catch (error) {
-        console.error(`Groq API key ${i + 1} error:`, error.message);
+        lastError = error;
+        console.error(`❌ Groq API key ${i + 1} error:`, {
+          message: error.message,
+          status: error.status,
+          statusCode: error.statusCode,
+          code: error.code,
+          type: error.error?.type
+        });
         
-        // Check if it's a rate limit error
-        if (error.message?.includes('rate_limit') || error.message?.includes('429')) {
-          console.log(`⚠️  Groq key ${i + 1} rate limit exceeded`);
-          
-          // If this is the last key, fallback to Gemini
-          if (i === groqClients.length - 1) {
-            console.log('⚠️  All Groq keys rate limited, falling back to Gemini...');
-            if (genAI) {
-              return await chatWithGemini(messages, options);
-            } else {
-              throw new Error('All Groq keys rate limited and Gemini not configured. Please try again later.');
-            }
-          }
-          // Otherwise, continue to next key
-          continue;
-        } else if (error.message?.includes('invalid_api_key')) {
-          console.log(`⚠️  Groq key ${i + 1} is invalid, trying next...`);
-          // Try next key if available
-          if (i === groqClients.length - 1) {
-            throw new Error('All Groq API keys are invalid. Please check your configuration.');
-          }
-          continue;
-        } else {
-          // For other errors, try next key or fallback to Gemini
-          if (i === groqClients.length - 1) {
-            console.log('⚠️  All Groq keys failed, falling back to Gemini...');
-            if (genAI) {
-              return await chatWithGemini(messages, options);
-            }
-            throw new Error(`AI service error: ${error.message}`);
-          }
+        // Check if it's a rate limit error (multiple possible formats)
+        const isRateLimit = 
+          error.status === 429 ||
+          error.statusCode === 429 ||
+          error.code === 'rate_limit_exceeded' ||
+          error.error?.type === 'rate_limit_exceeded' ||
+          error.message?.includes('rate_limit') || 
+          error.message?.includes('429') ||
+          error.message?.toLowerCase().includes('rate limit');
+        
+        if (isRateLimit) {
+          console.log(`⚠️  Groq key ${i + 1} rate limit exceeded - trying next key or fallback...`);
+          // Continue to next key or fallback to Gemini after loop
           continue;
         }
+        
+        // Check for invalid API key
+        const isInvalidKey = 
+          error.status === 401 ||
+          error.statusCode === 401 ||
+          error.message?.includes('invalid_api_key') || 
+          error.message?.includes('Invalid API Key') ||
+          error.message?.includes('authentication');
+        
+        if (isInvalidKey) {
+          console.log(`⚠️  Groq key ${i + 1} is invalid - trying next key...`);
+          continue;
+        }
+        
+        // For other errors, also try next key
+        console.log(`⚠️  Groq key ${i + 1} failed with other error - trying next key...`);
+        continue;
       }
+    }
+    
+    // If we got here, all Groq keys failed - try Gemini fallback
+    console.log('⚠️  All Groq keys failed. Attempting Gemini fallback...');
+    if (genAI) {
+      try {
+        console.log('🔄 Falling back to Gemini...');
+        return await chatWithGemini(messages, options);
+      } catch (geminiError) {
+        console.error('❌ Gemini fallback also failed:', geminiError.message);
+        throw new Error(`All AI providers failed. Last Groq error: ${lastError?.message || 'Unknown'}. Gemini error: ${geminiError.message}`);
+      }
+    } else {
+      console.error('❌ No Gemini configured for fallback');
+      throw new Error(`All Groq API keys failed. Last error: ${lastError?.message || 'Rate limit exceeded'}. Please configure GEMINI_API_KEY as fallback or try again later.`);
     }
   }
   

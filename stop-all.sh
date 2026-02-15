@@ -8,19 +8,19 @@ echo "🛑 Stopping BlockOps Services..."
 # Stop Docker containers for AI_workflow_backend
 echo "🐳 Stopping AI_workflow_backend..."
 cd /home/lviffy/Projects/blockops/AI_workflow_backend
-sudo docker compose down
+sudo docker-compose down
 echo "✅ AI_workflow_backend stopped"
 
 # Stop Docker containers for n8n_agent_backend
 echo "🐳 Stopping n8n_agent_backend..."
 cd /home/lviffy/Projects/blockops/n8n_agent_backend
-sudo docker compose down
+sudo docker-compose down
 echo "✅ n8n_agent_backend stopped"
 
 # Stop Docker containers for orbit_ai_backend
 echo "🐳 Stopping orbit_ai_backend..."
 cd /home/lviffy/Projects/blockops/orbit_ai_backend
-sudo docker compose down
+sudo docker-compose down
 echo "✅ orbit_ai_backend stopped"
 
 # Kill backend and frontend Node processes
