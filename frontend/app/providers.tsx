@@ -16,9 +16,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
     throw new Error('NEXT_PUBLIC_PRIVY_APP_ID is not set')
   }
 
-  // Only render Privy on client side
+
+  // Don't render children until PrivyProvider is available on client side
+  // This prevents Privy hooks (useWallets, usePrivy) from being called outside PrivyProvider
   if (!mounted) {
-    return <>{children}</>
+    return null
   }
 
   return (

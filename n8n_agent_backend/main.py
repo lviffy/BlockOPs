@@ -209,12 +209,12 @@ TOOL_DEFINITIONS = {
     },
     "calculate": {
         "name": "calculate",
-        "description": "Perform mathematical calculations with support for variables. You can use variable names in the expression and provide their values in the 'variables' parameter. Example: expression='eth_price * amount / sol_price', variables={'eth_price': 2500.50, 'amount': 1, 'sol_price': 105.20}",
+        "description": "Perform mathematical calculations with support for variables. IMPORTANT: The variable names used in the 'expression' MUST exactly match the keys in the 'variables' parameter. For example, if the expression uses 'arb_price', the variables dict must include 'arb_price' (not 'arbitrum_price'). Common variable names: eth_balance, eth_price, token_price. Always include ALL variables referenced in the expression.",
         "parameters": {
             "type": "object",
             "properties": {
-                "expression": {"type": "string", "description": "The mathematical expression (e.g., 'eth_price * amount / sol_price' or '2500.50 / 105.20')"},
-                "variables": {"type": "object", "description": "A dictionary mapping variable names to their numeric values from previous tool results (e.g., {'eth_price': 2500.50, 'sol_price': 105.20})"},
+                "expression": {"type": "string", "description": "Math expression using variable names that EXACTLY match the keys in the 'variables' dict. Example: '(eth_balance * eth_price) / token_price'"},
+                "variables": {"type": "object", "description": "A dictionary mapping EVERY variable name used in the expression to its numeric value. Keys MUST match the names in the expression exactly. Example: {'eth_balance': 0.1, 'eth_price': 2500.50, 'token_price': 0.10}"},
                 "description": {"type": "string", "description": "A brief description of what is being calculated"}
             },
             "required": ["expression"]
@@ -287,6 +287,14 @@ def build_system_prompt(tool_connections: List[ToolConnection]) -> str:
     has_sequential = any(conn.next_tool for conn in tool_connections)
     
     system_prompt = """You are an intelligent blockchain automation agent for BlockOps - a no-code AI-powered platform built on Arbitrum Sepolia. Your purpose is to help users execute blockchain operations seamlessly through natural language interactions.
+
+CRITICAL BEHAVIOR — PROACTIVE TOOL USAGE:
+- When a user asks a question that requires data (prices, balances, etc.), IMMEDIATELY call the appropriate tools. Do NOT ask the user for information that your tools can fetch.
+- When a user says "calculate", "now calculate", "how much", "how many", etc., USE the data from your previous tool calls and conversation context to perform the calculation immediately.
+- When a user mentions "this balance", "my balance", "that wallet", look at the conversation history for the relevant data.
+- NEVER respond with "I need additional information" when the information is either in the conversation context or fetchable via tools.
+- If a query requires multiple pieces of data (e.g., ETH price AND token price), fetch ALL of them before responding.
+- Think step-by-step: What data do I need? → Which tools provide it? → Call them → Use results to answer.
 
 PLATFORM CONTEXT:
 - Network: Arbitrum Sepolia (Chain ID: 421614)
@@ -535,6 +543,17 @@ EXECUTION MODE: Independent tool execution
   (e.g., fetching ETH price AND token price to compute a conversion)
 - For any "how many tokens can I buy" question, you MUST call fetch_price for BOTH
   Ethereum AND the target token, then do the math (see CRITICAL MATH RULES above)
+
+PROACTIVE MULTI-TOOL CHAINING (CRITICAL):
+When the user's query IMPLICITLY requires multiple tools, call them ALL without asking:
+- "How much ARB can I buy with this balance?" → get_balance + fetch_price(ethereum) + fetch_price(arbitrum) + calculate
+- "What's my balance worth?" → get_balance + fetch_price(ethereum) + calculate
+- "Calculate" (after previous data was fetched) → use conversation context data + calculate
+- "Now calculate" → same as above, use previously fetched data
+- "Compare ETH and BTC" → fetch_price(ethereum) + fetch_price(bitcoin) + present comparison
+
+DO NOT ask the user for data that your tools can fetch. If you need a price, CALL fetch_price.
+If you need a balance, CALL get_balance. Act autonomously and proactively.
 """
     
     system_prompt += """
@@ -679,16 +698,104 @@ def execute_tool(tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
                 
                 import re
                 
-                # Substitute variables in the expression
-                resolved_expression = expression
-                if variables:
-                    for var_name, var_value in variables.items():
-                        # Replace variable name with its numeric value
+                # Ensure variables is a dict (AI may send string or other types)
+                if isinstance(variables, str):
+                    try:
+                        variables = json.loads(variables)
+                    except (json.JSONDecodeError, TypeError):
+                        variables = {}
+                if not isinstance(variables, dict):
+                    variables = {}
+                
+                # Normalize ALL whitespace (newlines, tabs, etc.) to single spaces
+                resolved_expression = ' '.join(expression.split())
+                
+                # Build alias map: common variable name variants → canonical provided name
+                # This fixes the AI using e.g. "arb_price" in expression but providing "arbitrum_price"
+                alias_map = {}
+                for var_name in list(variables.keys()):
+                    val = variables[var_name]
+                    vn = var_name.lower()
+                    # Price aliases
+                    if 'price' in vn:
+                        # eth_price → also register as ethereum_price and vice versa
+                        if 'eth' in vn:
+                            for alias in ['eth_price', 'ethereum_price', 'eth_price_usd', 'price_eth']:
+                                alias_map[alias] = val
+                        elif 'btc' in vn or 'bitcoin' in vn:
+                            for alias in ['btc_price', 'bitcoin_price', 'btc_price_usd', 'price_btc']:
+                                alias_map[alias] = val
+                        elif 'sol' in vn or 'solana' in vn:
+                            for alias in ['sol_price', 'solana_price', 'sol_price_usd', 'price_sol']:
+                                alias_map[alias] = val
+                        elif 'arb' in vn or 'arbitrum' in vn:
+                            for alias in ['arb_price', 'arbitrum_price', 'arb_price_usd', 'token_price', 'token_price_usd', 'price_arb']:
+                                alias_map[alias] = val
+                        elif 'token' in vn:
+                            # token_price → also register short coin names
+                            for alias in ['token_price', 'token_price_usd', 'arb_price', 'sol_price', 'btc_price', 'target_price']:
+                                if alias not in variables:  # don't override explicit vars
+                                    alias_map[alias] = val
+                    # Balance aliases
+                    if 'balance' in vn:
+                        for alias in ['eth_balance', 'balance', 'wallet_balance', 'my_balance']:
+                            alias_map[alias] = val
+                
+                # Merge aliases into variables (don't override explicitly provided vars)
+                merged_variables = {**alias_map, **variables}
+                
+                # --- FALLBACK: extract balance/amounts from description & expression context ---
+                # The AI often writes the balance value in the description but forgets to put it in variables.
+                # e.g. description="Calculate how many ARB with 0.1 ETH" or user_message has "0.1 ETH"
+                # Scan for patterns like "0.1 ETH", "balance: 0.1", "X ETH balance"
+                context_text = description
+                if 'eth_balance' not in merged_variables and 'balance' not in merged_variables:
+                    balance_patterns = [
+                        r'ETH Balance:\s*([\d.]+)',                      # "ETH Balance: 0.1"
+                        r'Balance for 0x[a-fA-F0-9]+:\s*([\d.]+)',      # "Balance for 0x...: 0.1"
+                        r'balance[:\s]+([\d.]+)',                        # "balance: 0.1"
+                        r'with\s+([\d.]+)\s*(?:ETH|ether)',             # "with 0.1 ETH"
+                        r'has\s+([\d.]+)\s*(?:ETH|ether)',              # "has 0.1 ETH"
+                        r'\b(0\.\d+)\s*ETH\b',                          # "0.1 ETH" (< 1 ETH)
+                        r'(\d+\.?\d*)\s*ether',                         # "0.1 ether"
+                    ]
+                    for pattern in balance_patterns:
+                        m = re.search(pattern, context_text, re.IGNORECASE)
+                        if m:
+                            try:
+                                extracted = float(m.group(1))
+                                # Values > 1000 are almost certainly prices, not balances
+                                if 0 < extracted < 1000:
+                                    merged_variables['eth_balance'] = extracted
+                                    merged_variables['balance'] = extracted
+                                    merged_variables['wallet_balance'] = extracted
+                                    merged_variables['my_balance'] = extracted
+                                    print(f"[Calculate] Auto-extracted balance {extracted} ETH from description")
+                                    break
+                            except (ValueError, TypeError):
+                                pass
+                
+                # Substitute variables (sort by name length desc to avoid partial matches)
+                if merged_variables:
+                    sorted_vars = sorted(merged_variables.items(), key=lambda x: len(str(x[0])), reverse=True)
+                    for var_name, var_value in sorted_vars:
+                        # Convert value to float, stripping commas and whitespace
+                        try:
+                            numeric_value = float(str(var_value).replace(',', '').strip())
+                        except (ValueError, TypeError):
+                            return {
+                                "success": False,
+                                "tool": tool_name,
+                                "error": f"Variable '{var_name}' has non-numeric value: {var_value}"
+                            }
                         resolved_expression = re.sub(
                             r'\b' + re.escape(str(var_name)) + r'\b',
-                            str(var_value),
+                            str(numeric_value),
                             resolved_expression
                         )
+                
+                # Normalize whitespace again after substitution
+                resolved_expression = ' '.join(resolved_expression.split())
                 
                 # Check if there are still unresolved variable names
                 variable_pattern = r'[a-zA-Z_][a-zA-Z0-9_]*'
@@ -700,16 +807,17 @@ def execute_tool(tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
                     return {
                         "success": False,
                         "tool": tool_name,
-                        "error": f"Unresolved variables in expression: {', '.join(found_variables)}. Please provide their values in the 'variables' parameter. Example: variables={{{found_variables[0]}: 123.45}}"
+                        "error": f"Unresolved variables in expression: {', '.join(found_variables)}. Resolved so far: '{resolved_expression}'. Available variables were: {list(merged_variables.keys())}. Please ensure expression variable names match the provided variables."
                     }
                 
                 # Safely evaluate the expression (only allow basic math)
                 allowed_chars = set("0123456789+-*/().e ")
                 if not all(c in allowed_chars for c in resolved_expression.lower()):
+                    bad_chars = [c for c in resolved_expression if c.lower() not in allowed_chars]
                     return {
                         "success": False,
                         "tool": tool_name,
-                        "error": "Invalid characters in expression. Only numbers and basic operators (+, -, *, /, .) are allowed."
+                        "error": f"Invalid characters in expression: {bad_chars}. Resolved expression: '{resolved_expression}'. Only numbers and basic operators are allowed."
                     }
                     
                 result = eval(resolved_expression)
@@ -728,7 +836,7 @@ def execute_tool(tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
                 return {
                     "success": False,
                     "tool": tool_name,
-                    "error": f"Calculation error: {str(e)}"
+                    "error": f"Calculation error: {str(e)}. Expression: '{parameters.get('expression', '')}', Variables: {parameters.get('variables', {})}"
                 }
     
     # Handle URL parameters for GET requests
@@ -777,7 +885,6 @@ def execute_tool(tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
 
 def get_openai_tools(tool_names: List[str]) -> List[Dict[str, Any]]:
     """Convert tool definitions to OpenAI function calling format"""
-    
     tools = []
     for tool_name in tool_names:
         if tool_name in TOOL_DEFINITIONS:
@@ -792,6 +899,107 @@ def get_openai_tools(tool_names: List[str]) -> List[Dict[str, Any]]:
             })
     
     return tools
+
+
+def enrich_calculate_args(function_args: Dict[str, Any], all_tool_results: List[Dict[str, Any]], context_text: str = "") -> Dict[str, Any]:
+    """
+    Before executing a calculate tool call, auto-inject missing numeric variables
+    from previous tool results (get_balance, fetch_price) so the AI doesn't have to
+    manually include every value in the variables dict.
+    Also scans context_text (user_message) for balance values like '0.1 ETH'.
+    """
+    if not function_args.get("expression"):
+        return function_args
+
+    variables = function_args.get("variables", {})
+    if not isinstance(variables, dict):
+        variables = {}
+
+    # Scan all previous successful results
+    for tr in all_tool_results:
+        if not tr.get("success") or not tr.get("result"):
+            continue
+        tool = tr.get("tool", "")
+        result = tr["result"]
+
+        if tool == "get_balance":
+            balance_val = result.get("balance") or result.get("balanceInEth")
+            if balance_val is not None:
+                try:
+                    b = float(str(balance_val))
+                    # Only inject if not already explicitly set
+                    for key in ["eth_balance", "balance", "wallet_balance", "my_balance"]:
+                        if key not in variables:
+                            variables[key] = b
+                except (ValueError, TypeError):
+                    pass
+
+        if tool == "fetch_price":
+            prices = result.get("prices", [])
+            if prices and isinstance(prices, list):
+                price_val = prices[0].get("price")
+                coin = (prices[0].get("coin") or "").lower()
+                if price_val is not None:
+                    try:
+                        p = float(price_val)
+                        if "eth" in coin or "ethereum" in coin:
+                            for key in ["eth_price", "eth_price_usd", "ethereum_price"]:
+                                if key not in variables:
+                                    variables[key] = p
+                        elif "btc" in coin or "bitcoin" in coin:
+                            for key in ["btc_price", "bitcoin_price"]:
+                                if key not in variables:
+                                    variables[key] = p
+                        elif "sol" in coin or "solana" in coin:
+                            for key in ["sol_price", "solana_price"]:
+                                if key not in variables:
+                                    variables[key] = p
+                        else:
+                            # Generic token — register under the coin name and common aliases
+                            for key in [f"{coin}_price", "token_price", "token_price_usd",
+                                        "arb_price", "sol_price", "target_price"]:
+                                if key not in variables:
+                                    variables[key] = p
+                    except (ValueError, TypeError):
+                        pass
+
+    function_args = dict(function_args)
+    function_args["variables"] = variables
+
+    # Also scan context_text (user_message) for a balance value as last resort.
+    # The conversationController.js embeds e.g. "ETH Balance: 0.1 ETH" in user_message.
+    # We only inject if the value looks like a wallet balance (< 100 ETH), not a price.
+    if context_text and not any(k in variables for k in ["eth_balance", "balance", "wallet_balance"]):
+        import re as _re
+        balance_patterns = [
+            # Most specific patterns first to avoid false matches
+            r'ETH Balance:\s*([\d.]+)',                      # "ETH Balance: 0.1"
+            r'Balance for 0x[a-fA-F0-9]+:\s*([\d.]+)',      # "Balance for 0x...: 0.1 ETH"
+            r'balanceInEth["\s:>]+([\d.]+)',                 # JSON key
+            r'(?:wallet\s*)?balance[:\s]+([\d.]+)\s*(?:ETH)?',  # "balance: 0.1" / "wallet balance: 0.1"
+            r'with\s+([\d.]+)\s*ETH\b',                     # "with 0.1 ETH"
+            r'has\s+([\d.]+)\s*ETH\b',                      # "has 0.1 ETH"
+            r'holding\s+([\d.]+)\s*ETH\b',                  # "holding 0.5 ETH"
+            r'\b(0\.\d+)\s*ETH\b',                          # "0.1 ETH" — only values < 1 ETH
+            r'\b([1-9]\d*\.\d+)\s*ETH\b(?!.*price)',        # "1.5 ETH" but not near the word "price"
+        ]
+        for pattern in balance_patterns:
+            m = _re.search(pattern, context_text, _re.IGNORECASE)
+            if m:
+                try:
+                    b = float(m.group(1))
+                    # Sanity check: a wallet balance is typically < 1000 ETH;
+                    # values > 1000 are almost certainly prices, not balances.
+                    if 0 < b < 1000:
+                        for key in ["eth_balance", "balance", "wallet_balance", "my_balance"]:
+                            if key not in variables:
+                                variables[key] = b
+                        print(f"[Calculate] Auto-extracted balance {b} ETH from context_text (pattern: {pattern})")
+                        break
+                except (ValueError, TypeError):
+                    pass
+
+    return function_args
 
 def process_agent_conversation(
     system_prompt: str,
@@ -839,20 +1047,35 @@ def process_agent_conversation(
                 while iteration < max_iterations:
                     iteration += 1
                     
-                    groq_response = groq_client.chat.completions.create(
-                        model="moonshotai/kimi-k2-instruct-0905",
-                        messages=messages,
-                        tools=openai_tools if openai_tools else None,
-                        tool_choice="auto" if openai_tools else None,
-                        temperature=0.7,
-                        max_tokens=4096
-                    )
-                    
-                    response_message = groq_response.choices[0].message
-                    
-                    # Check if there are tool calls
-                    if response_message.tool_calls:
-                        messages.append(response_message)
+                    for tool_call in response_message.tool_calls:
+                        function_name = tool_call.function.name
+                        function_args = json.loads(tool_call.function.arguments)
+                        
+                        # Add private key if needed and available
+                        if private_key and function_name in TOOL_DEFINITIONS:
+                            tool_params = TOOL_DEFINITIONS[function_name]["parameters"]["properties"]
+                            if "privateKey" in tool_params and "privateKey" not in function_args:
+                                function_args["privateKey"] = private_key
+                        
+                        # Auto-inject missing variables for calculate from prior tool results
+                        if function_name == "calculate":
+                            function_args = enrich_calculate_args(function_args, all_tool_results, user_message)
+                        
+                        all_tool_calls.append({
+                            "tool": function_name,
+                            "parameters": function_args
+                        })
+                        
+                        # Execute the tool
+                        result = execute_tool(function_name, function_args)
+                        all_tool_results.append(result)
+                        
+                        # Add tool result to messages
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": json.dumps(result)
+                        })
                         
                         for tool_call in response_message.tool_calls:
                             function_name = tool_call.function.name
@@ -1058,6 +1281,10 @@ def process_agent_conversation(
                     tool_params = TOOL_DEFINITIONS[function_name]["parameters"]["properties"]
                     if "privateKey" in tool_params and "privateKey" not in function_args:
                         function_args["privateKey"] = private_key
+                
+                # Auto-inject missing variables for calculate from prior tool results
+                if function_name == "calculate":
+                    function_args = enrich_calculate_args(function_args, all_tool_results, user_message)
                 
                 all_tool_calls.append({
                     "tool": function_name,

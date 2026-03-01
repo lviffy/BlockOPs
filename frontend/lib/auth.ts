@@ -64,8 +64,8 @@ export function useAuth() {
           // User doesn't exist, continue to create
           console.log('User not found in database, will create new user')
         } else {
-          // Other error - log full details
-          console.error('Error fetching user:', fetchError)
+          // Other error - log full details with proper serialization
+          console.error('Error fetching user:', JSON.stringify(fetchError, null, 2))
           console.error('Error details:', {
             message: fetchError.message,
             code: fetchError.code,
