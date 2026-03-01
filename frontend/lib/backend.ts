@@ -26,6 +26,7 @@ export interface ConversationChatRequest {
   message: string
   conversationId?: string
   systemPrompt?: string
+  walletAddress?: string
 }
 
 export interface ToolCallInfo {

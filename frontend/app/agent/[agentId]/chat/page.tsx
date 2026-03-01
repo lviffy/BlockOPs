@@ -19,6 +19,8 @@ import { getAgentById } from "@/lib/agents"
 import { sendChatWithMemory } from "@/lib/backend"
 import type { Agent } from "@/lib/supabase"
 import type { AgentChatResponse } from "@/lib/types"
+import { ethers } from "ethers"
+import { useWallets } from "@privy-io/react-auth"
 
 interface ToolCallInfo {
   tool: string
@@ -134,7 +136,8 @@ export default function AgentChatPage() {
   const router = useRouter()
   const params = useParams()
   const agentId = params.agentId as string
-  const { logout, dbUser } = useAuth()
+  const { logout, dbUser, privyWalletAddress } = useAuth()
+  const { wallets } = useWallets()
 
   const [agent, setAgent] = useState<Agent | null>(null)
   const [loadingAgent, setLoadingAgent] = useState(true)
@@ -144,6 +147,29 @@ export default function AgentChatPage() {
   const [conversationId, setConversationId] = useState<string | undefined>(undefined)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Function to handle MetaMask transaction signing
+  const handleMetaMaskTransaction = async (txData: any): Promise<string> => {
+    try {
+      if (!wallets || wallets.length === 0) {
+        throw new Error("No wallet connected. Please connect your wallet.")
+      }
+
+      const wallet = wallets[0]
+      await wallet.switchChain(421614) // Arbitrum Sepolia
+
+      const provider = await wallet.getEthersProvider()
+      const signer = provider.getSigner()
+
+      const tx = await signer.sendTransaction(txData.transaction)
+      const receipt = await tx.wait()
+
+      return receipt.hash
+    } catch (error: any) {
+      console.error("MetaMask transaction error:", error)
+      throw new Error(`Transaction failed: ${error.message}`)
+    }
+  }
 
   useEffect(() => {
     const loadAgent = async () => {
@@ -198,16 +224,51 @@ export default function AgentChatPage() {
         message: userQuery,
         conversationId: conversationId,
         systemPrompt: `You are a helpful AI assistant for blockchain operations. The agent has these tools: ${agent.tools?.map((t) => t.tool).join(", ")}`,
+        walletAddress: privyWalletAddress || undefined,
       })
 
       if (data.isNewConversation) {
         setConversationId(data.conversationId)
       }
 
+      // Check if any tool results require MetaMask signing
+      let finalMessage = data.message
+      if (data.toolResults?.results) {
+        for (const result of data.toolResults.results) {
+          if (result.success && result.result?.requiresMetaMask && result.result?.transaction) {
+            try {
+              // Show signing prompt
+              toast({
+                title: "Transaction Signing",
+                description: "Please confirm the transaction in your wallet...",
+              })
+
+              const txHash = await handleMetaMaskTransaction(result.result)
+              
+              // Update message with transaction hash
+              const explorerUrl = `https://sepolia.arbiscan.io/tx/${txHash}`
+              finalMessage += `\n\n✅ Transaction confirmed!\nTransaction Hash: [${txHash.slice(0, 10)}...${txHash.slice(-8)}](${explorerUrl})`
+              
+              toast({
+                title: "Success",
+                description: "Transaction confirmed on blockchain",
+              })
+            } catch (error: any) {
+              finalMessage += `\n\n❌ Transaction failed: ${error.message}`
+              toast({
+                title: "Transaction Failed",
+                description: error.message,
+                variant: "destructive",
+              })
+            }
+          }
+        }
+      }
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: data.message,
+        content: finalMessage,
         timestamp: new Date(),
         conversationId: data.conversationId,
         toolResults: data.toolResults,

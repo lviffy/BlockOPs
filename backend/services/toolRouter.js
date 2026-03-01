@@ -12,14 +12,14 @@ const AVAILABLE_TOOLS = {
   },
   get_balance: {
     name: 'get_balance',
-    description: 'Gets the ETH balance of a wallet address',
-    parameters: ['wallet_address'],
+    description: 'Gets the ETH balance of a wallet address. If the user asks for "my balance", the connected wallet address will be used automatically.',
+    parameters: ['wallet_address (optional if user is asking for their own balance)'],
     examples: ['What is the balance of 0x123...?', 'Check my wallet balance', 'How much ETH do I have?']
   },
   transfer: {
     name: 'transfer',
-    description: 'Transfers ETH or ERC20 tokens from one wallet to another',
-    parameters: ['from_address', 'to_address', 'amount', 'token_address (optional)'],
+    description: 'Transfers ETH or ERC20 tokens from user\'s connected wallet to another wallet. The user\'s wallet address is used automatically.',
+    parameters: ['to_address', 'amount', 'token_address (optional)'],
     examples: ['Send 1 ETH to 0x123...', 'Transfer 100 USDC to Alice', 'Pay Bob 0.5 ETH']
   },
   deploy_erc20: {

@@ -11,6 +11,7 @@ const {
 
 /**
  * Transfer native ETH or ERC20 tokens
+ * LEGACY: Uses private key (server-side signing) - Use prepareTransfer for MetaMask
  */
 async function transfer(req, res) {
   try {
@@ -35,6 +36,38 @@ async function transfer(req, res) {
 
   } catch (error) {
     console.error('Transfer error:', error);
+    return res.status(500).json(
+      errorResponse(error.message, error.reason || error.code)
+    );
+  }
+}
+
+/**
+ * Prepare transfer transaction for MetaMask signing (client-side)
+ * Returns transaction data for user to sign with their wallet
+ */
+async function prepareTransfer(req, res) {
+  try {
+    const { fromAddress, toAddress, amount, tokenId } = req.body;
+
+    // Validate required fields
+    const validationError = validateRequiredFields(req.body, ['fromAddress', 'toAddress', 'amount']);
+    if (validationError) {
+      return res.status(400).json(validationError);
+    }
+
+    const provider = getProvider();
+
+    // If tokenId is provided, prepare ERC20 transfer
+    if (tokenId !== undefined && tokenId !== null) {
+      return await prepareERC20Transfer(res, provider, fromAddress, tokenId, toAddress, amount);
+    }
+
+    // Prepare native ETH transfer
+    return await prepareNativeTransfer(res, provider, fromAddress, toAddress, amount);
+
+  } catch (error) {
+    console.error('Prepare transfer error:', error);
     return res.status(500).json(
       errorResponse(error.message, error.reason || error.code)
     );
@@ -166,7 +199,109 @@ async function getBalance(req, res) {
   }
 }
 
+/**
+ * Prepare ERC20 transfer transaction for client-side signing
+ */
+async function prepareERC20Transfer(res, provider, fromAddress, tokenId, toAddress, amount) {
+  const { FACTORY_ADDRESS } = require('../config/constants');
+  
+  logTransaction('Prepare ERC20 Transfer', { fromAddress, tokenId, toAddress, amount });
+  
+  const factory = getContract(FACTORY_ADDRESS, ERC20_TOKEN_ABI, provider);
+  const tokenIdBigInt = BigInt(tokenId);
+  
+  // Get token info and decimals
+  let decimals = 18;
+  let tokenName = 'Unknown';
+  let tokenSymbol = 'UNKNOWN';
+  try {
+    const [nameBytes, symbolBytes, decimalsResult] = await factory.getTokenInfo(tokenIdBigInt);
+    decimals = Number(decimalsResult);
+    tokenName = ethers.decodeBytes32String(nameBytes);
+    tokenSymbol = ethers.decodeBytes32String(symbolBytes);
+  } catch (error) {
+    console.log('Could not get token info, defaulting to 18 decimals');
+  }
+  
+  const amountInWei = ethers.parseUnits(amount.toString(), decimals);
+  
+  // Check balance
+  const balance = await factory.balanceOf(tokenIdBigInt, fromAddress);
+  console.log('Token balance:', ethers.formatUnits(balance, decimals));
+  
+  if (balance < amountInWei) {
+    return res.status(400).json(
+      errorResponse('Insufficient token balance', {
+        balance: ethers.formatUnits(balance, decimals),
+        required: amount.toString()
+      })
+    );
+  }
+  
+  // Prepare transaction data
+  const data = factory.interface.encodeFunctionData('transfer', [tokenIdBigInt, toAddress, amountInWei]);
+  
+  return res.json(
+    successResponse({
+      type: 'erc20',
+      requiresMetaMask: true,
+      transaction: {
+        to: FACTORY_ADDRESS,
+        from: fromAddress,
+        data: data,
+        value: '0x0'
+      },
+      details: {
+        tokenId: tokenId,
+        tokenName: tokenName,
+        tokenSymbol: tokenSymbol,
+        amount: amount,
+        toAddress: toAddress,
+        fromAddress: fromAddress
+      }
+    })
+  );
+}
+
+/**
+ * Prepare native ETH transfer transaction for client-side signing
+ */
+async function prepareNativeTransfer(res, provider, fromAddress, toAddress, amount) {
+  logTransaction('Prepare Native ETH Transfer', { fromAddress, toAddress, amount });
+  
+  const balance = await provider.getBalance(fromAddress);
+  const amountInWei = ethers.parseEther(amount.toString());
+
+  if (balance < amountInWei) {
+    return res.status(400).json(
+      errorResponse('Insufficient balance', {
+        balance: ethers.formatEther(balance),
+        required: amount.toString()
+      })
+    );
+  }
+
+  // Return transaction object for MetaMask
+  return res.json(
+    successResponse({
+      type: 'native',
+      requiresMetaMask: true,
+      transaction: {
+        to: toAddress,
+        from: fromAddress,
+        value: amountInWei.toString()
+      },
+      details: {
+        amount: amount,
+        toAddress: toAddress,
+        fromAddress: fromAddress
+      }
+    })
+  );
+}
+
 module.exports = {
   transfer,
+  prepareTransfer,
   getBalance
 };
