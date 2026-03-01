@@ -108,18 +108,60 @@ async function intelligentToolRouting(userMessage, conversationHistory = []) {
     .map(tool => `- ${tool.name}: ${tool.description}\n  Parameters: ${tool.parameters.join(', ')}\n  Examples: ${tool.examples.join('; ')}`)
     .join('\n\n');
 
-  const conversationContext = conversationHistory.length > 0
-    ? `\n\nRecent conversation context:\n${conversationHistory.slice(-5).map(m => `${m.role}: ${m.content}`).join('\n')}`
-    : '';
+  // Build rich conversation context with extracted entities
+  let conversationContext = '';
+  if (conversationHistory.length > 0) {
+    const recentMessages = conversationHistory.slice(-10);
+    
+    // Extract key entities from conversation history 
+    const extractedEntities = [];
+    for (const msg of recentMessages) {
+      const content = msg.content || '';
+      // Extract wallet addresses
+      const addresses = content.match(/0x[a-fA-F0-9]{40}/g);
+      if (addresses) extractedEntities.push(`Wallet addresses mentioned: ${addresses.join(', ')}`);
+      // Extract ETH balances
+      const balanceMatch = content.match(/(\d+\.?\d*)\s*ETH/i);
+      if (balanceMatch) extractedEntities.push(`ETH balance found: ${balanceMatch[1]} ETH`);
+      // Extract prices
+      const priceMatches = content.match(/([A-Z]{2,10}):\s*([\d,.]+)\s*USD/gi);
+      if (priceMatches) extractedEntities.push(`Prices found: ${priceMatches.join(', ')}`);
+      // Extract tool results
+      if (content.includes('Balance for')) extractedEntities.push(`Previous result: ${content}`);
+      if (content.includes('Current prices:')) extractedEntities.push(`Previous result: ${content}`);
+    }
+    
+    const entitySummary = extractedEntities.length > 0
+      ? `\n\nKEY DATA FROM CONVERSATION (reuse this, do NOT ask user again):\n${[...new Set(extractedEntities)].join('\n')}`
+      : '';
+    
+    conversationContext = `\n\nRecent conversation (last ${recentMessages.length} messages):\n${recentMessages.map(m => `${m.role}: ${m.content}`).join('\n')}${entitySummary}`;
+  }
 
-  const prompt = `You are an intelligent tool routing system for a blockchain assistant. Your job is to analyze the user's request and determine:
-1. If the request is related to blockchain, cryptocurrency, tokens, NFTs, wallets, or smart contracts
-2. Which tools need to be called
-3. What order they should be called in (sequential vs parallel)
-4. What parameters need to be extracted from the user's message
-5. Any dependencies between tool calls
+  const prompt = `You are an intelligent tool routing system for a blockchain assistant. Your PRIMARY job is to create COMPLETE execution plans that resolve the user's request in a single pass, WITHOUT asking the user for information that your tools can fetch.
 
-IMPORTANT: If the user's request is NOT related to blockchain operations or email notifications (e.g., general knowledge questions, current events, weather, entertainment, politics, etc.), you must flag it as off-topic. Email-related requests (e.g., 'send an email', 'email someone about...', 'notify via email') are ON-TOPIC and should use the send_email tool.
+## Your Responsibilities:
+1. Determine if the request is blockchain/crypto-related
+2. Create a COMPLETE multi-step tool execution plan
+3. Extract context from conversation history (addresses, balances, previous results)
+4. Auto-resolve dependencies by chaining tools — NEVER ask the user for data a tool can provide
+5. Only put truly user-dependent info in missing_info (private keys, destination addresses NOT in context)
+
+## CRITICAL RULE — RESOLVE, DON'T ASK:
+If the user's question requires data that a tool can fetch, ADD THAT TOOL TO THE PLAN.
+- Need a price? → Add fetch_price step. Do NOT put "current ETH price" in missing_info.
+- Need a balance? → Add get_balance step. Do NOT put "wallet balance" in missing_info.
+- Need token info? → Add get_token_info step.
+- "missing_info" is ONLY for things NO tool can resolve: private keys, unknown wallet addresses, ambiguous token names.
+
+## CRITICAL RULE — USE CONVERSATION CONTEXT:
+The conversation history contains previously fetched data. EXTRACT and REUSE it:
+- If a wallet address was mentioned earlier, use it (don't ask again)
+- If a balance was fetched, reference it in calculations
+- If the user says "this balance" or "my balance", look for the address/balance in recent messages
+- Pronouns like "it", "this", "that" refer to the most recent relevant entity
+
+IMPORTANT: Off-topic detection — If the user's request is NOT related to blockchain operations or email notifications (e.g., general knowledge, weather, entertainment, politics), flag it as off-topic.
 
 Available Tools:
 ${toolsList}
@@ -132,6 +174,11 @@ Analyze the request and respond with a JSON object following this structure:
   "analysis": "Brief explanation of what the user wants to accomplish",
   "is_off_topic": true/false,
   "requires_tools": true/false,
+  "extracted_context": {
+    "wallet_address": "address from conversation or null",
+    "eth_balance": "balance from conversation or null",
+    "referenced_tokens": ["tokens mentioned or implied"]
+  },
   "execution_plan": {
     "type": "sequential" or "parallel",
     "steps": [
@@ -141,29 +188,53 @@ Analyze the request and respond with a JSON object following this structure:
         "parameters": {
           "param_name": "extracted_value or null if needs to be provided by user"
         },
-        "depends_on": ["tool_name"] or [] (for sequential execution, which tools must complete first)
+        "depends_on": ["tool_name"] or []
       }
     ]
   },
-  "missing_info": ["list of information that needs to be asked from the user"],
+  "missing_info": ["ONLY info that NO tool can resolve AND is not in conversation context"],
   "complexity": "simple" or "moderate" or "complex"
 }
 
-IMPORTANT RULES:
-1. If the user asks multiple questions (e.g., "tell me X AND tell me Y"), create steps for ALL parts
-2. Use "sequential" execution when one tool's output is needed by another (e.g., get balance THEN calculate how much to buy)
-3. Use "parallel" execution when tools are independent (e.g., get price AND get balance simultaneously)
-4. Extract as many parameters as possible from the user's message
-5. For calculations involving tool results, add a "calculate" tool step
-6. If information is ambiguous or missing, add it to "missing_info"
-7. Common pattern: "How much X can I buy with balance Y" = get_balance → fetch_price → calculate (sequential)
-8. Ethereum addresses must be 42 characters starting with "0x" - validate before including
-9. Network: Arbitrum Sepolia (Chain ID: 421614) - all operations are on this testnet
+## MANDATORY MULTI-STEP PATTERNS (follow these EXACTLY):
 
-Examples:
-- "What is the price of Solana?" → Simple, single tool (fetch_price)
-- "Check balance and get ETH price" → Parallel, two independent tools
-- "How much Solana can I buy with my wallet balance?" → Sequential: get_balance → fetch_price → calculate
+### "How many [TOKEN] can I buy with [X] ETH / my balance / this balance":
+Steps (sequential):
+1. get_balance (if balance not already known from context) with wallet address from context
+2. fetch_price for "ethereum" (ALWAYS needed to convert ETH → USD)
+3. fetch_price for the target token
+4. calculate: (eth_balance * eth_price) / token_price
+missing_info: [] (EMPTY — all data comes from tools)
+
+### "What is my balance worth in USD":
+1. get_balance (if not known)
+2. fetch_price for "ethereum"
+3. calculate: eth_balance * eth_price
+
+### "Convert X [TOKEN_A] to [TOKEN_B]" / comparison:
+1. fetch_price for token_a
+2. fetch_price for token_b
+3. calculate: (amount * price_a) / price_b
+
+### "Send $X worth of ETH to [address]":
+1. fetch_price for "ethereum"
+2. calculate: usd_amount / eth_price
+3. transfer with calculated amount
+
+### Price query: Direct fetch_price call
+### Balance query: Direct get_balance call
+
+## KEY RULES:
+1. Multi-part requests → create steps for ALL parts
+2. Use "sequential" when one tool's output feeds another
+3. Use "parallel" when tools are independent
+4. Extract parameters from BOTH the current message AND conversation history
+5. For ANY calculation involving prices/balances → add fetch_price + calculate steps
+6. Ethereum addresses are 42 chars starting with "0x"
+7. Network: Arbitrum Sepolia (Chain ID: 421614)
+8. When the user says "calculate" or "now calculate" after previous data was fetched, create a calculate step using the data from conversation context
+9. If the user says generic words like "this balance" or "my balance", look for the wallet address and balance in recent conversation messages
+10. NEVER put prices, balances, or token info in missing_info — those are fetchable by tools
 
 Respond ONLY with valid JSON, no other text.`;
 
@@ -196,7 +267,33 @@ Respond ONLY with valid JSON, no other text.`;
 
     const jsonStr = jsonMatch[1] || jsonMatch[0];
     const routingPlan = JSON.parse(jsonStr.trim());
-    
+
+    // POST-PROCESS: Enforce get_balance when a calculate step references balance variables
+    // This prevents the AI from skipping get_balance and leaving eth_balance unresolved.
+    const steps = routingPlan.execution_plan?.steps || [];
+    const calcStep = steps.find(s => s.tool === 'calculate');
+    if (calcStep) {
+      const calcBlob = JSON.stringify(calcStep.parameters || '').toLowerCase();
+      const needsBalance = /eth_balance|wallet_balance|my_balance\b/.test(calcBlob);
+      const hasGetBalance = steps.some(s => s.tool === 'get_balance');
+      if (needsBalance && !hasGetBalance) {
+        // Try to extract wallet address from conversation history
+        const historyStr = (conversationHistory || []).map(m => m.content || '').join(' ');
+        const addrMatch = historyStr.match(/0x[a-fA-F0-9]{40}/);
+        const walletAddress = addrMatch ? addrMatch[0] : null;
+        const balanceStep = {
+          tool: 'get_balance',
+          reason: 'Wallet balance is required for this calculation',
+          parameters: { address: walletAddress },
+          depends_on: []
+        };
+        steps.unshift(balanceStep);
+        routingPlan.execution_plan.steps = steps;
+        routingPlan.execution_plan.type = 'sequential';
+        console.log('[Tool Router] Auto-injected get_balance step — eth_balance needed for calculate');
+      }
+    }
+
     console.log('[Tool Router] AI Routing Plan:', JSON.stringify(routingPlan, null, 2));
     
     return routingPlan;

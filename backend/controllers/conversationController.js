@@ -146,9 +146,41 @@ async function chat(req, res) {
     let toolResults = null;
 
     if (routingPlan.requires_tools && routingPlan.execution_plan?.steps?.length > 0) {
-      // Check if user needs to provide more information
-      if (routingPlan.missing_info && routingPlan.missing_info.length > 0) {
-        const missingInfoMessage = `I need some additional information to help you:\n${routingPlan.missing_info.map((info, i) => `${i + 1}. ${info}`).join('\n')}`;
+      // Filter missing_info: remove items that tools in the plan can resolve
+      const toolResolvablePatterns = [
+        /price/i, /eth.*price/i, /token.*price/i, /current.*price/i,
+        /balance/i, /wallet.*balance/i, /eth.*balance/i,
+        /token.*info/i, /contract.*info/i,
+        /convert.*eth.*usd/i, /usd.*value/i
+      ];
+      
+      const trulyMissingInfo = (routingPlan.missing_info || []).filter(info => {
+        // Keep only info that no tool can resolve
+        const isToolResolvable = toolResolvablePatterns.some(pattern => pattern.test(info));
+        if (isToolResolvable) {
+          console.log(`[Chat] Auto-resolving via tools: "${info}"`);
+        }
+        return !isToolResolvable;
+      });
+      
+      // Also check if "missing" info is actually in conversation context
+      const contextStr = messages.map(m => m.content).join(' ');
+      const finalMissingInfo = trulyMissingInfo.filter(info => {
+        // Check if the missing info might already be in conversation context
+        if (/address/i.test(info) && /0x[a-fA-F0-9]{40}/.test(contextStr)) {
+          console.log(`[Chat] Address found in context, removing from missing: "${info}"`);
+          return false;
+        }
+        if (/balance/i.test(info) && /\d+\.?\d*\s*ETH/i.test(contextStr)) {
+          console.log(`[Chat] Balance found in context, removing from missing: "${info}"`);
+          return false;
+        }
+        return true;
+      });
+
+      // Only ask for truly missing info that can't be resolved by tools or context
+      if (finalMissingInfo.length > 0) {
+        const missingInfoMessage = `I need some additional information to help you:\n${finalMissingInfo.map((info, i) => `${i + 1}. ${info}`).join('\n')}`;
         
         // Save AI response asking for more info (if using Supabase)
         if (useSupabase) {
@@ -167,7 +199,7 @@ async function chat(req, res) {
           isNewConversation,
           messageCount: messages.length + 2,
           needsMoreInfo: true,
-          missingInfo: routingPlan.missing_info
+          missingInfo: finalMissingInfo
         });
       }
 
@@ -178,13 +210,33 @@ async function chat(req, res) {
       
       try {
         // Build context summary from recent messages for the agent
-        const recentMessages = messages.slice(-5);
+        const recentMessages = messages.slice(-10);
+        
+        // Extract key data points from conversation history
+        const extractedData = [];
+        for (const msg of recentMessages) {
+          const content = msg.content || '';
+          // Extract wallet addresses
+          const addresses = content.match(/0x[a-fA-F0-9]{40}/g);
+          if (addresses) extractedData.push(`Wallet address: ${addresses[0]}`);
+          // Extract balances
+          const balanceMatch = content.match(/Balance.*?:\s*([\d.]+)\s*ETH/i) || content.match(/([\d.]+)\s*ETH/i);
+          if (balanceMatch) extractedData.push(`ETH Balance: ${balanceMatch[1]} ETH`);
+          // Extract prices
+          const priceMatch = content.match(/Current prices?:?\s*(.*)/i);
+          if (priceMatch) extractedData.push(`Previous price data: ${priceMatch[1]}`);
+        }
+        
         const contextSummary = recentMessages
           .map(m => `${m.role}: ${m.content}`)
           .join('\n');
         
+        const dataContext = extractedData.length > 0
+          ? `\n\nEXTRACTED DATA FROM CONVERSATION (use these values, do NOT ask user):\n${[...new Set(extractedData)].join('\n')}`
+          : '';
+        
         // Enhance user message with conversation context and routing analysis
-        const enhancedMessage = `${routingPlan.analysis}\n\nPrevious context:\n${contextSummary}\n\nCurrent query: ${truncatedMessage}\n\nExecution plan: ${routingPlan.execution_plan.type}`;
+        const enhancedMessage = `${routingPlan.analysis}\n\nConversation history:\n${contextSummary}${dataContext}\n\nCurrent user query: ${truncatedMessage}\n\nExecution plan: ${routingPlan.execution_plan.type} with ${routingPlan.execution_plan.steps.length} steps: ${routingPlan.execution_plan.steps.map(s => s.tool).join(' → ')}`;
         
         const agentResponse = await fetch('http://localhost:8000/agent/chat', {
           method: 'POST',
@@ -280,13 +332,15 @@ async function chat(req, res) {
       console.log('[Chat] Simple conversation, using direct AI');
       
       const defaultSystemPrompt = systemPrompt || 
-        `You are a specialized blockchain operations assistant. You help with blockchain-related tasks: cryptocurrency prices, wallet operations, token/NFT deployment, smart contracts, blockchain transactions, and sending email notifications about these operations.
+        `You are a specialized blockchain operations assistant for BlockOps on Arbitrum Sepolia. You help with: cryptocurrency prices, wallet operations, token/NFT deployment, smart contracts, blockchain transactions, and email notifications.
         
-        You can also compose and send emails when users ask. Extract the recipient, subject, and body from the user's request and use the send_email tool.
+        CRITICAL: If the user asks a question that requires blockchain data (prices, balances, calculations), and you don't have tools available, tell them what you would need to look up and suggest they ask directly (e.g., "fetch price of ETH", "check balance of 0x..."). 
         
-        If asked about topics unrelated to blockchain or email notifications (politics, news, general knowledge, weather, entertainment, etc.), respond EXACTLY: "I'm a blockchain operations assistant and can only help with blockchain-related tasks and email notifications. Please ask me something about cryptocurrency, tokens, NFTs, blockchain operations, or sending an email."
+        When data from previous messages is available in the conversation, USE IT to answer follow-up questions. If the user says "calculate" or "how much" after previous data was discussed, perform the calculation using that data.
         
-        Provide clear, accurate, and concise responses. Use **bold** formatting sparingly and only for important terms or key points that need emphasis.`;
+        If asked about topics unrelated to blockchain or email notifications, respond: "I'm a blockchain operations assistant and can only help with blockchain-related tasks and email notifications. Please ask me something about cryptocurrency, tokens, NFTs, blockchain operations, or sending an email."
+        
+        Provide clear, accurate, and concise responses. Use **bold** formatting sparingly.`;
       
       const { context, tokenCount } = buildContext(messages, defaultSystemPrompt);
       aiResponse = await chatWithAI(context);

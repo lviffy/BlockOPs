@@ -156,20 +156,93 @@ function replacePathParams(path, params) {
 function safeCalculate(params) {
   try {
     const expression = params.expression || '';
-    const variables = params.variables || {};
+    let variables = params.variables || {};
 
-    let resolved = expression;
-    Object.entries(variables).forEach(([name, value]) => {
-      const pattern = new RegExp(`\\b${name}\\b`, 'g');
-      resolved = resolved.replace(pattern, String(value));
+    // Ensure variables is an object (AI may send string)
+    if (typeof variables === 'string') {
+      try { variables = JSON.parse(variables); } catch { variables = {}; }
+    }
+    if (typeof variables !== 'object' || variables === null) variables = {};
+
+    // Normalize whitespace in expression
+    let resolved = expression.replace(/\s+/g, ' ').trim();
+    
+    // Build alias map so common variable name variants all resolve
+    const aliasMap = {};
+    for (const [varName, val] of Object.entries(variables)) {
+      const vn = varName.toLowerCase();
+      if (vn.includes('price')) {
+        if (vn.includes('eth') || vn.includes('ethereum')) {
+          for (const alias of ['eth_price', 'ethereum_price', 'eth_price_usd', 'price_eth']) aliasMap[alias] = val;
+        } else if (vn.includes('btc') || vn.includes('bitcoin')) {
+          for (const alias of ['btc_price', 'bitcoin_price', 'btc_price_usd', 'price_btc']) aliasMap[alias] = val;
+        } else if (vn.includes('sol') || vn.includes('solana')) {
+          for (const alias of ['sol_price', 'solana_price', 'sol_price_usd', 'price_sol']) aliasMap[alias] = val;
+        } else if (vn.includes('arb') || vn.includes('arbitrum')) {
+          for (const alias of ['arb_price', 'arbitrum_price', 'arb_price_usd', 'token_price', 'token_price_usd', 'price_arb']) aliasMap[alias] = val;
+        } else if (vn.includes('token')) {
+          for (const alias of ['token_price', 'token_price_usd', 'arb_price', 'sol_price', 'btc_price', 'target_price']) {
+            if (!(alias in variables)) aliasMap[alias] = val;
+          }
+        }
+      }
+      if (vn.includes('balance')) {
+        for (const alias of ['eth_balance', 'balance', 'wallet_balance', 'my_balance']) aliasMap[alias] = val;
+      }
+    }
+    
+    // Merge: explicit variables override aliases
+    const mergedVars = { ...aliasMap, ...variables };
+
+    // --- FALLBACK: extract balance from description when not in variables ---
+    // The AI often mentions the balance in the description/context but forgets to include it in variables.
+    if (!('eth_balance' in mergedVars) && !('balance' in mergedVars)) {
+      const contextText = params.description || '';
+      const balancePatterns = [
+        /(\d+\.?\d*)\s*ETH/i,            // "0.1 ETH"
+        /balance[:\s]+([\d.]+)/i,          // "balance: 0.1"
+        /([\d.]+)\s*ether/i,               // "0.1 ether"
+        /with\s+([\d.]+)\s*(?:ETH|eth)/i, // "with 0.1 ETH"
+      ];
+      for (const pattern of balancePatterns) {
+        const m = contextText.match(pattern);
+        if (m) {
+          const extracted = parseFloat(m[1]);
+          if (!isNaN(extracted)) {
+            mergedVars.eth_balance = extracted;
+            mergedVars.balance = extracted;
+            mergedVars.wallet_balance = extracted;
+            mergedVars.my_balance = extracted;
+            console.log(`[Calculate] Auto-extracted balance ${extracted} ETH from description`);
+            break;
+          }
+        }
+      }
+    }
+    
+    // Sort variable names by length (longest first) to avoid partial matches
+    const sortedVars = Object.entries(mergedVars).sort((a, b) => b[0].length - a[0].length);
+    
+    sortedVars.forEach(([name, value]) => {
+      // Convert value to number, stripping commas
+      const numValue = parseFloat(String(value).replace(/,/g, ''));
+      if (isNaN(numValue)) {
+        throw new Error(`Variable '${name}' has non-numeric value: ${value}`);
+      }
+      const pattern = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+      resolved = resolved.replace(pattern, String(numValue));
     });
+
+    // Normalize whitespace again after substitution  
+    resolved = resolved.replace(/\s+/g, ' ').trim();
 
     const allowedChars = /^[0-9+\-*/().eE\s]+$/;
     if (!allowedChars.test(resolved)) {
+      const badChars = resolved.split('').filter(c => !/[0-9+\-*/().eE\s]/.test(c));
       return {
         success: false,
         tool: 'calculate',
-        error: 'Invalid characters in expression. Only numbers and basic operators are allowed.'
+        error: `Invalid characters in expression: [${badChars.join(', ')}]. Resolved: '${resolved}'. Only numbers and basic operators are allowed.`
       };
     }
 
@@ -262,19 +335,35 @@ function interpolateParameters(params, previousResults) {
 
   const interpolated = { ...params };
   
-  // Get the most recent successful result
-  const lastResult = previousResults[previousResults.length - 1];
-  if (!lastResult?.success || !lastResult?.result) {
-    return interpolated;
+  // Collect all successful results
+  const resultsByTool = {};
+  for (const result of previousResults) {
+    if (result?.success && result?.result) {
+      resultsByTool[result.tool] = result.result;
+    }
   }
 
-  // Helper to format price data
+  // Helper to extract numeric price from fetch_price result
+  const extractPrice = (result) => {
+    if (result.prices && Array.isArray(result.prices) && result.prices.length > 0) {
+      return result.prices[0].price;
+    }
+    return null;
+  };
+
+  // Helper to extract balance
+  const extractBalance = (result) => {
+    if (result.balance) return parseFloat(result.balance);
+    if (result.balanceInEth) return parseFloat(result.balanceInEth);
+    return null;
+  };
+
+  // Helper to format price data for display
   const formatPriceData = (result) => {
     if (result.prices && Array.isArray(result.prices) && result.prices.length > 0) {
       const price = result.prices[0];
       const currency = (price.currency || 'USD').toUpperCase();
       const value = typeof price.price === 'number' ? price.price.toFixed(2) : price.price;
-      const coin = (price.coin || '').toUpperCase();
       const change = price.change_24h !== undefined && price.change_24h !== null
         ? ` (24h change: ${price.change_24h > 0 ? '+' : ''}${price.change_24h.toFixed(2)}%)`
         : '';
@@ -283,26 +372,67 @@ function interpolateParameters(params, previousResults) {
     return null;
   };
 
+  // Auto-populate calculate tool variables from previous results
+  // Always merge — even if params.variables exists, fill in gaps from tool results
+  if (params.expression) {
+    const autoVariables = {};
+    
+    // Extract prices from all fetch_price results
+    const priceResults = previousResults.filter(r => r?.success && r?.tool === 'fetch_price');
+    for (const pr of priceResults) {
+      const price = extractPrice(pr.result);
+      if (price !== null) {
+        const coin = pr.result.prices?.[0]?.coin?.toLowerCase() || '';
+        if (coin.includes('ethereum') || coin.includes('eth')) {
+          autoVariables.eth_price = price;
+          autoVariables.eth_price_usd = price;
+        } else {
+          autoVariables.token_price = price;
+          autoVariables.token_price_usd = price;
+          autoVariables[`${coin}_price`] = price;
+        }
+      }
+    }
+    
+    // Extract balance from get_balance results
+    const balanceResults = previousResults.filter(r => r?.success && r?.tool === 'get_balance');
+    for (const br of balanceResults) {
+      const balance = extractBalance(br.result);
+      if (balance !== null) {
+        autoVariables.eth_balance = balance;
+        autoVariables.balance = balance;
+      }
+    }
+    
+    if (Object.keys(autoVariables).length > 0) {
+      // Merge: explicit params.variables override auto-populated ones
+      interpolated.variables = { ...autoVariables, ...(params.variables || {}) };
+    }
+  }
+
   // Replace placeholders in string parameters
   Object.keys(interpolated).forEach(key => {
     if (typeof interpolated[key] === 'string') {
       let value = interpolated[key];
       
       // Replace price-related placeholders
-      if (lastResult.tool === 'fetch_price') {
-        const priceData = formatPriceData(lastResult.result);
-        if (priceData) {
-          value = value.replace(/\[Price (?:will be inserted )?from fetch_price result\]/gi, priceData);
-          value = value.replace(/\[Price from [\w_]+ result\]/gi, priceData);
-          value = value.replace(/\[Current Price\]/gi, priceData);
-          value = value.replace(/\{price\}/gi, priceData);
+      for (const result of previousResults) {
+        if (!result?.success) continue;
+        
+        if (result.tool === 'fetch_price') {
+          const priceData = formatPriceData(result.result);
+          if (priceData) {
+            value = value.replace(/\[Price (?:will be inserted )?from fetch_price result\]/gi, priceData);
+            value = value.replace(/\[Price from [\w_]+ result\]/gi, priceData);
+            value = value.replace(/\[Current Price\]/gi, priceData);
+            value = value.replace(/\{price\}/gi, priceData);
+          }
         }
-      }
-      
-      // Replace balance-related placeholders
-      if (lastResult.tool === 'get_balance' && lastResult.result.balance) {
-        value = value.replace(/\[Balance from get_balance result\]/gi, lastResult.result.balance);
-        value = value.replace(/\{balance\}/gi, lastResult.result.balance);
+        
+        if (result.tool === 'get_balance' && result.result?.balance) {
+          value = value.replace(/\[Balance from get_balance result\]/gi, result.result.balance);
+          value = value.replace(/\{balance\}/gi, result.result.balance);
+        }
       }
       
       interpolated[key] = value;
