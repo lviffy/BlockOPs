@@ -21,6 +21,7 @@ module.exports = {
   ETHERSCAN_API_KEY: process.env.ETHERSCAN_API_KEY || '',
   PINATA_API_KEY: process.env.PINATA_API_KEY || '',
   PINATA_SECRET_KEY: process.env.PINATA_SECRET_KEY || '',
+  MASTER_API_KEY: process.env.MASTER_API_KEY || '',
   
   // Etherscan V2 API Configuration
   ETHERSCAN_V2_BASE_URL: 'https://api.etherscan.io/v2/api',
