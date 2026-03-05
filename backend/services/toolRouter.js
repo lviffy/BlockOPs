@@ -81,6 +81,30 @@ const AVAILABLE_TOOLS = {
     description: 'Mints NFTs from a collection to multiple recipient addresses in sequence.',
     parameters: ['privateKey', 'collectionAddress', 'recipients (array of addresses)'],
     examples: ['Mint NFTs to 10 addresses', 'Airdrop NFTs to my list of holders', 'Batch mint to multiple wallets']
+  },
+  lookup_transaction: {
+    name: 'lookup_transaction',
+    description: 'Look up an on-chain transaction by its hash. Returns full details including status, gas used, value, decoded input, and revert reason if failed.',
+    parameters: ['txHash'],
+    examples: ['Check the status of tx 0xabc...', 'Did this transaction succeed?', 'What happened in transaction 0x...']
+  },
+  fetch_events: {
+    name: 'fetch_events',
+    description: 'Fetch on-chain events (logs) emitted by a contract. Can filter by event signature and block range.',
+    parameters: ['contractAddress', 'eventSignature (optional)', 'fromBlock (optional)', 'toBlock (optional)', 'limit (optional)'],
+    examples: ['Get Transfer events for contract 0x...', 'Show me recent events from my token contract', 'Fetch Mint events from block 5000000']
+  },
+  lookup_block: {
+    name: 'lookup_block',
+    description: 'Get information about a specific block by number, or the latest block.',
+    parameters: ['blockNumber (or "latest")'],
+    examples: ['What is the latest block?', 'Show me block 12345678', 'Get latest block info']
+  },
+  decode_revert: {
+    name: 'decode_revert',
+    description: 'Decode a revert reason from a failed transaction hash or raw revert data hex.',
+    parameters: ['txHash (optional)', 'data (optional hex)'],
+    examples: ['Why did transaction 0x... fail?', 'Decode this revert data: 0x08c379a0...', 'What is the revert reason for this tx?']
   }
 };
 

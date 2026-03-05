@@ -131,15 +131,17 @@ High user value for airdrops and bulk ops.
 
 ---
 
-### 9. Blockchain Event / Transaction Lookup
-No way to query on-chain history.
+### 9. Blockchain Event / Transaction Lookup ✅
+~~No way to query on-chain history.~~
 
-- [ ] `GET /tx/:hash` — get transaction details + decoded input
-- [ ] `GET /events` — fetch contract events by address + topic (via Etherscan or RPC `eth_getLogs`)
-- [ ] `GET /block/:number` — block info
-- [ ] `POST /decode/calldata` — decode calldata from ABI
-- [ ] `POST /decode/revert` — human-readable revert reason decoder
-- [ ] Add these as NLP tools: `lookup_transaction`, `fetch_events`, `decode_revert`
+- [x] `GET /chain/tx/:hash` — transaction details + decoded input + revert reason
+- [x] `GET /chain/tx/:hash/receipt` — full receipt
+- [x] `GET /chain/events` → `POST /chain/events` — fetch contract events via `eth_getLogs`
+- [x] `GET /chain/block/:number` — block info (`latest` supported)
+- [x] `POST /chain/decode/calldata` — decode calldata from ABI
+- [x] `POST /chain/decode/revert` — human-readable revert reason decoder (Error/Panic/raw)
+- [x] `GET /chain/address/:address/txs` — recent transactions via Etherscan
+- [x] NLP tools: `lookup_transaction`, `fetch_events`, `lookup_block`, `decode_revert`
 
 ---
 
@@ -262,10 +264,10 @@ Currently stubbed out in `.env` but never implemented.
 
 ---
 
-### 22. Transaction Revert Decoder
-- [ ] `POST /decode/revert` — decode a `revert` reason from a raw hex data blob
-- [ ] Pull custom error selectors from Etherscan ABI
-- [ ] Return human-readable error message instead of raw hex
+### 22. Transaction Revert Decoder ✅ *(covered by #9)*
+- [x] `POST /chain/decode/revert` — handles `Error(string)`, `Panic(uint256)`, raw strings, unknown selectors
+- [x] Pull custom error selectors from Etherscan ABI (via txHash simulation)
+- [x] Returns human-readable error message with type classification
 
 ---
 

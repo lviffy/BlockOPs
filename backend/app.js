@@ -18,6 +18,7 @@ const contractChatRoutes = require('./routes/contractChatRoutes');
 const emailRoutes = require('./routes/emailRoutes');
 const webhookRoutes = require('./routes/webhookRoutes');
 const batchRoutes   = require('./routes/batchRoutes');
+const chainRoutes   = require('./routes/chainRoutes');
 
 // Initialize Express app
 const app = express();
@@ -74,6 +75,7 @@ app.use('/nl-executor',   ...authGuard, nlExecutorRoutes);
 app.use('/contract-chat', ...authGuard, contractChatRoutes);
 app.use('/webhooks',      ...authGuard, webhookRoutes);
 app.use('/batch',         ...authGuard, batchRoutes);
+app.use('/chain',         ...authGuard, chainRoutes);
 
 // ── Legacy routes (protected) ────────────────────────────────────────────────
 app.post('/deploy-token',          ...authGuard, require('./controllers/tokenController').deployToken);

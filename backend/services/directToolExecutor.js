@@ -15,8 +15,12 @@ const TOOL_ENDPOINTS = {
   get_nft_info: { method: 'GET', path: '/nft/info/{collectionAddress}/{tokenId}' },
   send_email: { method: 'POST', path: '/email/send' },
   calculate: { method: 'LOCAL' },
-  batch_transfer: { method: 'POST', path: '/batch/transfer' },
-  batch_mint:     { method: 'POST', path: '/batch/mint' }
+  batch_transfer:      { method: 'POST', path: '/batch/transfer' },
+  batch_mint:          { method: 'POST', path: '/batch/mint' },
+  lookup_transaction:  { method: 'GET',  path: '/chain/tx/{txHash}' },
+  fetch_events:        { method: 'POST', path: '/chain/events' },
+  lookup_block:        { method: 'GET',  path: '/chain/block/{blockNumber}' },
+  decode_revert:       { method: 'POST', path: '/chain/decode/revert' }
 };
 
 function mapToolParams(tool, params = {}, fallbackMessage) {
@@ -148,6 +152,34 @@ function mapToolParams(tool, params = {}, fallbackMessage) {
       if (!recipients || !Array.isArray(recipients) || recipients.length === 0) missing.push('recipients');
       break;
     }
+    case 'lookup_transaction': {
+      const txHash = params.txHash || params.tx_hash || params.hash;
+      mapped = { txHash };
+      if (!txHash) missing.push('txHash');
+      break;
+    }
+    case 'fetch_events': {
+      const contractAddress = params.contractAddress || params.contract_address || params.address;
+      const eventSignature = params.eventSignature || params.event_signature || params.event;
+      const fromBlock = params.fromBlock || params.from_block;
+      const toBlock = params.toBlock || params.to_block;
+      const limit = params.limit;
+      mapped = { contractAddress, eventSignature, fromBlock, toBlock, limit };
+      if (!contractAddress) missing.push('contractAddress');
+      break;
+    }
+    case 'lookup_block': {
+      const blockNumber = params.blockNumber || params.block_number || params.number || 'latest';
+      mapped = { blockNumber };
+      break;
+    }
+    case 'decode_revert': {
+      const txHash = params.txHash || params.tx_hash || params.hash;
+      const data = params.data || params.revertData || params.revert_data;
+      mapped = { txHash, data };
+      if (!txHash && !data) missing.push('txHash or data');
+      break;
+    }
     default:
       break;
   }
@@ -161,7 +193,9 @@ function replacePathParams(path, params) {
     '{address}': 'address',
     '{tokenId}': 'tokenId',
     '{ownerAddress}': 'ownerAddress',
-    '{collectionAddress}': 'collectionAddress'
+    '{collectionAddress}': 'collectionAddress',
+    '{txHash}': 'txHash',
+    '{blockNumber}': 'blockNumber'
   };
 
   Object.entries(replacements).forEach(([placeholder, key]) => {
@@ -561,6 +595,22 @@ function formatToolResponse(toolResults) {
       }
       case 'batch_mint': {
         return `Batch mint complete. ${payload.succeeded}/${payload.recipientCount} NFTs minted successfully${payload.failed > 0 ? `, ${payload.failed} failed` : ''}.`;
+      }
+      case 'lookup_transaction': {
+        const status = payload.receipt?.status || 'pending';
+        const val = payload.value ? ` Value: ${payload.value} ETH.` : '';
+        return `Transaction ${payload.hash?.slice(0, 10)}... is ${status}.${val} Block: ${payload.blockNumber || 'pending'}. Explorer: ${payload.explorerUrl || ''}`;
+      }
+      case 'fetch_events': {
+        return `Found ${payload.totalFound} event(s) for ${payload.contractAddress} (returned ${payload.returned}). Block range: ${payload.fromBlock} – ${payload.toBlock}.`;
+      }
+      case 'lookup_block': {
+        return `Block ${payload.blockNumber}: ${payload.transactionCount} txs, gas used ${payload.gasUsedPct}, timestamp ${payload.timestampIso}.`;
+      }
+      case 'decode_revert': {
+        const r = payload.revertReason;
+        if (!r) return 'Transaction did not revert.';
+        return `Revert reason (${r.type}): ${r.message || r.selector || 'unknown'}`;
       }
       default:
         return `Executed ${tool}.`;
