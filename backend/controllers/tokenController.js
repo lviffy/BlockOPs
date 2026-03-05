@@ -10,6 +10,7 @@ const {
   getAddressExplorerUrl,
   logTransaction 
 } = require('../utils/helpers');
+const { fireEvent } = require('../services/webhookService');
 
 /**
  * Deploy ERC20 Token via Stylus TokenFactory
@@ -116,21 +117,23 @@ async function deployToken(req, res) {
       console.warn('Could not fetch token info:', error.message);
     }
 
-    return res.json(
-      successResponse({
-        message: 'Token deployed successfully via Stylus TokenFactory',
-        tokenId: tokenId.toString(),
-        factoryAddress: FACTORY_ADDRESS,
-        transactionHash: receipt.hash,
-        blockNumber: receipt.blockNumber,
-        gasUsed: receipt.gasUsed.toString(),
-        estimatedCost: estimatedCost,
-        creator: wallet.address,
-        tokenInfo: tokenInfo,
-        explorerUrl: getAddressExplorerUrl(FACTORY_ADDRESS),
-        transactionUrl: getTxExplorerUrl(receipt.hash)
-      })
-    );
+    const deployData = {
+      message: 'Token deployed successfully via Stylus TokenFactory',
+      tokenId: tokenId.toString(),
+      factoryAddress: FACTORY_ADDRESS,
+      transactionHash: receipt.hash,
+      blockNumber: receipt.blockNumber,
+      gasUsed: receipt.gasUsed.toString(),
+      estimatedCost: estimatedCost,
+      creator: wallet.address,
+      tokenInfo: tokenInfo,
+      explorerUrl: getAddressExplorerUrl(FACTORY_ADDRESS),
+      transactionUrl: getTxExplorerUrl(receipt.hash)
+    };
+
+    fireEvent(req.apiKey?.agentId || null, 'token.deployed', deployData);
+
+    return res.json(successResponse(deployData));
 
   } catch (error) {
     console.error('Deploy token error:', error);

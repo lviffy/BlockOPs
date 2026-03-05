@@ -14,7 +14,9 @@ const TOOL_ENDPOINTS = {
   get_token_balance: { method: 'GET', path: '/token/balance/{tokenId}/{ownerAddress}' },
   get_nft_info: { method: 'GET', path: '/nft/info/{collectionAddress}/{tokenId}' },
   send_email: { method: 'POST', path: '/email/send' },
-  calculate: { method: 'LOCAL' }
+  calculate: { method: 'LOCAL' },
+  batch_transfer: { method: 'POST', path: '/batch/transfer' },
+  batch_mint:     { method: 'POST', path: '/batch/mint' }
 };
 
 function mapToolParams(tool, params = {}, fallbackMessage) {
@@ -126,6 +128,24 @@ function mapToolParams(tool, params = {}, fallbackMessage) {
       const description = params.description;
       mapped = { expression, variables, description };
       if (!expression) missing.push('expression');
+      break;
+    }
+    case 'batch_transfer': {
+      const privateKey = params.privateKey || params.private_key;
+      const recipients = params.recipients;
+      mapped = { privateKey, recipients };
+      if (!privateKey) missing.push('privateKey');
+      if (!recipients || !Array.isArray(recipients) || recipients.length === 0) missing.push('recipients');
+      break;
+    }
+    case 'batch_mint': {
+      const privateKey = params.privateKey || params.private_key;
+      const collectionAddress = params.collectionAddress || params.collection_address || params.contract_address;
+      const recipients = params.recipients;
+      mapped = { privateKey, collectionAddress, recipients };
+      if (!privateKey) missing.push('privateKey');
+      if (!collectionAddress) missing.push('collectionAddress');
+      if (!recipients || !Array.isArray(recipients) || recipients.length === 0) missing.push('recipients');
       break;
     }
     default:
@@ -535,6 +555,12 @@ function formatToolResponse(toolResults) {
       }
       case 'calculate': {
         return `Calculation result: ${payload.result}.`;
+      }
+      case 'batch_transfer': {
+        return `Batch ETH transfer complete. ${payload.recipientCount} recipients, ${payload.totalAmount} ETH total. Tx: ${payload.transactionHash || 'multiple'}.`;
+      }
+      case 'batch_mint': {
+        return `Batch mint complete. ${payload.succeeded}/${payload.recipientCount} NFTs minted successfully${payload.failed > 0 ? `, ${payload.failed} failed` : ''}.`;
       }
       default:
         return `Executed ${tool}.`;

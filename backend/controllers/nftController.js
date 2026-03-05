@@ -10,6 +10,7 @@ const {
   getAddressExplorerUrl,
   logTransaction 
 } = require('../utils/helpers');
+const { fireEvent } = require('../services/webhookService');
 
 /**
  * Deploy NFT Collection via Stylus NFTFactory
@@ -95,20 +96,22 @@ async function deployNFTCollection(req, res) {
     const collectionAddress = eventArgs.collection_address;
     console.log('NFT Collection created at:', collectionAddress);
 
-    return res.json(
-      successResponse({
-        message: 'NFT Collection deployed successfully via Stylus NFTFactory',
-        collectionAddress: collectionAddress,
-        transactionHash: receipt.hash,
-        blockNumber: receipt.blockNumber,
-        gasUsed: receipt.gasUsed.toString(),
-        estimatedCost: estimatedCost,
-        creator: wallet.address,
-        collectionInfo: { name, symbol, baseURI },
-        explorerUrl: getAddressExplorerUrl(collectionAddress),
-        transactionUrl: getTxExplorerUrl(receipt.hash)
-      })
-    );
+    const deployData = {
+      message: 'NFT Collection deployed successfully via Stylus NFTFactory',
+      collectionAddress: collectionAddress,
+      transactionHash: receipt.hash,
+      blockNumber: receipt.blockNumber,
+      gasUsed: receipt.gasUsed.toString(),
+      estimatedCost: estimatedCost,
+      creator: wallet.address,
+      collectionInfo: { name, symbol, baseURI },
+      explorerUrl: getAddressExplorerUrl(collectionAddress),
+      transactionUrl: getTxExplorerUrl(receipt.hash)
+    };
+
+    fireEvent(req.apiKey?.agentId || null, 'nft.deployed', deployData);
+
+    return res.json(successResponse(deployData));
 
   } catch (error) {
     console.error('Deploy NFT collection error:', error);
@@ -152,18 +155,20 @@ async function mintNFT(req, res) {
     
     const tokenId = eventArgs ? eventArgs.token_id.toString() : 'unknown';
 
-    return res.json(
-      successResponse({
-        message: 'NFT minted successfully',
-        tokenId: tokenId,
-        collectionAddress: collectionAddress,
-        owner: toAddress,
-        transactionHash: receipt.hash,
-        blockNumber: receipt.blockNumber,
-        gasUsed: receipt.gasUsed.toString(),
-        explorerUrl: getTxExplorerUrl(receipt.hash)
-      })
-    );
+    const mintData = {
+      message: 'NFT minted successfully',
+      tokenId: tokenId,
+      collectionAddress: collectionAddress,
+      owner: toAddress,
+      transactionHash: receipt.hash,
+      blockNumber: receipt.blockNumber,
+      gasUsed: receipt.gasUsed.toString(),
+      explorerUrl: getTxExplorerUrl(receipt.hash)
+    };
+
+    fireEvent(req.apiKey?.agentId || null, 'nft.minted', mintData);
+
+    return res.json(successResponse(mintData));
 
   } catch (error) {
     console.error('Mint NFT error:', error);

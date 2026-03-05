@@ -16,6 +16,8 @@ const walletRoutes = require('./routes/walletRoutes');
 const allowanceRoutes = require('./routes/allowanceRoutes');
 const contractChatRoutes = require('./routes/contractChatRoutes');
 const emailRoutes = require('./routes/emailRoutes');
+const webhookRoutes = require('./routes/webhookRoutes');
+const batchRoutes   = require('./routes/batchRoutes');
 
 // Initialize Express app
 const app = express();
@@ -70,6 +72,8 @@ app.use('/allowance',     ...authGuard, allowanceRoutes);
 app.use('/email',         ...authGuard, emailRoutes);
 app.use('/nl-executor',   ...authGuard, nlExecutorRoutes);
 app.use('/contract-chat', ...authGuard, contractChatRoutes);
+app.use('/webhooks',      ...authGuard, webhookRoutes);
+app.use('/batch',         ...authGuard, batchRoutes);
 
 // ── Legacy routes (protected) ────────────────────────────────────────────────
 app.post('/deploy-token',          ...authGuard, require('./controllers/tokenController').deployToken);

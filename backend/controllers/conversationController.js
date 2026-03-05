@@ -3,6 +3,7 @@ const { buildContext, truncateMessage } = require('../utils/memory');
 const { chatWithAI } = require('../services/aiService');
 const { intelligentToolRouting, convertToAgentFormat } = require('../services/toolRouter');
 const { executeToolsDirectly: executeToolsDirectlyService, formatToolResponse } = require('../services/directToolExecutor');
+const { fireEvent } = require('../services/webhookService');
 
 /**
  * Main chat endpoint - handles conversation and AI response
@@ -19,7 +20,8 @@ async function chat(req, res) {
       });
     }
 
-    // Log wallet address for debugging
+    // Fire webhook for inbound message (non-blocking)
+    fireEvent(agentId, 'agent.message', { userId, message, walletAddress: walletAddress || null });
     if (walletAddress) {
       console.log('[Chat] User wallet address:', walletAddress);
     } else {

@@ -75,15 +75,15 @@ The n8n backend exists but has no actual n8n workflow CRUD logic or webhook trig
 
 ## 🟠 High Priority — Core Missing Features
 
-### 5. Webhook System
+### 5. Webhook System ✅
 Currently BlockOps has zero event-driven output — no way for external systems to receive notifications when something happens.
 
 **New service: `backend/services/webhookService.js`**
-- [ ] `POST /webhooks/register` — register a URL + event types per agent
-- [ ] `GET /webhooks` — list registered webhooks
-- [ ] `DELETE /webhooks/:id` — delete a webhook
-- [ ] `POST /webhooks/test/:id` — send a test payload
-- [ ] Event types to support:
+- [x] `POST /webhooks/register` — register a URL + event types per agent
+- [x] `GET /webhooks` — list registered webhooks
+- [x] `DELETE /webhooks/:id` — delete a webhook
+- [x] `POST /webhooks/test/:id` — send a test payload
+- [x] Event types to support:
   - `tx.sent` — emitted after every signed transaction
   - `tx.confirmed` — after receipt arrives
   - `tx.failed` — revert / timeout
@@ -92,9 +92,9 @@ Currently BlockOps has zero event-driven output — no way for external systems 
   - `agent.chat_message` — every inbound user message
   - `nft.minted` — after successful mint
   - `token.deployed` — after successful ERC20 deploy
-- [ ] Retry with exponential backoff (3 attempts, 1s/5s/30s)
-- [ ] HMAC-SHA256 signature on every outbound payload (`X-BlockOps-Signature` header)
-- [ ] Webhook delivery log stored in Supabase
+- [x] Retry with exponential backoff (3 attempts, 1s/5s/30s)
+- [x] HMAC-SHA256 signature on every outbound payload (`X-BlockOps-Signature` header)
+- [x] Webhook delivery log stored in Supabase
 
 ---
 
@@ -120,13 +120,14 @@ Users want to move ETH/tokens between Ethereum and Arbitrum.
 
 ---
 
-### 8. Batch / Multicall Tool
+### 8. Batch / Multicall Tool ✅
 High user value for airdrops and bulk ops.
 
-- [ ] `POST /batch/transfer` — send ETH/tokens to multiple addresses in one call (Multicall3)
-- [ ] `POST /batch/mint` — mint to multiple recipients
-- [ ] `POST /batch/approve` — batch approvals
-- [ ] Expose as `batch_transfer` NLP tool
+- [x] `POST /batch/transfer` — send ETH to multiple addresses in one call (Multicall3)
+- [x] `POST /batch/transfer-erc20` — send ERC20 token to multiple addresses
+- [x] `POST /batch/mint` — mint to multiple recipients
+- [x] `POST /batch/approve` — batch approvals
+- [x] Expose as `batch_transfer` / `batch_mint` NLP tools
 
 ---
 
@@ -339,10 +340,10 @@ After n8n backend is fixed:
 | 2 | Session-based signing (no raw key in body) | 🔴 Critical | M |
 | 3 | ~~API key auth + rate limiting~~ ✅ | 🔴 Critical | S |
 | 4 | n8n backend full implementation | 🔴 Critical | L |
-| 5 | Webhook system | 🟠 High | M |
+| 5 | ~~Webhook system~~ ✅ | 🟠 High | M |
 | 6 | DEX swap tool | 🟠 High | M |
 | 7 | L1↔L2 bridge tool | 🟠 High | M |
-| 8 | Batch / multicall tool | 🟠 High | S |
+| 8 | ~~Batch / multicall tool~~ ✅ | 🟠 High | S |
 | 9 | Tx / event / block lookup | 🟠 High | S |
 | 10 | Portfolio analytics | 🟠 High | S |
 | 11 | ENS / ARBID resolution | 🟠 High | S |

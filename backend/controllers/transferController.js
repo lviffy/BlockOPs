@@ -8,6 +8,7 @@ const {
   getTxExplorerUrl,
   logTransaction 
 } = require('../utils/helpers');
+const { fireEvent } = require('../services/webhookService')
 
 /**
  * Transfer native ETH or ERC20 tokens
@@ -26,13 +27,15 @@ async function transfer(req, res) {
     const provider = getProvider();
     const wallet = getWallet(privateKey, provider);
 
+    const agentId = req.apiKey?.agentId || null;
+
     // If tokenId is provided, transfer ERC20 tokens
     if (tokenId !== undefined && tokenId !== null) {
-      return await transferERC20(res, wallet, tokenId, toAddress, amount);
+      return await transferERC20(res, wallet, tokenId, toAddress, amount, agentId);
     }
 
     // Transfer native ETH
-    return await transferNative(res, wallet, provider, toAddress, amount);
+    return await transferNative(res, wallet, provider, toAddress, amount, agentId);
 
   } catch (error) {
     console.error('Transfer error:', error);
@@ -77,7 +80,7 @@ async function prepareTransfer(req, res) {
 /**
  * Transfer ERC20 tokens
  */
-async function transferERC20(res, wallet, tokenId, toAddress, amount) {
+async function transferERC20(res, wallet, tokenId, toAddress, amount, agentId = null) {
   const { FACTORY_ADDRESS } = require('../config/constants');
   
   logTransaction('Transfer ERC20', { tokenId, toAddress, amount });
@@ -118,29 +121,31 @@ async function transferERC20(res, wallet, tokenId, toAddress, amount) {
   console.log('Transaction sent:', tx.hash);
   
   const receipt = await tx.wait();
-  
-  return res.json(
-    successResponse({
-      type: 'erc20',
-      transactionHash: receipt.hash,
-      from: wallet.address,
-      to: toAddress,
-      amount: amount,
-      tokenId: tokenId,
-      factoryAddress: FACTORY_ADDRESS,
-      tokenName: tokenName,
-      tokenSymbol: tokenSymbol,
-      blockNumber: receipt.blockNumber,
-      gasUsed: receipt.gasUsed.toString(),
-      explorerUrl: getTxExplorerUrl(receipt.hash)
-    })
-  );
+
+  const txData = {
+    type: 'erc20',
+    transactionHash: receipt.hash,
+    from: wallet.address,
+    to: toAddress,
+    amount: amount,
+    tokenId: tokenId,
+    factoryAddress: FACTORY_ADDRESS,
+    tokenName: tokenName,
+    tokenSymbol: tokenSymbol,
+    blockNumber: receipt.blockNumber,
+    gasUsed: receipt.gasUsed.toString(),
+    explorerUrl: getTxExplorerUrl(receipt.hash)
+  };
+
+  fireEvent(agentId, 'tx.confirmed', txData);
+
+  return res.json(successResponse(txData));
 }
 
 /**
  * Transfer native ETH
  */
-async function transferNative(res, wallet, provider, toAddress, amount) {
+async function transferNative(res, wallet, provider, toAddress, amount, agentId = null) {
   logTransaction('Transfer Native ETH', { toAddress, amount });
   
   const balance = await provider.getBalance(wallet.address);
@@ -163,18 +168,20 @@ async function transferNative(res, wallet, provider, toAddress, amount) {
   const transactionResponse = await wallet.sendTransaction(tx);
   const receipt = await transactionResponse.wait();
 
-  return res.json(
-    successResponse({
-      type: 'native',
-      transactionHash: receipt.hash,
-      from: wallet.address,
-      to: toAddress,
-      amount: amount,
-      blockNumber: receipt.blockNumber,
-      gasUsed: receipt.gasUsed.toString(),
-      explorerUrl: getTxExplorerUrl(receipt.hash)
-    })
-  );
+  const txData = {
+    type: 'native',
+    transactionHash: receipt.hash,
+    from: wallet.address,
+    to: toAddress,
+    amount: amount,
+    blockNumber: receipt.blockNumber,
+    gasUsed: receipt.gasUsed.toString(),
+    explorerUrl: getTxExplorerUrl(receipt.hash)
+  };
+
+  fireEvent(agentId, 'tx.confirmed', txData);
+
+  return res.json(successResponse(txData));
 }
 
 /**
