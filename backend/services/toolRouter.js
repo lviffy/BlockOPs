@@ -159,6 +159,24 @@ const AVAILABLE_TOOLS = {
     description: 'Check the status of a retryable ticket created by a bridge deposit. Returns ticket status (created/redeemed/expired) and L1/L2 confirmation details.',
     parameters: ['txHash (L1 deposit transaction hash)'],
     examples: ['What is the status of my bridge deposit 0x...?', 'Check if my bridged ETH has arrived on L2', 'Get retryable ticket status for tx 0x...']
+  },
+  schedule_transfer: {
+    name: 'schedule_transfer',
+    description: 'Schedule a one-time or recurring on-chain ETH or ERC20 transfer using a cron expression or ISO datetime string.',
+    parameters: ['privateKey', 'toAddress', 'amount', 'cronExpression (cron string or ISO datetime)', 'tokenAddress (optional)', 'label (optional)'],
+    examples: ['Schedule a transfer of 0.01 ETH every day at 9am', 'Send 100 USDC to 0x... every Monday', 'Schedule a one-time transfer at 2026-03-10T12:00:00Z']
+  },
+  list_schedules: {
+    name: 'list_schedules',
+    description: 'List all scheduled transfers for this agent — shows cron expression, next run, status, and run count.',
+    parameters: [],
+    examples: ['Show my scheduled transfers', 'List all recurring jobs', 'What transfers are scheduled?']
+  },
+  cancel_schedule: {
+    name: 'cancel_schedule',
+    description: 'Cancel (delete) a scheduled transfer by its job ID.',
+    parameters: ['id'],
+    examples: ['Cancel scheduled job abc123', 'Stop the recurring transfer', 'Delete schedule id xyz']
   }
 };
 

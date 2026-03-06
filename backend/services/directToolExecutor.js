@@ -30,7 +30,10 @@ const TOOL_ENDPOINTS = {
   get_swap_quote:      { method: 'GET',  path: '/swap/quote' },
   bridge_deposit:      { method: 'POST', path: '/bridge/deposit' },
   bridge_withdraw:     { method: 'POST', path: '/bridge/withdraw' },
-  bridge_status:       { method: 'GET',  path: '/bridge/status/{txHash}' }
+  bridge_status:       { method: 'GET',  path: '/bridge/status/{txHash}' },
+  schedule_transfer:   { method: 'POST', path: '/schedule/transfer' },
+  list_schedules:      { method: 'GET',  path: '/schedule' },
+  cancel_schedule:     { method: 'DELETE', path: '/schedule/{id}' }
 };
 
 function mapToolParams(tool, params = {}, fallbackMessage) {
@@ -282,6 +285,32 @@ function mapToolParams(tool, params = {}, fallbackMessage) {
       if (!txHash) missing.push('txHash');
       break;
     }
+    case 'schedule_transfer': {
+      const privateKey      = params.privateKey || params.private_key;
+      const toAddress       = params.toAddress  || params.to_address || params.to;
+      const amount          = params.amount;
+      const cronExpression  = params.cronExpression || params.cron || params.cron_expression || params.schedule;
+      const tokenAddress    = params.tokenAddress || params.token_address || params.token;
+      const label           = params.label;
+      mapped = { privateKey, toAddress, amount, cronExpression };
+      if (tokenAddress) mapped.tokenAddress = tokenAddress;
+      if (label)        mapped.label        = label;
+      if (!privateKey)     missing.push('privateKey');
+      if (!toAddress)      missing.push('toAddress');
+      if (!amount)         missing.push('amount');
+      if (!cronExpression) missing.push('cronExpression');
+      break;
+    }
+    case 'list_schedules': {
+      mapped = {}; // no required params
+      break;
+    }
+    case 'cancel_schedule': {
+      const id = params.id || params.jobId || params.job_id;
+      mapped = { id };
+      if (!id) missing.push('id');
+      break;
+    }
     default:
       break;
   }
@@ -298,7 +327,8 @@ function replacePathParams(path, params) {
     '{collectionAddress}': 'collectionAddress',
     '{txHash}': 'txHash',
     '{blockNumber}': 'blockNumber',
-    '{name}': 'name'
+    '{name}': 'name',
+    '{id}': 'id'
   };
 
   Object.entries(replacements).forEach(([placeholder, key]) => {
@@ -474,6 +504,8 @@ async function executeToolStep(step, fallbackMessage) {
         params: hasQueryParams ? requestParams : undefined,
         timeout: 30000
       });
+    } else if (config.method === 'DELETE') {
+      response = await axios.delete(url, { timeout: 30000 });
     } else {
       throw new Error(`Unsupported method: ${config.method}`);
     }
@@ -762,6 +794,17 @@ function formatToolResponse(toolResults) {
       }
       case 'bridge_status': {
         return `Retryable ticket ${payload.ticketId?.slice(0, 12)}... status: ${payload.ticketStatus}. L1: ${payload.l1?.status}. ${payload.note || ''}`;
+      }
+      case 'schedule_transfer': {
+        return `Scheduled transfer created (ID: ${payload.id}). ${payload.note || ''} Type: ${payload.type}. Amount: ${payload.amount}. To: ${payload.toAddress?.slice(0, 10)}...`;
+      }
+      case 'list_schedules': {
+        const count = payload.total || 0;
+        const active = (payload.jobs || []).filter(j => j.status === 'active').length;
+        return `Found ${count} scheduled transfer(s), ${active} active.`;
+      }
+      case 'cancel_schedule': {
+        return `Scheduled transfer ${payload.id} has been cancelled.`;
       }
       default:
         return `Executed ${tool}.`;

@@ -181,24 +181,30 @@ High user value for airdrops and bulk ops.
 
 ## 🟡 Medium Priority — DeFi & Automation
 
-### 13. Telegram Bot Integration
+### 13. Telegram Bot Integration ✅
 Agents should be reachable via Telegram, not just REST/chat UI.
 
-- [ ] New service or backend module: `backend/services/telegramService.js`
-- [ ] Register bot via BotFather, store `chatId` per user in Supabase
-- [ ] Commands: `/balance`, `/price ETH`, `/send`, `/status`
-- [ ] Agents forward Telegram messages into the existing `chatWithAI` pipeline
-- [ ] Webhook notifications can also be sent to Telegram
+- [x] New service: `backend/services/telegramService.js`
+- [x] Register bot via BotFather, store `chatId` per user in Supabase (`telegram_users` table)
+- [x] Commands: `/start`, `/balance <address>`, `/price <token>`, `/status <txHash>`, `/help`
+- [x] Agents forward Telegram messages into the existing `chatWithAI` pipeline
+- [x] Webhook notifications can also be sent to Telegram via `fireToTelegram(chatId, text)`
+- [x] Long-polling in dev, webhook mode in prod (`TELEGRAM_WEBHOOK_URL` env var)
+- [x] Admin endpoints: `GET /telegram/info`, `POST /telegram/send`, `POST /telegram/register-webhook`
 
 ---
 
-### 14. Scheduled / Recurring Transfers (Automation)
+### 14. Scheduled / Recurring Transfers (Automation) ✅
 No cron/schedule capability.
 
-- [ ] `POST /schedule/transfer` — schedule a one-time or recurring transfer
-  - params: `cronExpression`, `toAddress`, `amount`, `tokenAddress`
-- [ ] Use BullMQ (Redis) or Supabase pg_cron as the scheduler
-- [ ] Dashboard to view/cancel jobs in frontend
+- [x] `POST /schedule/transfer` — schedule a one-time or recurring transfer
+  - params: `cronExpression` (5-field cron or ISO datetime), `toAddress`, `amount`, `privateKey`, `tokenAddress` (optional), `label` (optional)
+- [x] `GET /schedule` — list all scheduled jobs
+- [x] `GET /schedule/:id` — get single job with last 10 execution logs
+- [x] `DELETE /schedule/:id` — cancel a job
+- [x] `POST /schedule/:id/pause` / `POST /schedule/:id/resume` — suspend/resume recurring jobs
+- [x] Uses node-cron (in-process); jobs reloaded from Supabase on server restart
+- [x] NLP tools: `schedule_transfer`, `list_schedules`, `cancel_schedule`
 
 ---
 
@@ -344,8 +350,8 @@ After n8n backend is fixed:
 | 10 | Portfolio analytics | 🟠 High | S |
 | 11 | ENS / ARBID resolution | 🟠 High | S |
 | 12 | Gas estimator | 🟠 High | S |
-| 13 | Telegram bot | 🟡 Medium | M |
-| 14 | Scheduled transfers (cron) | 🟡 Medium | M |
+| 13 | ~~Telegram bot~~ ✅ | 🟡 Medium | M |
+| 14 | ~~Scheduled transfers (cron)~~ ✅ | 🟡 Medium | M |
 | 15 | Historical price / OHLCV | 🟡 Medium | S |
 | 16 | Contract safety check | 🟡 Medium | M |
 | 17 | Yield / Aave DeFi tool | 🟡 Medium | L |
@@ -362,4 +368,4 @@ After n8n backend is fixed:
 | 29 | Notifications centre | 🟢 Nice-to-have | M |
 | 30 | n8n workflow templates | 🟢 Nice-to-have | S |
 
-**Effort key:** S = Small (< 1 day) · M = Medium (1–3 days) · L = Large (3+ days)
+**Effort key:** S = Small · M = Medium · L = Large

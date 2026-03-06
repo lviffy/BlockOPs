@@ -21,15 +21,16 @@ function rateLimitHandler(req, res) {
 }
 
 /** Helper to build a limiter with sensible defaults */
-function makeLimiter({ windowMs, max, message }) {
+function makeLimiter({ windowMs, max }) {
   return rateLimit({
     windowMs,
     max,
     standardHeaders: true,   // Return rate-limit info in RateLimit-* headers
     legacyHeaders: false,     // Disable X-RateLimit-* headers
-    handler: rateLimitHandler,
-    // Key by IP; if behind a proxy set app.set('trust proxy', 1) in app.js
-    keyGenerator: (req) => req.ip
+    handler: rateLimitHandler
+    // No custom keyGenerator — express-rate-limit's default keys by IP
+    // and handles IPv6 normalization correctly out of the box.
+    // (If behind a proxy, set app.set('trust proxy', 1) in app.js)
   });
 }
 

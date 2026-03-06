@@ -24,6 +24,10 @@ const ensRoutes       = require('./routes/ensRoutes');
 const gasRoutes       = require('./routes/gasRoutes');
 const swapRoutes      = require('./routes/swapRoutes');
 const bridgeRoutes    = require('./routes/bridgeRoutes');
+const scheduleRoutes  = require('./routes/scheduleRoutes');
+const { reloadJobsFromDB } = require('./controllers/scheduleController');
+const telegramRoutes  = require('./routes/telegramRoutes');
+const { startLongPolling, stopLongPolling } = require('./services/telegramService');
 
 // Initialize Express app
 const app = express();
@@ -90,6 +94,11 @@ app.use('/batch',         ...authGuard, batchRoutes);
 app.use('/chain',         ...authGuard, chainRoutes);
 app.use('/swap',          ...authGuard, swapRoutes);
 app.use('/bridge',        ...authGuard, bridgeRoutes);
+app.use('/schedule',      ...authGuard, scheduleRoutes);
+
+// Telegram: /webhook is public (called by Telegram, no key needed)
+// All other /telegram/* routes require authGuard
+app.use('/telegram', telegramRoutes);
 
 // ── Legacy routes (protected) ────────────────────────────────────────────────
 app.post('/deploy-token',          ...authGuard, require('./controllers/tokenController').deployToken);
@@ -121,7 +130,13 @@ app.use((error, req, res, next) => {
 });
 
 // Start server
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
+  // Reload scheduled jobs from DB on startup
+  await reloadJobsFromDB();
+
+  // Start Telegram bot (long-poll in dev, no-op if WEBHOOK_URL or no token)
+  startLongPolling();
+
   console.log('\n' + '='.repeat(50));
   console.log('🚀 n8nrollup Backend Server');
   console.log('='.repeat(50));
@@ -162,12 +177,19 @@ const server = app.listen(PORT, () => {
   console.log('\n' + '='.repeat(50) + '\n');
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server');
+// Graceful shutdown — handles both kill and Ctrl+C
+function gracefulShutdown(signal) {
+  console.log(`${signal} received: shutting down…`);
+  stopLongPolling();               // Stop Telegram poller immediately
   server.close(() => {
     console.log('HTTP server closed');
+    process.exit(0);
   });
-});
+  // Force exit if server.close hangs beyond 5 s
+  setTimeout(() => process.exit(1), 5000);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
 
 module.exports = app;

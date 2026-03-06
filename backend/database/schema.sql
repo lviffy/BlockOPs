@@ -287,3 +287,70 @@ CREATE POLICY "Users can create messages in own conversations"
 
 -- Run get_database_stats() to verify setup
 SELECT * FROM get_database_stats();
+
+-- ============================================
+-- TELEGRAM BOT — telegram_users table
+-- ============================================
+CREATE TABLE IF NOT EXISTS telegram_users (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  chat_id     TEXT NOT NULL UNIQUE,
+  username    TEXT,
+  first_name  TEXT,
+  agent_id    TEXT,              -- linked BlockOps agent (optional)
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_telegram_users_chat_id  ON telegram_users(chat_id);
+CREATE INDEX IF NOT EXISTS idx_telegram_users_agent_id ON telegram_users(agent_id);
+
+-- RLS: service role only
+ALTER TABLE telegram_users ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "service_role_telegram_users" ON telegram_users
+  USING (auth.role() = 'service_role');
+
+
+-- ============================================
+-- SCHEDULED TRANSFERS — scheduled_transfers + logs
+-- ============================================
+CREATE TABLE IF NOT EXISTS scheduled_transfers (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_id        TEXT,
+  private_key     TEXT NOT NULL,          -- store encrypted at rest (Supabase pgsodium)
+  wallet_address  TEXT NOT NULL,
+  to_address      TEXT NOT NULL,
+  amount          TEXT NOT NULL,
+  token_address   TEXT,                   -- NULL = native ETH
+  cron_expression TEXT NOT NULL,
+  label           TEXT,
+  type            TEXT NOT NULL DEFAULT 'recurring' CHECK (type IN ('one_shot', 'recurring')),
+  status          TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'cancelled', 'completed')),
+  run_count       INTEGER NOT NULL DEFAULT 0,
+  last_run_at     TIMESTAMPTZ,
+  last_tx_hash    TEXT,
+  last_error      TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_scheduled_transfers_agent   ON scheduled_transfers(agent_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_transfers_status  ON scheduled_transfers(status);
+
+CREATE TABLE IF NOT EXISTS scheduled_transfer_logs (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  job_id     UUID NOT NULL REFERENCES scheduled_transfers(id) ON DELETE CASCADE,
+  ran_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  tx_hash    TEXT,
+  error      TEXT,
+  success    BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE INDEX IF NOT EXISTS idx_schedule_logs_job ON scheduled_transfer_logs(job_id, ran_at DESC);
+
+-- RLS: service role only
+ALTER TABLE scheduled_transfers      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE scheduled_transfer_logs  ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "service_role_scheduled_transfers"     ON scheduled_transfers     USING (auth.role() = 'service_role');
+CREATE POLICY "service_role_scheduled_transfer_logs" ON scheduled_transfer_logs USING (auth.role() = 'service_role');
+
+
