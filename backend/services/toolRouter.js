@@ -105,6 +105,30 @@ const AVAILABLE_TOOLS = {
     description: 'Decode a revert reason from a failed transaction hash or raw revert data hex.',
     parameters: ['txHash (optional)', 'data (optional hex)'],
     examples: ['Why did transaction 0x... fail?', 'Decode this revert data: 0x08c379a0...', 'What is the revert reason for this tx?']
+  },
+  get_portfolio: {
+    name: 'get_portfolio',
+    description: 'Get a full portfolio breakdown for a wallet address: ETH balance, all ERC20 token holdings, NFT holdings, and total USD value.',
+    parameters: ['address'],
+    examples: ['Show my portfolio for 0x...', 'What tokens does this wallet hold?', 'Get the total value of wallet 0x...']
+  },
+  resolve_ens: {
+    name: 'resolve_ens',
+    description: 'Resolve an ENS name (like vitalik.eth) to an Ethereum address, or do a reverse lookup of an address to its ENS name.',
+    parameters: ['name (ENS name) OR address (for reverse lookup)'],
+    examples: ['What address is vitalik.eth?', 'Resolve nick.eth', 'What ENS name does 0xd8dA6BF2... have?']
+  },
+  estimate_gas: {
+    name: 'estimate_gas',
+    description: 'Get current gas prices on Arbitrum Sepolia with slow/normal/fast fee tiers and estimated transaction costs.',
+    parameters: [],
+    examples: ['What are the current gas prices?', 'How much gas does a transfer cost right now?', 'Show me gas fee tiers']
+  },
+  simulate_gas: {
+    name: 'simulate_gas',
+    description: 'Estimate the gas units a specific contract call would use before sending it.',
+    parameters: ['to', 'from (optional)', 'data or (abi + functionName + args)'],
+    examples: ['How much gas would this transfer use?', 'Estimate gas for calling approve on 0x...', 'Simulate this contract call']
   }
 };
 

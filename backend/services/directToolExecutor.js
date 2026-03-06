@@ -20,7 +20,12 @@ const TOOL_ENDPOINTS = {
   lookup_transaction:  { method: 'GET',  path: '/chain/tx/{txHash}' },
   fetch_events:        { method: 'POST', path: '/chain/events' },
   lookup_block:        { method: 'GET',  path: '/chain/block/{blockNumber}' },
-  decode_revert:       { method: 'POST', path: '/chain/decode/revert' }
+  decode_revert:       { method: 'POST', path: '/chain/decode/revert' },
+  get_portfolio:       { method: 'GET',  path: '/portfolio/{address}' },
+  resolve_ens:         { method: 'GET',  path: '/ens/resolve/{name}' },
+  reverse_ens:         { method: 'GET',  path: '/ens/reverse/{address}' },
+  estimate_gas:        { method: 'GET',  path: '/gas/estimate' },
+  simulate_gas:        { method: 'POST', path: '/gas/simulate' }
 };
 
 function mapToolParams(tool, params = {}, fallbackMessage) {
@@ -180,6 +185,40 @@ function mapToolParams(tool, params = {}, fallbackMessage) {
       if (!txHash && !data) missing.push('txHash or data');
       break;
     }
+    case 'get_portfolio': {
+      const address = params.address || params.wallet_address;
+      mapped = { address };
+      if (!address) missing.push('address');
+      break;
+    }
+    case 'resolve_ens': {
+      const name = params.name || params.ens_name;
+      mapped = { name };
+      if (!name) missing.push('name');
+      break;
+    }
+    case 'reverse_ens': {
+      const address = params.address || params.wallet_address;
+      mapped = { address };
+      if (!address) missing.push('address');
+      break;
+    }
+    case 'estimate_gas': {
+      mapped = {}; // no params needed
+      break;
+    }
+    case 'simulate_gas': {
+      const to = params.to;
+      const from = params.from;
+      const data = params.data;
+      const value = params.value;
+      const abi = params.abi;
+      const functionName = params.functionName || params.function_name;
+      const args = params.args;
+      mapped = { to, from, data, value, abi, functionName, args };
+      if (!to) missing.push('to');
+      break;
+    }
     default:
       break;
   }
@@ -195,7 +234,8 @@ function replacePathParams(path, params) {
     '{ownerAddress}': 'ownerAddress',
     '{collectionAddress}': 'collectionAddress',
     '{txHash}': 'txHash',
-    '{blockNumber}': 'blockNumber'
+    '{blockNumber}': 'blockNumber',
+    '{name}': 'name'
   };
 
   Object.entries(replacements).forEach(([placeholder, key]) => {
@@ -611,6 +651,28 @@ function formatToolResponse(toolResults) {
         const r = payload.revertReason;
         if (!r) return 'Transaction did not revert.';
         return `Revert reason (${r.type}): ${r.message || r.selector || 'unknown'}`;
+      }
+      case 'get_portfolio': {
+        const eth = payload.eth?.balance ? `ETH: ${payload.eth.balance}` : '';
+        const usd = payload.totalValueUsd ? ` | Total: $${payload.totalValueUsd}` : '';
+        const tokens = payload.erc20?.count ? ` | ${payload.erc20.count} ERC20 token(s)` : '';
+        const nfts = payload.nfts?.count ? ` | ${payload.nfts.count} NFT(s)` : '';
+        return `Portfolio for ${payload.address?.slice(0, 10)}...: ${eth}${tokens}${nfts}${usd}`;
+      }
+      case 'resolve_ens': {
+        return `${payload.name} resolves to ${payload.address}`;
+      }
+      case 'reverse_ens': {
+        return payload.name
+          ? `${payload.address?.slice(0, 10)}... has ENS name: ${payload.name}`
+          : `No ENS name found for ${payload.address?.slice(0, 10)}...`;
+      }
+      case 'estimate_gas': {
+        const n = payload.suggested?.normal;
+        return `Current gas: base fee ${payload.baseFee}, normal max fee ${n?.maxFeePerGas}. ETH transfer ~${n?.estimatedTxCostEth?.transfer} ETH.`;
+      }
+      case 'simulate_gas': {
+        return `Gas estimate: ${payload.gasEstimateWithBuffer} units (with buffer). Est. cost: ${payload.estimatedCostWithBufferEth} ETH.`;
       }
       default:
         return `Executed ${tool}.`;

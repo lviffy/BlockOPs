@@ -16,9 +16,12 @@ const walletRoutes = require('./routes/walletRoutes');
 const allowanceRoutes = require('./routes/allowanceRoutes');
 const contractChatRoutes = require('./routes/contractChatRoutes');
 const emailRoutes = require('./routes/emailRoutes');
-const webhookRoutes = require('./routes/webhookRoutes');
-const batchRoutes   = require('./routes/batchRoutes');
-const chainRoutes   = require('./routes/chainRoutes');
+const webhookRoutes   = require('./routes/webhookRoutes');
+const batchRoutes     = require('./routes/batchRoutes');
+const chainRoutes     = require('./routes/chainRoutes');
+const portfolioRoutes = require('./routes/portfolioRoutes');
+const ensRoutes       = require('./routes/ensRoutes');
+const gasRoutes       = require('./routes/gasRoutes');
 
 // Initialize Express app
 const app = express();
@@ -55,6 +58,13 @@ app.use('/health', healthRoutes);
 
 // Price: rate limited per-IP but no key required
 app.use('/price', priceLimiter, priceRoutes);
+
+// Gas + ENS: read-only public endpoints
+app.use('/gas',       priceLimiter, gasRoutes);
+app.use('/ens',       priceLimiter, ensRoutes);
+
+// Portfolio: read-only but auth-optional (key attaches agent context)
+app.use('/portfolio', chatLimiter, apiKeyAuth({ optional: true }), portfolioRoutes);
 
 // Conversation chat: rate limited; api key optional (attaches context if present)
 app.use('/api', chatLimiter, apiKeyAuth({ optional: true }), conversationRoutes);

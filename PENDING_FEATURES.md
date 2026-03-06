@@ -145,34 +145,36 @@ High user value for airdrops and bulk ops.
 
 ---
 
-### 10. Portfolio / Wallet Analytics
-Current balance endpoint only returns ETH. No token or NFT breakdown.
+### 10. Portfolio / Wallet Analytics ✅
+~~Current balance endpoint only returns ETH. No token or NFT breakdown.~~
 
-- [ ] `GET /portfolio/:address` — return:
-  - ETH balance
-  - All ERC20 holdings (via Etherscan token API)
-  - All NFT holdings (ERC721)
-  - USD values (via CoinGecko)
-  - Total portfolio value
-- [ ] Add `get_portfolio` NLP tool
-
----
-
-### 11. ENS / ARBID Resolution
-No address ↔ name resolution.
-
-- [ ] `GET /ens/resolve/:name` — resolve ENS/ARBID name → address
-- [ ] `GET /ens/reverse/:address` — reverse lookup address → name
-- [ ] Check in all existing tools: if user passes `vitalik.eth` instead of an address, auto-resolve
+- [x] `GET /portfolio/:address` — ETH balance + USD value
+- [x] All ERC20 holdings (live on-chain balance via Etherscan transfer history → `balanceOf`)
+- [x] All NFT holdings (ERC721, derived from transfer history)
+- [x] USD values per token (CoinGecko)
+- [x] Total portfolio USD value
+- [x] `get_portfolio` NLP tool added
 
 ---
 
-### 12. Gas Estimator / Priority Fee Tool
-No advanced gas tooling.
+### 11. ENS / ARBID Resolution ✅
+~~No address ↔ name resolution.~~
 
-- [ ] `GET /gas/estimate` — current base fee + suggested priority fee tiers (slow/normal/fast)
-- [ ] `POST /gas/simulate` — estimate gas for a specific call before sending
-- [ ] Add `estimate_gas` NLP tool
+- [x] `GET /ens/resolve/:name` — resolve ENS/ARBID name → address (uses Ethereum mainnet for ENS registry)
+- [x] `GET /ens/reverse/:address` — reverse lookup address → primary ENS name
+- [x] `POST /ens/resolve-many` — batch resolve up to 20 names
+- [x] `resolveAddressOrName()` utility exported for use in other controllers
+- [x] `resolve_ens` NLP tool added
+
+---
+
+### 12. Gas Estimator / Priority Fee Tool ✅
+~~No advanced gas tooling.~~
+
+- [x] `GET /gas/estimate` — current base fee + slow/normal/fast priority fee tiers with estimated tx costs
+- [x] `POST /gas/simulate` — estimate gas units for a specific call before sending (reverts surfaced with reason)
+- [x] `GET /gas/history` — base fee trend over last N blocks (up to 50)
+- [x] `estimate_gas` + `simulate_gas` NLP tools added
 
 ---
 
