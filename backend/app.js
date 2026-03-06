@@ -27,6 +27,7 @@ const bridgeRoutes    = require('./routes/bridgeRoutes');
 const scheduleRoutes  = require('./routes/scheduleRoutes');
 const { reloadJobsFromDB } = require('./controllers/scheduleController');
 const telegramRoutes  = require('./routes/telegramRoutes');
+const agentRoutes     = require('./routes/agentRoutes');
 const { startLongPolling, stopLongPolling } = require('./services/telegramService');
 
 // Initialize Express app
@@ -95,6 +96,7 @@ app.use('/chain',         ...authGuard, chainRoutes);
 app.use('/swap',          ...authGuard, swapRoutes);
 app.use('/bridge',        ...authGuard, bridgeRoutes);
 app.use('/schedule',      ...authGuard, scheduleRoutes);
+app.use('/agents',        ...authGuard, agentRoutes);
 
 // Telegram: /webhook is public (called by Telegram, no key needed)
 // All other /telegram/* routes require authGuard

@@ -212,6 +212,19 @@ export default function MyAgents() {
                     <p className="mt-0.5 text-xs text-muted-foreground truncate">
                       {agent.description || "No description"}
                     </p>
+                    <button
+                      className="mt-1 flex items-center gap-1 group/id"
+                      onClick={(e) => { e.stopPropagation(); copyToClipboard(agent.id, `id-${agent.id}`) }}
+                    >
+                      <code className="text-[10px] font-mono text-muted-foreground/70 group-hover/id:text-foreground transition-colors">
+                        {agent.id.slice(0, 8)}...{agent.id.slice(-4)}
+                      </code>
+                      {copiedItem === `id-${agent.id}` ? (
+                        <Check className="h-2.5 w-2.5 text-muted-foreground/70" />
+                      ) : (
+                        <Copy className="h-2.5 w-2.5 text-muted-foreground/40 group-hover/id:text-muted-foreground/70 transition-colors" />
+                      )}
+                    </button>
                   </div>
 
                   {/* Actions */}

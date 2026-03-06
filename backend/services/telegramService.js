@@ -18,7 +18,9 @@
  */
 
 const axios   = require('axios');
+const bcrypt  = require('bcrypt');
 const supabase = require('../config/supabase');
+const { getAgentById, verifyApiKey } = require('../controllers/agentController');
 
 const BOT_TOKEN    = process.env.TELEGRAM_BOT_TOKEN || '';
 const WEBHOOK_URL  = process.env.TELEGRAM_WEBHOOK_URL || '';
@@ -26,6 +28,12 @@ const BACKEND_URL  = process.env.BACKEND_URL || `http://localhost:${process.env.
 const MASTER_KEY   = process.env.MASTER_API_KEY || '';
 
 const TG_API = BOT_TOKEN ? `https://api.telegram.org/bot${BOT_TOKEN}` : null;
+
+// Escape characters that break Telegram's legacy Markdown parser
+function mdEscape(str) {
+  if (!str) return '';
+  return String(str).replace(/[*_`[\]]/g, (c) => '\\' + c);
+}
 
 // ── Telegram API helpers ──────────────────────────────────────────────────────
 
@@ -49,7 +57,7 @@ async function sendMessage(chatId, text, options = {}) {
       ...options
     });
   } catch (err) {
-    console.error(`[Telegram] sendMessage to ${chatId} failed:`, err.message);
+    console.error(`[Telegram] sendMessage to ${chatId} failed:`, err.response?.data || err.message || err);
   }
 }
 
@@ -88,25 +96,43 @@ async function handleStart(chatId, user) {
   });
   await sendMessage(chatId,
     `👋 Welcome to *BlockOps*!\n\n` +
-    `I'm your on-chain assistant. Here's what you can do:\n\n` +
+    `I'm your on-chain AI assistant. Here's what I can do:\n\n` +
     `🔹 /balance \`<address>\` — check ETH balance\n` +
-    `🔹 /price \`<token>\` — get token price (e.g. /price ETH)\n` +
+    `🔹 /price \`<token>\` — get token price (e.g., /price ETH)\n` +
     `🔹 /status \`<txHash>\` — look up a transaction\n` +
-    `🔹 /help — show this menu\n\n` +
-    `Or just type any blockchain question in plain English!`
+    `🔹 /help — show all commands\n\n` +
+    `Or just ask me anything in plain English:\n` +
+    `  • "What's the gas price right now?"\n` +
+    `  • "Show me the portfolio for 0x1234..."\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `🤖 *Want a custom agent?*\n` +
+    `Create one at https://blockops.in/agents\n` +
+    `Then type: /connect <agent-id> <api-key>\n\n` +
+    `Your agent can have:\n` +
+    `  ✓ Custom personality\n` +
+    `  ✓ Specific tools only\n` +
+    `  ✓ Pre-configured wallet\n\n` +
+    `For now, you're in *generic mode* with all tools enabled.`
   );
 }
 
 async function handleHelp(chatId) {
   await sendMessage(chatId,
     `*BlockOps Bot Commands*\n\n` +
+    `*Basic Commands:*\n` +
     `/balance \`<address>\` — ETH balance for an address\n` +
     `/price \`<token>\` — current token price\n` +
     `/status \`<txHash>\` — transaction status\n` +
     `/help — this message\n\n` +
+    `*Agent Commands:*\n` +
+    `/connect \`<agent-id> <api-key>\` — link to your custom agent\n` +
+    `/disconnect — return to generic mode\n` +
+    `/agent — show linked agent details\n` +
+    `/switch \`<agent-id> <api-key>\` — switch to different agent\n\n` +
     `You can also ask me anything in plain English, e.g.:\n` +
     `_"What is the gas price right now?"_\n` +
-    `_"Show me the portfolio for 0x1234..."_`
+    `_"Show me the portfolio for 0x1234..."_\n` +
+    `_"What's the ETH price?"_`
   );
 }
 
@@ -121,7 +147,8 @@ async function handleBalance(chatId, args) {
       timeout: 10000
     });
     const bal = data.balance ?? data.result?.balance ?? '?';
-    await sendMessage(chatId, `💰 Balance for \`${address.slice(0, 10)}...\`\n*${bal} ETH*`);
+    const balFormatted = typeof bal === 'number' ? bal.toFixed(4) : String(bal);
+    await sendMessage(chatId, `💰 Balance for \`${address.slice(0, 10)}...\`\n\n*${balFormatted} ETH*`);
   } catch (err) {
     await sendMessage(chatId, `❌ Could not fetch balance: ${err.message}`);
   }
@@ -182,19 +209,204 @@ async function handleStatus(chatId, args) {
   }
 }
 
+// ── Agent Linking Commands ───────────────────────────────────────────────────
+
+async function handleConnect(chatId, args) {
+  if (args.length < 2) {
+    return sendMessage(chatId,
+      '❌ Usage: `/connect <agent-id> <api-key>`\n\n' +
+      'Get your agent ID and API key from https://blockops.in/agents'
+    );
+  }
+
+  const [agentId, apiKey] = args;
+
+  // Verify agent exists and API key is correct
+  const agent = await getAgentById(agentId);
+  if (!agent) {
+    return sendMessage(chatId, '❌ Agent not found. Check your agent ID.');
+  }
+
+  const isValid = await verifyApiKey(agentId, apiKey);
+  if (!isValid) {
+    return sendMessage(chatId, '❌ Invalid API key. Please check and try again.');
+  }
+
+  // Hash the API key for storage (so we can verify it later)
+  const apiKeyHash = await bcrypt.hash(apiKey, 12);
+
+  // Update telegram_users to link this agent
+  const { error } = await supabase
+    .from('telegram_users')
+    .update({
+      linked_agent_id: agentId,
+      agent_api_key_hash: apiKeyHash,
+      linked_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq('chat_id', String(chatId));
+
+  if (error) {
+    console.error('[Telegram] Link agent error:', error);
+    return sendMessage(chatId, `⚠️ Something went wrong: ${error.message}`);
+  }
+
+  const toolCount = agent.enabled_tools?.length || 0;
+  const toolList = agent.enabled_tools?.slice(0, 4).map(mdEscape).join(', ') || 'none specified';
+
+  await sendMessage(chatId,
+    `✅ *Connected to agent:* ${mdEscape(agent.name)}\n\n` +
+    `🤖 *Agent Details:*\n` +
+    `• Name: ${mdEscape(agent.name)}\n` +
+    `• Enabled Tools: ${toolCount} ${toolCount > 4 ? '(showing first 4)' : ''}\n` +
+    `  ${toolList}\n` +
+    (agent.wallet_address ? `• Wallet: ${mdEscape(agent.wallet_address.slice(0, 10))}...\n` : '') +
+    (agent.system_prompt ? `• Personality: "${mdEscape(agent.system_prompt.slice(0, 80))}"\n\n` : '\n') +
+    `🔹 Your messages will now be handled by this agent with custom settings.\n` +
+    `🔹 Generic commands (/balance, /price, /status) still work.\n\n` +
+    `Type /agent to see full details.\n` +
+    `Type /disconnect to return to generic mode.`
+  );
+}
+
+async function handleDisconnect(chatId) {
+  const telegramUser = await getTelegramUser(chatId);
+
+  if (!telegramUser?.linked_agent_id) {
+    return sendMessage(chatId,
+      'ℹ️ You\'re not connected to any agent. You\'re in generic mode.\n\n' +
+      'To connect to a custom agent:\n' +
+      '1. Create one at https://blockops.in/agents\n' +
+      '2. Type: /connect <agent-id> <api-key>'
+    );
+  }
+
+  // Get agent name before unlinking
+  const agent = await getAgentById(telegramUser.linked_agent_id);
+  const agentName = agent?.name || 'Unknown Agent';
+
+  // Unlink
+  const { error } = await supabase
+    .from('telegram_users')
+    .update({
+      linked_agent_id: null,
+      agent_api_key_hash: null,
+      linked_at: null,
+      updated_at: new Date().toISOString()
+    })
+    .eq('chat_id', String(chatId));
+
+  if (error) {
+    console.error('[Telegram] Disconnect error:', error);
+    return sendMessage(chatId, `⚠️ Something went wrong: ${error.message}`);
+  }
+
+  await sendMessage(chatId,
+    `✅ Disconnected from agent: *${mdEscape(agentName)}*\n\n` +
+    `You're back to *generic mode* with all tools enabled.\n\n` +
+    `Type /connect <agent-id> <api-key> to link to an agent again.`
+  );
+}
+
+async function handleAgent(chatId) {
+  const telegramUser = await getTelegramUser(chatId);
+
+  if (!telegramUser?.linked_agent_id) {
+    return sendMessage(chatId,
+      'ℹ️ *Generic Mode* (default)\n\n' +
+      'You\'re using the standard BlockOps assistant with:\n' +
+      '• All 20+ tools enabled\n' +
+      '• Default system prompt\n' +
+      '• No wallet pre-configured\n\n' +
+      '━━━━━━━━━━━━━━━━━━━━\n\n' +
+      '🤖 *Want a custom agent?*\n' +
+      '1. Create one at https://blockops.in/agents\n' +
+      '2. Copy your Agent ID and API Key\n' +
+      '3. Type: /connect <agent-id> <api-key>'
+    );
+  }
+
+  const agent = await getAgentById(telegramUser.linked_agent_id);
+  if (!agent) {
+    return sendMessage(chatId,
+      '⚠️ Your linked agent no longer exists. Falling back to generic mode.\n\n' +
+      'Type /disconnect to clear the link.'
+    );
+  }
+
+  const toolCount = agent.enabled_tools?.length || 0;
+  const toolList = agent.enabled_tools?.slice(0, 8).map(t => `  • ${mdEscape(t)}`).join('\n') || '  • (none specified)';
+
+  await sendMessage(chatId,
+    `🤖 *Connected Agent*\n\n` +
+    `*Name:* ${mdEscape(agent.name)}\n` +
+    `*ID:* ${agent.id}\n` +
+    (agent.description ? `*Description:* ${mdEscape(agent.description)}\n` : '') +
+    (agent.wallet_address ? `*Wallet:* ${mdEscape(agent.wallet_address.slice(0, 10))}...\n` : '') +
+    (agent.system_prompt ? `*System Prompt:* "${mdEscape(agent.system_prompt.slice(0, 120))}"\n\n` : '\n') +
+    `*Enabled Tools (${toolCount}/20+):*\n${toolList}\n` +
+    (toolCount > 8 ? `  ...and ${toolCount - 8} more\n\n` : '\n') +
+    `━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `Generic commands (/balance, /price, /status) still work.\n` +
+    `Type /disconnect to return to generic mode.`
+  );
+}
+
+async function handleSwitch(chatId, args) {
+  if (args.length < 2) {
+    return sendMessage(chatId,
+      '❌ Usage: `/switch <agent-id> <api-key>`\n\n' +
+      'This is a shortcut for /disconnect + /connect.'
+    );
+  }
+
+  // Disconnect first (silently)
+  await supabase
+    .from('telegram_users')
+    .update({
+      linked_agent_id: null,
+      agent_api_key_hash: null,
+      linked_at: null,
+      updated_at: new Date().toISOString()
+    })
+    .eq('chat_id', String(chatId));
+
+  // Then connect to new agent
+  await handleConnect(chatId, args);
+}
+
 // ── Free-text → AI chat pipeline ─────────────────────────────────────────────
 
 async function handleFreeText(chatId, text, user) {
   // Ensure user exists
   await upsertTelegramUser({ chatId, username: user.username, firstName: user.first_name });
 
-  // Use chatId as both agentId + userId for Telegram sessions
-  // (real agents can link their agentId via /start <agentId>)
   const telegramUser = await getTelegramUser(chatId);
-  // Use the row's UUID (telegram_users.id) so conversations.agent_id (UUID) stays valid.
-  // Fall back to agent_id column if the user linked a real BlockOps agent.
-  const agentId = telegramUser?.agent_id || telegramUser?.id || `tg-${chatId}`;
-  const userId  = `tg-user-${chatId}`;
+  let agentId, agentConfig;
+  
+  if (telegramUser?.linked_agent_id) {
+    // AGENT MODE: Load custom agent config
+    const agent = await getAgentById(telegramUser.linked_agent_id);
+    if (agent) {
+      agentId = agent.id;
+      agentConfig = {
+        systemPrompt: agent.system_prompt,
+        enabledTools: agent.enabled_tools,
+        walletAddress: agent.wallet_address
+      };
+    } else {
+      // Agent deleted or invalid — fall back to generic
+      await sendMessage(chatId, '⚠️ Your linked agent no longer exists. Falling back to generic mode.');
+      agentId = telegramUser.id;
+      agentConfig = null;
+    }
+  } else {
+    // GENERIC MODE: Default behavior (all tools, default prompt)
+    agentId = telegramUser?.id || `tg-${chatId}`;
+    agentConfig = null;
+  }
+
+  const userId = `tg-user-${chatId}`;
 
   // Send "typing…" indicator
   await tgRequest('sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => {});
@@ -203,7 +415,10 @@ async function handleFreeText(chatId, text, user) {
     const { data } = await axios.post(`${BACKEND_URL}/api/chat`, {
       agentId,
       userId,
-      message: text
+      message: text,
+      systemPrompt: agentConfig?.systemPrompt,       // null = use default
+      enabledTools: agentConfig?.enabledTools,       // null = enable all
+      walletAddress: agentConfig?.walletAddress      // optional pre-config
     }, {
       headers: { 'Content-Type': 'application/json', 'x-api-key': MASTER_KEY },
       timeout: 60000
@@ -246,11 +461,15 @@ async function processUpdate(update) {
     const args = rest ? rest.split(/\s+/) : [];
 
     switch (cmd) {
-      case 'start': return handleStart(chatId, user);
-      case 'help':  return handleHelp(chatId);
-      case 'balance': return handleBalance(chatId, args);
-      case 'price':   return handlePrice(chatId, args);
-      case 'status':  return handleStatus(chatId, args);
+      case 'start':    return handleStart(chatId, user);
+      case 'help':     return handleHelp(chatId);
+      case 'balance':  return handleBalance(chatId, args);
+      case 'price':    return handlePrice(chatId, args);
+      case 'status':   return handleStatus(chatId, args);
+      case 'connect':  return handleConnect(chatId, args);
+      case 'disconnect': return handleDisconnect(chatId);
+      case 'agent':    return handleAgent(chatId);
+      case 'switch':   return handleSwitch(chatId, args);
       default:
         // Unknown command — treat as free text
         return handleFreeText(chatId, text, user);

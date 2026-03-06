@@ -11,7 +11,7 @@ const { fireEvent } = require('../services/webhookService');
  */
 async function chat(req, res) {
   try {
-    const { agentId, userId, message, conversationId, systemPrompt, walletAddress } = req.body;
+    const { agentId, userId, message, conversationId, systemPrompt, walletAddress, enabledTools } = req.body;
 
     // Validation
     if (!agentId || !userId || !message) {
@@ -121,6 +121,19 @@ async function chat(req, res) {
     
     const routingPlan = await intelligentToolRouting(truncatedMessage, messages);
     
+    // Filter routing plan steps to only allowed tools (if agent has restrictions)
+    if (enabledTools && Array.isArray(enabledTools) && enabledTools.length > 0) {
+      if (routingPlan.execution_plan?.steps) {
+        routingPlan.execution_plan.steps = routingPlan.execution_plan.steps.filter(
+          step => enabledTools.includes(step.tool)
+        );
+        if (routingPlan.execution_plan.steps.length === 0) {
+          routingPlan.requires_tools = false;
+        }
+      }
+      console.log('[Chat] Tool filter applied — allowed:', enabledTools);
+    }
+
     console.log('[Chat] Routing analysis:', {
       isOffTopic: routingPlan.is_off_topic,
       requiresTools: routingPlan.requires_tools,

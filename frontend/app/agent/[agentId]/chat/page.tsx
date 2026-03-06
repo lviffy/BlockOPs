@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useState, useRef, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { Send, Loader2, ChevronDown, ChevronUp, Wrench, ArrowLeft, ArrowRight, CircleDot } from "lucide-react"
+import { Send, Loader2, ChevronDown, ChevronUp, Wrench, ArrowLeft, ArrowRight, CircleDot, Copy, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
@@ -141,6 +141,7 @@ export default function AgentChatPage() {
 
   const [agent, setAgent] = useState<Agent | null>(null)
   const [loadingAgent, setLoadingAgent] = useState(true)
+  const [copiedId, setCopiedId] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -330,6 +331,28 @@ export default function AgentChatPage() {
               <Badge variant="secondary" className="text-[10px] h-4 px-1.5 py-0 font-normal">
                 {agent.tools?.length || 0} {(agent.tools?.length || 0) === 1 ? "tool" : "tools"}
               </Badge>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className="flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-muted/60 transition-colors group/id"
+                    onClick={() => {
+                      navigator.clipboard.writeText(agentId as string)
+                      setCopiedId(true)
+                      setTimeout(() => setCopiedId(false), 2000)
+                    }}
+                  >
+                    <code className="text-[10px] font-mono text-muted-foreground">
+                      {(agentId as string).slice(0, 8)}...
+                    </code>
+                    {copiedId ? (
+                      <Check className="h-2.5 w-2.5 text-muted-foreground" />
+                    ) : (
+                      <Copy className="h-2.5 w-2.5 text-muted-foreground/50 group-hover/id:text-muted-foreground transition-colors" />
+                    )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom"><p>Copy Agent ID</p></TooltipContent>
+              </Tooltip>
             </div>
             <UserProfile
               onLogout={() => {

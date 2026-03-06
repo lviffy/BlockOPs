@@ -289,20 +289,52 @@ CREATE POLICY "Users can create messages in own conversations"
 SELECT * FROM get_database_stats();
 
 -- ============================================
+-- AGENTS — Custom AI agents with API keys
+-- ============================================
+CREATE TABLE IF NOT EXISTS agents (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id           TEXT NOT NULL,      -- owner of this agent (can be Privy user ID or any string)
+  name              TEXT NOT NULL,
+  description       TEXT,
+  system_prompt     TEXT,
+  enabled_tools     TEXT[],             -- array of tool names, e.g. ['transfer_eth', 'fetch_price']
+  wallet_address    TEXT,               -- optional: agent's primary wallet
+  api_key_hash      TEXT NOT NULL,      -- bcrypt hash of the full API key
+  api_key_prefix    TEXT NOT NULL,      -- first 12 chars for display (e.g. 'bops_8e4fd7e...')
+  avatar_url        TEXT,
+  is_public         BOOLEAN DEFAULT FALSE,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_agents_user_id ON agents(user_id);
+CREATE INDEX IF NOT EXISTS idx_agents_api_key_hash ON agents(api_key_hash);
+
+-- RLS: service role only (extend later for user-level access)
+ALTER TABLE agents ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "service_role_agents" ON agents
+  USING (auth.role() = 'service_role');
+
+
+-- ============================================
 -- TELEGRAM BOT — telegram_users table
 -- ============================================
 CREATE TABLE IF NOT EXISTS telegram_users (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  chat_id     TEXT NOT NULL UNIQUE,
-  username    TEXT,
-  first_name  TEXT,
-  agent_id    TEXT,              -- linked BlockOps agent (optional)
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  chat_id             TEXT NOT NULL UNIQUE,
+  username            TEXT,
+  first_name          TEXT,
+  agent_id            TEXT,                    -- legacy: generic agent ID (kept for backward compat)
+  linked_agent_id     UUID REFERENCES agents(id) ON DELETE SET NULL,  -- NEW: link to custom agent
+  agent_api_key_hash  TEXT,                    -- NEW: bcrypt hash of the API key (for verification)
+  linked_at           TIMESTAMPTZ,             -- NEW: when the agent was linked
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_telegram_users_chat_id  ON telegram_users(chat_id);
-CREATE INDEX IF NOT EXISTS idx_telegram_users_agent_id ON telegram_users(agent_id);
+CREATE INDEX IF NOT EXISTS idx_telegram_users_chat_id        ON telegram_users(chat_id);
+CREATE INDEX IF NOT EXISTS idx_telegram_users_agent_id       ON telegram_users(agent_id);
+CREATE INDEX IF NOT EXISTS idx_telegram_users_linked_agent   ON telegram_users(linked_agent_id);
 
 -- RLS: service role only
 ALTER TABLE telegram_users ENABLE ROW LEVEL SECURITY;
