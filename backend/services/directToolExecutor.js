@@ -27,7 +27,10 @@ const TOOL_ENDPOINTS = {
   estimate_gas:        { method: 'GET',  path: '/gas/estimate' },
   simulate_gas:        { method: 'POST', path: '/gas/simulate' },
   swap_tokens:         { method: 'POST', path: '/swap' },
-  get_swap_quote:      { method: 'GET',  path: '/swap/quote' }
+  get_swap_quote:      { method: 'GET',  path: '/swap/quote' },
+  bridge_deposit:      { method: 'POST', path: '/bridge/deposit' },
+  bridge_withdraw:     { method: 'POST', path: '/bridge/withdraw' },
+  bridge_status:       { method: 'GET',  path: '/bridge/status/{txHash}' }
 };
 
 function mapToolParams(tool, params = {}, fallbackMessage) {
@@ -247,6 +250,36 @@ function mapToolParams(tool, params = {}, fallbackMessage) {
       if (!tokenIn)  missing.push('tokenIn');
       if (!tokenOut) missing.push('tokenOut');
       if (!amountIn) missing.push('amountIn');
+      break;
+    }
+    case 'bridge_deposit': {
+      const privateKey         = params.privateKey || params.private_key;
+      const amount             = params.amount;
+      const tokenAddress       = params.tokenAddress || params.token_address || params.token;
+      const destinationAddress = params.destinationAddress || params.destination || params.to;
+      mapped = { privateKey, amount };
+      if (tokenAddress)       mapped.tokenAddress       = tokenAddress;
+      if (destinationAddress) mapped.destinationAddress = destinationAddress;
+      if (!privateKey) missing.push('privateKey');
+      if (!amount)     missing.push('amount');
+      break;
+    }
+    case 'bridge_withdraw': {
+      const privateKey         = params.privateKey || params.private_key;
+      const amount             = params.amount;
+      const tokenAddress       = params.tokenAddress || params.token_address || params.token;
+      const destinationAddress = params.destinationAddress || params.destination || params.to;
+      mapped = { privateKey, amount };
+      if (tokenAddress)       mapped.tokenAddress       = tokenAddress;
+      if (destinationAddress) mapped.destinationAddress = destinationAddress;
+      if (!privateKey) missing.push('privateKey');
+      if (!amount)     missing.push('amount');
+      break;
+    }
+    case 'bridge_status': {
+      const txHash = params.txHash || params.tx_hash || params.hash;
+      mapped = { txHash };
+      if (!txHash) missing.push('txHash');
       break;
     }
     default:
@@ -720,6 +753,15 @@ function formatToolResponse(toolResults) {
         const best = quote.slippageScenarios?.find(s => s.slippage === '0.5%');
         const minOut = best ? ` (min ${best.amountOutMinimum} with 0.5% slippage)` : '';
         return `Quote: ${quote.tokenIn?.amount} ${quote.tokenIn?.symbol} → ${quote.tokenOut?.quotedAmount} ${quote.tokenOut?.symbol}${minOut}. Rate: ${quote.effectivePrice}. Fee tier: ${quote.feeTier}.`;
+      }
+      case 'bridge_deposit': {
+        return `Bridge deposit ${payload.status}: ${payload.amount} from L1 → L2. Tx: ${payload.txHash}. ${payload.note || ''} Track: ${payload.trackStatus || ''}`;
+      }
+      case 'bridge_withdraw': {
+        return `Bridge withdrawal ${payload.status}: ${payload.amount} from L2 → L1. Tx: ${payload.txHash}. ${payload.note || ''}`;
+      }
+      case 'bridge_status': {
+        return `Retryable ticket ${payload.ticketId?.slice(0, 12)}... status: ${payload.ticketStatus}. L1: ${payload.l1?.status}. ${payload.note || ''}`;
       }
       default:
         return `Executed ${tool}.`;

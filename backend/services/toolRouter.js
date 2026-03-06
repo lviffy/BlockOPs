@@ -141,6 +141,24 @@ const AVAILABLE_TOOLS = {
     description: 'Get a dry-run Uniswap V3 quote for a token swap without sending any transaction. Returns expected output amount and slippage scenarios.',
     parameters: ['tokenIn (address or "ETH")', 'tokenOut (address or "ETH")', 'amountIn', 'fee (optional)'],
     examples: ['How much USDC will I get for 1 ETH?', 'Quote swapping 500 USDC to WETH', 'What is the price for 2 ETH to USDC on Uniswap?']
+  },
+  bridge_deposit: {
+    name: 'bridge_deposit',
+    description: 'Deposit ETH or ERC20 tokens from Ethereum Sepolia (L1) to Arbitrum Sepolia (L2) via the official Arbitrum bridge (Inbox contract).',
+    parameters: ['privateKey', 'amount', 'tokenAddress (optional, omit for ETH)', 'destinationAddress (optional)'],
+    examples: ['Bridge 0.1 ETH to Arbitrum', 'Deposit 100 USDC from Ethereum to Arbitrum Sepolia', 'Move ETH from L1 to L2']
+  },
+  bridge_withdraw: {
+    name: 'bridge_withdraw',
+    description: 'Initiate an ETH or ERC20 withdrawal from Arbitrum Sepolia (L2) back to Ethereum Sepolia (L1). Funds are claimable after the challenge window.',
+    parameters: ['privateKey', 'amount', 'tokenAddress (optional, omit for ETH)', 'destinationAddress (optional)'],
+    examples: ['Withdraw 0.1 ETH from Arbitrum to Ethereum', 'Bridge USDC back to L1', 'Move tokens from Arbitrum to Ethereum Sepolia']
+  },
+  bridge_status: {
+    name: 'bridge_status',
+    description: 'Check the status of a retryable ticket created by a bridge deposit. Returns ticket status (created/redeemed/expired) and L1/L2 confirmation details.',
+    parameters: ['txHash (L1 deposit transaction hash)'],
+    examples: ['What is the status of my bridge deposit 0x...?', 'Check if my bridged ETH has arrived on L2', 'Get retryable ticket status for tx 0x...']
   }
 };
 

@@ -110,14 +110,14 @@ No swap functionality exists at all. Uniswap v3 on Arbitrum Sepolia is already d
 
 ---
 
-### 7. L1 ↔ L2 Bridge Tool
+### 7. L1 ↔ L2 Bridge Tool ✅
 Users want to move ETH/tokens between Ethereum and Arbitrum.
 
-- [ ] `POST /bridge/deposit` — deposit ETH/ERC20 to Arbitrum via Inbox contract
-- [ ] `POST /bridge/withdraw` — initiate withdrawal from Arbitrum to L1
-- [ ] `GET /bridge/status/:txHash` — retryable ticket status
-- [ ] `POST /bridge/retryable` — re-execute failed retryable ticket
-- [ ] Add `bridge_deposit` / `bridge_withdraw` to NLP tool router
+- [x] `POST /bridge/deposit` — deposit ETH/ERC20 to Arbitrum via Inbox contract
+- [x] `POST /bridge/withdraw` — initiate withdrawal from Arbitrum to L1
+- [x] `GET /bridge/status/:txHash` — retryable ticket status
+- [x] `POST /bridge/retryable` — re-execute failed retryable ticket
+- [x] Add `bridge_deposit` / `bridge_withdraw` / `bridge_status` to NLP tool router
 
 ---
 
@@ -274,15 +274,6 @@ Currently stubbed out in `.env` but never implemented.
 
 ---
 
-### 23. Multi-Chain Support
-Currently locked to Arbitrum Sepolia.
-
-- [ ] Add `chainId` param to all transaction endpoints
-- [ ] Supported chains: Arbitrum One, Arbitrum Sepolia, Base, Optimism, Ethereum Mainnet
-- [ ] Dynamic RPC selection per chain from a config map
-- [ ] Per-chain factory addresses in config
-
----
 
 ### 24. Agent API Key Management UI
 The API docs page exists but there is no UI to actually generate, rotate, or revoke per-agent API keys.
@@ -347,7 +338,7 @@ After n8n backend is fixed:
 | 4 | n8n backend full implementation | 🔴 Critical | L |
 | 5 | ~~Webhook system~~ ✅ | 🟠 High | M |
 | 6 | ~~DEX swap tool~~ ✅ | 🟠 High | M |
-| 7 | L1↔L2 bridge tool | 🟠 High | M |
+| 7 | ~~L1↔L2 bridge tool~~ ✅ | 🟠 High | M |
 | 8 | ~~Batch / multicall tool~~ ✅ | 🟠 High | S |
 | 9 | Tx / event / block lookup | 🟠 High | S |
 | 10 | Portfolio analytics | 🟠 High | S |
@@ -363,7 +354,6 @@ After n8n backend is fixed:
 | 20 | IPFS / Pinata upload | 🟡 Medium | S |
 | 21 | Tenderly simulation | 🟢 Nice-to-have | M |
 | 22 | Revert decoder | 🟢 Nice-to-have | S |
-| 23 | Multi-chain support | 🟢 Nice-to-have | L |
 | 24 | API key management UI | 🟢 Nice-to-have | S |
 | 25 | Conversation export | 🟢 Nice-to-have | S |
 | 26 | Admin dashboard | 🟢 Nice-to-have | S |

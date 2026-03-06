@@ -23,6 +23,7 @@ const portfolioRoutes = require('./routes/portfolioRoutes');
 const ensRoutes       = require('./routes/ensRoutes');
 const gasRoutes       = require('./routes/gasRoutes');
 const swapRoutes      = require('./routes/swapRoutes');
+const bridgeRoutes    = require('./routes/bridgeRoutes');
 
 // Initialize Express app
 const app = express();
@@ -88,6 +89,7 @@ app.use('/webhooks',      ...authGuard, webhookRoutes);
 app.use('/batch',         ...authGuard, batchRoutes);
 app.use('/chain',         ...authGuard, chainRoutes);
 app.use('/swap',          ...authGuard, swapRoutes);
+app.use('/bridge',        ...authGuard, bridgeRoutes);
 
 // ── Legacy routes (protected) ────────────────────────────────────────────────
 app.post('/deploy-token',          ...authGuard, require('./controllers/tokenController').deployToken);
