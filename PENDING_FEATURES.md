@@ -98,14 +98,15 @@ Currently BlockOps has zero event-driven output — no way for external systems 
 
 ---
 
-### 6. DEX Swap Tool
+### 6. DEX Swap Tool ✅
 No swap functionality exists at all. Uniswap v3 on Arbitrum Sepolia is already deployed.
 
-- [ ] `POST /swap` — swap any token pair via Uniswap v3 router
+- [x] `POST /swap` — swap any token pair via Uniswap V3 router
   - params: `privateKey`, `tokenIn`, `tokenOut`, `amountIn`, `slippageTolerance`
-- [ ] Fetch best route (quote from Quoter contract)
-- [ ] Add to tool router as `swap_tokens`
-- [ ] Price impact warning if impact > 2%
+- [x] Fetch best route (quote from Quoter contract)
+- [x] `GET /swap/quote` — dry-run quote endpoint (no tx sent)
+- [x] Add to tool router as `swap_tokens` and `get_swap_quote`
+- [x] Price impact warning if quote returns zero output
 
 ---
 
@@ -345,7 +346,7 @@ After n8n backend is fixed:
 | 3 | ~~API key auth + rate limiting~~ ✅ | 🔴 Critical | S |
 | 4 | n8n backend full implementation | 🔴 Critical | L |
 | 5 | ~~Webhook system~~ ✅ | 🟠 High | M |
-| 6 | DEX swap tool | 🟠 High | M |
+| 6 | ~~DEX swap tool~~ ✅ | 🟠 High | M |
 | 7 | L1↔L2 bridge tool | 🟠 High | M |
 | 8 | ~~Batch / multicall tool~~ ✅ | 🟠 High | S |
 | 9 | Tx / event / block lookup | 🟠 High | S |

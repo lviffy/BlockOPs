@@ -25,7 +25,9 @@ const TOOL_ENDPOINTS = {
   resolve_ens:         { method: 'GET',  path: '/ens/resolve/{name}' },
   reverse_ens:         { method: 'GET',  path: '/ens/reverse/{address}' },
   estimate_gas:        { method: 'GET',  path: '/gas/estimate' },
-  simulate_gas:        { method: 'POST', path: '/gas/simulate' }
+  simulate_gas:        { method: 'POST', path: '/gas/simulate' },
+  swap_tokens:         { method: 'POST', path: '/swap' },
+  get_swap_quote:      { method: 'GET',  path: '/swap/quote' }
 };
 
 function mapToolParams(tool, params = {}, fallbackMessage) {
@@ -219,6 +221,34 @@ function mapToolParams(tool, params = {}, fallbackMessage) {
       if (!to) missing.push('to');
       break;
     }
+    case 'swap_tokens': {
+      const privateKey       = params.privateKey || params.private_key;
+      const tokenIn          = params.tokenIn  || params.token_in  || params.from_token;
+      const tokenOut         = params.tokenOut || params.token_out || params.to_token;
+      const amountIn         = params.amountIn || params.amount_in || params.amount;
+      const slippageTolerance = params.slippageTolerance || params.slippage || params.slippage_tolerance;
+      const fee              = params.fee;
+      mapped = { privateKey, tokenIn, tokenOut, amountIn };
+      if (slippageTolerance !== undefined) mapped.slippageTolerance = slippageTolerance;
+      if (fee !== undefined) mapped.fee = fee;
+      if (!privateKey)  missing.push('privateKey');
+      if (!tokenIn)     missing.push('tokenIn');
+      if (!tokenOut)    missing.push('tokenOut');
+      if (!amountIn)    missing.push('amountIn');
+      break;
+    }
+    case 'get_swap_quote': {
+      const tokenIn  = params.tokenIn  || params.token_in  || params.from_token;
+      const tokenOut = params.tokenOut || params.token_out || params.to_token;
+      const amountIn = params.amountIn || params.amount_in || params.amount;
+      const fee      = params.fee;
+      mapped = { tokenIn, tokenOut, amountIn };
+      if (fee !== undefined) mapped.fee = fee;
+      if (!tokenIn)  missing.push('tokenIn');
+      if (!tokenOut) missing.push('tokenOut');
+      if (!amountIn) missing.push('amountIn');
+      break;
+    }
     default:
       break;
   }
@@ -405,7 +435,12 @@ async function executeToolStep(step, fallbackMessage) {
     if (config.method === 'POST') {
       response = await axios.post(url, requestParams, { timeout: 30000 });
     } else if (config.method === 'GET') {
-      response = await axios.get(url, { timeout: 30000 });
+      // Pass any remaining (non-path) params as query string
+      const hasQueryParams = Object.keys(requestParams).length > 0;
+      response = await axios.get(url, {
+        params: hasQueryParams ? requestParams : undefined,
+        timeout: 30000
+      });
     } else {
       throw new Error(`Unsupported method: ${config.method}`);
     }
@@ -673,6 +708,18 @@ function formatToolResponse(toolResults) {
       }
       case 'simulate_gas': {
         return `Gas estimate: ${payload.gasEstimateWithBuffer} units (with buffer). Est. cost: ${payload.estimatedCostWithBufferEth} ETH.`;
+      }
+      case 'swap_tokens': {
+        const sw = payload.swap || {};
+        const status = payload.status === 'success' ? 'succeeded' : 'reverted';
+        const warn = payload.warning ? ` ⚠️ ${payload.warning}` : '';
+        return `Swap ${status}: ${sw.tokenIn?.amount} ${sw.tokenIn?.symbol} → ~${sw.tokenOut?.quotedAmount} ${sw.tokenOut?.symbol} (min ${sw.tokenOut?.minimumAmount}). Tx: ${payload.txHash}. Explorer: ${payload.explorerUrl}.${warn}`;
+      }
+      case 'get_swap_quote': {
+        const quote = payload;
+        const best = quote.slippageScenarios?.find(s => s.slippage === '0.5%');
+        const minOut = best ? ` (min ${best.amountOutMinimum} with 0.5% slippage)` : '';
+        return `Quote: ${quote.tokenIn?.amount} ${quote.tokenIn?.symbol} → ${quote.tokenOut?.quotedAmount} ${quote.tokenOut?.symbol}${minOut}. Rate: ${quote.effectivePrice}. Fee tier: ${quote.feeTier}.`;
       }
       default:
         return `Executed ${tool}.`;

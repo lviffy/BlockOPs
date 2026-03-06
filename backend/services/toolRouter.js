@@ -129,6 +129,18 @@ const AVAILABLE_TOOLS = {
     description: 'Estimate the gas units a specific contract call would use before sending it.',
     parameters: ['to', 'from (optional)', 'data or (abi + functionName + args)'],
     examples: ['How much gas would this transfer use?', 'Estimate gas for calling approve on 0x...', 'Simulate this contract call']
+  },
+  swap_tokens: {
+    name: 'swap_tokens',
+    description: 'Swap any ERC20 token pair (or ETH ↔ token) via Uniswap V3 on Arbitrum Sepolia. Fetches a live quote, applies slippage, and executes the swap.',
+    parameters: ['privateKey', 'tokenIn (address or "ETH")', 'tokenOut (address or "ETH")', 'amountIn', 'slippageTolerance (optional, default 0.5)', 'fee (optional, 500|3000|10000, default 3000)'],
+    examples: ['Swap 1 ETH for USDC', 'Exchange 100 USDC to WETH', 'Swap 0.5 WETH to ARB with 1% slippage']
+  },
+  get_swap_quote: {
+    name: 'get_swap_quote',
+    description: 'Get a dry-run Uniswap V3 quote for a token swap without sending any transaction. Returns expected output amount and slippage scenarios.',
+    parameters: ['tokenIn (address or "ETH")', 'tokenOut (address or "ETH")', 'amountIn', 'fee (optional)'],
+    examples: ['How much USDC will I get for 1 ETH?', 'Quote swapping 500 USDC to WETH', 'What is the price for 2 ETH to USDC on Uniswap?']
   }
 };
 
