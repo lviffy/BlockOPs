@@ -18,17 +18,6 @@ export function useAuth() {
   // Get the primary wallet address if available
   const privyWalletAddress = wallets && wallets.length > 0 ? wallets[0].address : null
 
-  console.log('useAuth Debug:', { 
-    authenticated, 
-    walletsCount: wallets?.length, 
-    privyWalletAddress,
-    dbUserWallet: dbUser?.wallet_address,
-    dbUserPrivateKey: dbUser?.private_key ? 'EXISTS' : 'NULL',
-    isWalletLogin,
-    showPrivateKeySetup,
-    hasCheckedPrivateKey
-  })
-
   useEffect(() => {
     if (ready && authenticated && user) {
       syncUser()
@@ -49,8 +38,6 @@ export function useAuth() {
 
     setLoading(true)
     try {
-      console.log('Syncing user with ID:', user.id)
-      
       // Check if user exists
       const { data: existingUser, error: fetchError } = await supabase
         .from('users')
@@ -62,7 +49,6 @@ export function useAuth() {
         // PGRST116 = "not found" (this is OK, we'll create the user)
         if (fetchError.code === 'PGRST116') {
           // User doesn't exist, continue to create
-          console.log('User not found in database, will create new user')
         } else {
           // Other error - log full details with proper serialization
           console.error('Error fetching user:', JSON.stringify(fetchError, null, 2))
@@ -79,29 +65,15 @@ export function useAuth() {
       }
 
       if (existingUser) {
-        // User exists, update if needed
-        console.log('User found in database:', existingUser.id)
-        console.log('User private_key status:', {
-          has_private_key: !!existingUser.private_key,
-          private_key_value: existingUser.private_key ? 'EXISTS' : 'NULL',
-          hasCheckedPrivateKey,
-          showPrivateKeySetup
-        })
         setDbUser(existingUser)
         
         // Check if user needs to set up private key (only once per session)
         if (!existingUser.private_key && !hasCheckedPrivateKey) {
-          console.log('🔑 TRIGGERING PRIVATE KEY SETUP MODAL')
           setShowPrivateKeySetup(true)
           setHasCheckedPrivateKey(true)
-        } else if (existingUser.private_key) {
-          console.log('✅ User already has private key, no modal needed')
-        } else if (hasCheckedPrivateKey) {
-          console.log('⏭️ Private key check already done this session')
         }
       } else {
         // User doesn't exist, create new user
-        console.log('Creating new user in database')
         const { data: newUser, error: createError } = await supabase
           .from('users')
           .insert({
@@ -122,8 +94,6 @@ export function useAuth() {
             userId: user.id
           })
         } else {
-          console.log('User created successfully:', newUser.id)
-          console.log('🔑 TRIGGERING PRIVATE KEY SETUP MODAL (NEW USER)')
           setDbUser(newUser)
           
           // Show private key setup modal for new users

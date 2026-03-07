@@ -73,11 +73,12 @@ app.use('/ens',       priceLimiter, ensRoutes);
 // Portfolio: read-only but auth-optional (key attaches agent context)
 app.use('/portfolio', chatLimiter, apiKeyAuth({ optional: true }), portfolioRoutes);
 
+// Orbit builder: rate limited; no key required (config only, no signing)
+// MUST be registered before the generic /api mount to avoid chatLimiter being applied
+app.use('/api/orbit', orbitRoutes);
+
 // Conversation chat: rate limited; api key optional (attaches context if present)
 app.use('/api', chatLimiter, apiKeyAuth({ optional: true }), conversationRoutes);
-
-// Orbit builder: rate limited; no key required (config only, no signing)
-app.use('/api/orbit', orbitRoutes);
 
 // ── Protected routes (API key required + transaction rate limit) ─────────────
 const authGuard = [txLimiter, apiKeyAuth()];

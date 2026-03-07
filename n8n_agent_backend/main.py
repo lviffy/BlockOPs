@@ -1240,13 +1240,10 @@ def process_agent_conversation(
                 response = chat.send_message(full_prompt)
             except Exception as e:
                 if "429" in str(e):
-                    return {
-                        "agent_response": "Rate limit exceeded. Please try again in a few moments.",
-                        "tool_calls": all_tool_calls,
-                        "results": all_tool_results,
-                        "conversation_history": [],
-                        "provider": "Gemini (rate limited)"
-                    }
+                    raise HTTPException(
+                        status_code=429,
+                        detail="Gemini rate limit exceeded. All AI providers are temporarily unavailable."
+                    )
                 raise e
             
             function_calls = []

@@ -1,5 +1,6 @@
 import '../lib/localStorage-polyfill'
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import localFont from "next/font/local";
 import { Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -71,6 +72,7 @@ export default function RootLayout({
         className={`${aeonik.variable} ${geistMono.variable} antialiased`}
       >
         <Providers>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   );

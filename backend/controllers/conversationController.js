@@ -278,6 +278,17 @@ async function chat(req, res) {
 
         const agentData = await agentResponse.json();
         aiResponse = agentData.agent_response;
+
+        // Treat sentinel rate-limit strings from the agent backend as real errors
+        // so the direct-execution fallback can handle them properly
+        const RATE_LIMIT_SENTINELS = [
+          'rate limit exceeded',
+          'all ai providers',
+          'maximum iterations reached'
+        ];
+        if (RATE_LIMIT_SENTINELS.some(s => aiResponse?.toLowerCase().includes(s))) {
+          throw new Error(`AI provider rate limited: ${aiResponse}`);
+        }
         
         // Clean up AI thinking/reasoning that leaks into responses
         aiResponse = aiResponse

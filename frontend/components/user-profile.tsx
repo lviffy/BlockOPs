@@ -42,14 +42,6 @@ export function UserProfile({ onLogout }: UserProfileProps) {
 
   const walletAddress = getWalletAddress()
 
-  console.log('UserProfile Debug:', { 
-    hasDbUser: !!dbUser, 
-    dbWalletAddress: dbUser?.wallet_address,
-    isWalletLogin,
-    privyWalletAddress,
-    finalWalletAddress: walletAddress 
-  })
-
   // Get user initials for avatar - NO LONGER USED, keeping for reference
   const getUserInitials = () => {
     // Check if user has an email (from Privy user object structure)
