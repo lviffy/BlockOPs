@@ -423,12 +423,18 @@ async function verifyApiKey(agentId, apiKey) {
   try {
     const { data } = await supabase
       .from('agents')
-      .select('api_key_hash')
+      .select('api_key_hash, api_key')
       .eq('id', agentId)
       .single();
 
     if (!data) return false;
-    
+
+    // Frontend-created agents store the raw api_key (no hash)
+    if (data.api_key && !data.api_key_hash) {
+      return data.api_key === apiKey;
+    }
+
+    // Backend-created agents use a bcrypt hash
     return await bcrypt.compare(apiKey, data.api_key_hash);
   } catch (err) {
     console.error('[Agent] verifyApiKey error:', err);

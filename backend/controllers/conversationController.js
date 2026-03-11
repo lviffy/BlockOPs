@@ -35,7 +35,11 @@ async function chat(req, res) {
     let convId = conversationId;
     let isNewConversation = false;
     let messages = [];
-    let useSupabase = !!supabase; // Track whether we're using Supabase for this request
+    // Telegram and other external users (tg-user-*, ext-*) have no row in the
+    // users table, so attempting DB persistence causes FK violations. Skip Supabase
+    // for them entirely and use in-memory mode from the start.
+    const isExternalUser = typeof userId === 'string' && /^(tg-|ext-)/.test(userId);
+    let useSupabase = !!supabase && !isExternalUser; // Track whether we're using Supabase for this request
 
     if (useSupabase) {
       // Use Supabase for persistent conversation memory

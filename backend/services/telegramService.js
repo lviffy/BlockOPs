@@ -29,10 +29,46 @@ const MASTER_KEY   = process.env.MASTER_API_KEY || '';
 
 const TG_API = BOT_TOKEN ? `https://api.telegram.org/bot${BOT_TOKEN}` : null;
 
+/**
+ * Strip internal LLM reasoning/function-call XML tags that some models
+ * leak into their output (e.g. <anythingllm:thinking>, <anythingllm:function_calls>).
+ * Also cleans up excessive blank lines left behind.
+ */
+function cleanAIResponse(text) {
+  return text
+    // Remove any XML-style tag blocks (opening, closing, self-closing)
+    .replace(/<anythingllm:[^>]*>[\s\S]*?<\/anythingllm:[^>]*>/gi, '')
+    .replace(/<anythingllm:[^>]*\/>/gi, '')
+    .replace(/<anythingllm:[^>]*>/gi, '')
+    .replace(/<\/anythingllm:[^>]*>/gi, '')
+    // Generic thinking/internal blocks other models may emit
+    .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+    .replace(/<function_calls>[\s\S]*?<\/function_calls>/gi, '')
+    .replace(/<invoke[\s\S]*?<\/invoke>/gi, '')
+    // Collapse more than 2 consecutive blank lines
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, 4000);
+}
+
+
+/**
+ * Normalise tools from either schema:
+ *  - Backend agents: enabled_tools = ['transfer', 'send_email', ...]
+ *  - Frontend agents: tools = [{ tool: 'transfer', next_tool: null }, ...]
+ * Returns a plain string array of tool names.
+ */
+function resolveEnabledTools(agent) {
+  if (agent.enabled_tools?.length) return agent.enabled_tools;
+  if (agent.tools?.length) return agent.tools.map(t => t.tool || t).filter(Boolean);
+  return [];
+}
+
 // Escape characters that break Telegram's legacy Markdown parser
 function mdEscape(str) {
   if (!str) return '';
-  return String(str).replace(/[*_`[\]]/g, (c) => '\\' + c);
+  // Escape all chars special to Telegram's Markdown mode
+  return String(str).replace(/[_*`[\]()~>#+=|{}.!\-]/g, (c) => '\\' + c);
 }
 
 // ── Telegram API helpers ──────────────────────────────────────────────────────
@@ -49,15 +85,27 @@ async function tgRequest(method, body = {}, timeout = 10000) {
  */
 async function sendMessage(chatId, text, options = {}) {
   if (!TG_API) return;
+  const safeText = (text || '(no response)').slice(0, 4096);
   try {
-    await tgRequest('sendMessage', {
-      chat_id: chatId,
-      text,
-      parse_mode: 'Markdown',
-      ...options
-    });
+    const payload = { chat_id: chatId, text: safeText, ...options };
+    // Only add parse_mode if not explicitly disabled by caller
+    if (!('parse_mode' in options)) {
+      payload.parse_mode = 'Markdown';
+    } else if (options.parse_mode === undefined) {
+      delete payload.parse_mode;
+    }
+    await tgRequest('sendMessage', payload);
   } catch (err) {
-    console.error(`[Telegram] sendMessage to ${chatId} failed:`, err.response?.data || err.message || err);
+    const detail = err.response?.data || err.message || err;
+    console.error(`[Telegram] sendMessage to ${chatId} failed:`, detail);
+    // If Telegram rejected due to Markdown parsing, retry as plain text
+    if (err.response?.data?.error_code === 400) {
+      try {
+        await tgRequest('sendMessage', { chat_id: chatId, text: safeText });
+      } catch (retryErr) {
+        console.error(`[Telegram] Plain-text retry also failed:`, retryErr.response?.data || retryErr.message);
+      }
+    }
   }
 }
 
@@ -251,8 +299,9 @@ async function handleConnect(chatId, args) {
     return sendMessage(chatId, `⚠️ Something went wrong: ${error.message}`);
   }
 
-  const toolCount = agent.enabled_tools?.length || 0;
-  const toolList = agent.enabled_tools?.slice(0, 4).map(mdEscape).join(', ') || 'none specified';
+  const enabledTools = resolveEnabledTools(agent);
+  const toolCount = enabledTools.length;
+  const toolList = enabledTools.slice(0, 4).map(mdEscape).join(', ') || 'none specified';
 
   await sendMessage(chatId,
     `✅ *Connected to agent:* ${mdEscape(agent.name)}\n\n` +
@@ -334,8 +383,9 @@ async function handleAgent(chatId) {
     );
   }
 
-  const toolCount = agent.enabled_tools?.length || 0;
-  const toolList = agent.enabled_tools?.slice(0, 8).map(t => `  • ${mdEscape(t)}`).join('\n') || '  • (none specified)';
+  const enabledTools = resolveEnabledTools(agent);
+  const toolCount = enabledTools.length;
+  const toolList = enabledTools.slice(0, 8).map(t => `  • ${mdEscape(t)}`).join('\n') || '  • (none specified)';
 
   await sendMessage(chatId,
     `🤖 *Connected Agent*\n\n` +
@@ -391,7 +441,7 @@ async function handleFreeText(chatId, text, user) {
       agentId = agent.id;
       agentConfig = {
         systemPrompt: agent.system_prompt,
-        enabledTools: agent.enabled_tools,
+        enabledTools: resolveEnabledTools(agent),
         walletAddress: agent.wallet_address
       };
     } else {
@@ -402,7 +452,7 @@ async function handleFreeText(chatId, text, user) {
     }
   } else {
     // GENERIC MODE: Default behavior (all tools, default prompt)
-    agentId = telegramUser?.id || `tg-${chatId}`;
+    agentId = 'telegram-generic';
     agentConfig = null;
   }
 
@@ -424,16 +474,12 @@ async function handleFreeText(chatId, text, user) {
       timeout: 60000
     });
 
-    const reply = data.message || data.response || 'Done.';
+    const rawReply = data.message || data.response || 'Done.';
+    const reply = cleanAIResponse(typeof rawReply === 'string' ? rawReply : JSON.stringify(rawReply));
 
-    // Telegram Markdown is limited — strip unsupported formatting
-    const safe = reply
-      .replace(/#{1,6}\s/g, '*')          // headings → bold
-      .replace(/\*\*(.+?)\*\*/g, '*$1*')  // **bold** → *bold*
-      .replace(/`{3}[\s\S]*?`{3}/g, (m) => m.replace(/`{3}/g, '```')) // keep code blocks
-      .slice(0, 4000);                    // Telegram max message length
-
-    await sendMessage(chatId, safe);
+    // Send AI replies as plain text — AI content (emails, addresses, symbols)
+    // contains characters that break Telegram's Markdown parser.
+    await sendMessage(chatId, reply, { parse_mode: undefined });
   } catch (err) {
     console.error('[Telegram] Chat pipeline error:', err.message);
     await sendMessage(chatId, `⚠️ Something went wrong: ${err.message}`);

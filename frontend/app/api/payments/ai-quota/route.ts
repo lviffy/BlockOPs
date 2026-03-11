@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       canGenerate: quota.canGenerate,
       freeRemaining: quota.freeRemaining,
-      freeLimit: 3, // Daily free generation limit
+      freeLimit: 30, // Daily free generation limit
       needsPayment: quota.needsPayment,
     });
   } catch (error) {

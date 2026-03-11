@@ -5,13 +5,21 @@ import { createNode, generateNodeId } from './workflow-utils'
 const toolTypeMap: Record<string, string> = {
   transfer: 'transfer',
   swap: 'swap',
-  stt_balance_fetch: 'get_balance',
+  get_balance: 'get_balance',
+  stt_balance_fetch: 'get_balance', // legacy alias
   deploy_erc20: 'deploy_erc20',
   deploy_erc721: 'deploy_erc721',
   create_dao: 'create_dao',
   airdrop: 'airdrop',
   fetch_token_price: 'fetch_price',
   deposit_with_yield_prediction: 'deposit_yield',
+  wrap_eth: 'wrap_eth',
+  token_metadata: 'token_metadata',
+  tx_status: 'tx_status',
+  wallet_history: 'wallet_history',
+  approve_token: 'approve_token',
+  revoke_approval: 'revoke_approval',
+  send_email: 'send_email',
 }
 
 interface AITool {
@@ -55,6 +63,13 @@ export function aiResponseToWorkflow(aiResponse: AIResponse): { nodes: Node[]; e
       'airdrop',
       'fetch_price',
       'deposit_yield',
+      'wrap_eth',
+      'token_metadata',
+      'tx_status',
+      'wallet_history',
+      'approve_token',
+      'revoke_approval',
+      'send_email',
     ]
     
     if (!validToolTypes.includes(ourToolType)) {

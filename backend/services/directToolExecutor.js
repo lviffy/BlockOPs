@@ -2,6 +2,10 @@ const axios = require('axios');
 const { PORT } = require('../config/constants');
 
 const BASE_URL = process.env.BACKEND_URL || `http://localhost:${PORT}`;
+const INTERNAL_HEADERS = () => {
+  const key = process.env.MASTER_API_KEY;
+  return key ? { 'x-api-key': key } : {};
+};
 
 const TOOL_ENDPOINTS = {
   fetch_price: { method: 'POST', path: '/price/token' },
@@ -496,16 +500,17 @@ async function executeToolStep(step, fallbackMessage) {
   try {
     let response;
     if (config.method === 'POST') {
-      response = await axios.post(url, requestParams, { timeout: 30000 });
+      response = await axios.post(url, requestParams, { timeout: 30000, headers: INTERNAL_HEADERS() });
     } else if (config.method === 'GET') {
       // Pass any remaining (non-path) params as query string
       const hasQueryParams = Object.keys(requestParams).length > 0;
       response = await axios.get(url, {
         params: hasQueryParams ? requestParams : undefined,
-        timeout: 30000
+        timeout: 30000,
+        headers: INTERNAL_HEADERS()
       });
     } else if (config.method === 'DELETE') {
-      response = await axios.delete(url, { timeout: 30000 });
+      response = await axios.delete(url, { timeout: 30000, headers: INTERNAL_HEADERS() });
     } else {
       throw new Error(`Unsupported method: ${config.method}`);
     }
@@ -620,6 +625,11 @@ function interpolateParameters(params, previousResults) {
             value = value.replace(/\[Price from [\w_]+ result\]/gi, priceData);
             value = value.replace(/\[Current Price\]/gi, priceData);
             value = value.replace(/\{price\}/gi, priceData);
+            // Cover AI-generated placeholders like $SOL_PRICE_PLACEHOLDER, $PRICE_FROM_FETCH_PRICE, etc.
+            value = value.replace(/\$[A-Z0-9_]*PRICE[A-Z0-9_]*/g, priceData);
+            value = value.replace(/\$[A-Z0-9_]*PLACEHOLDER[A-Z0-9_]*/gi, priceData);
+            value = value.replace(/\[PRICE\]/gi, priceData);
+            value = value.replace(/PRICE_PLACEHOLDER/gi, priceData);
           }
         }
         

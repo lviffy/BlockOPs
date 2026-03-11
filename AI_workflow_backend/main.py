@@ -75,10 +75,18 @@ class WorkflowResponse(BaseModel):
 # Available tools in the platform
 AVAILABLE_TOOLS = [
     "transfer",
+    "swap",
     "get_balance",
     "deploy_erc20",
     "deploy_erc721",
     "fetch_token_price",
+    "airdrop",
+    "wrap_eth",
+    "token_metadata",
+    "tx_status",
+    "wallet_history",
+    "approve_token",
+    "revoke_approval",
     "send_email"
 ]
 
@@ -86,10 +94,18 @@ SYSTEM_PROMPT = """You are an AI that converts natural language descriptions of 
 
 Available tools:
 - transfer: Transfer ETH or ERC-20 tokens between wallets
-- get_balance: Fetch balance of ETH for a wallet
+- swap: Swap one token for another
+- get_balance: Fetch balance of ETH or any token for a wallet
 - deploy_erc20: Deploy ERC-20 tokens on Arbitrum Sepolia
 - deploy_erc721: Deploy ERC-721 NFT tokens on Arbitrum Sepolia
 - fetch_token_price: Get the current price of any token using AI-powered search
+- airdrop: Airdrop tokens to a list of addresses
+- wrap_eth: Convert ETH to WETH or WETH back to ETH
+- token_metadata: Get metadata/info for a token (name, symbol, decimals, supply)
+- tx_status: Check confirmation status of a transaction
+- wallet_history: Fetch recent transaction history for a wallet
+- approve_token: Grant a spender approval to use tokens (ERC-20 allowance)
+- revoke_approval: Remove a previously granted token allowance
 - send_email: Send email notifications to recipients (compose subject & body from user intent)
 
 Your task is to analyze the user's request and create a workflow structure with:
