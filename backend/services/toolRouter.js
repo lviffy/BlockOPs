@@ -177,6 +177,72 @@ const AVAILABLE_TOOLS = {
     description: 'Cancel (delete) a scheduled transfer by its job ID.',
     parameters: ['id'],
     examples: ['Cancel scheduled job abc123', 'Stop the recurring transfer', 'Delete schedule id xyz']
+  },
+  price_history: {
+    name: 'price_history',
+    description: 'Fetch historical OHLCV (open/high/low/close) price data for a cryptocurrency over a given number of days.',
+    parameters: ['coin (CoinGecko ID or symbol, e.g. bitcoin, eth)', 'days (1|7|14|30|90|180|365)', 'vsCurrency (usd)'],
+    examples: ['Show me Bitcoin price history for 30 days', 'ETH OHLCV last 90 days', 'Historical price chart for Solana']
+  },
+  check_contract_safety: {
+    name: 'check_contract_safety',
+    description: 'Run pre-flight risk checks on a contract address before interacting or approving. Returns a risk score, verification status, contract age, and warnings.',
+    parameters: ['contractAddress', 'spenderAddress (optional)'],
+    examples: ['Is this contract safe to approve?', 'Check the risk of contract 0x...', 'Safety check before I interact with 0x...']
+  },
+  permit_token: {
+    name: 'permit_token',
+    description: 'Sign and submit an EIP-2612 gasless permit for a token. Replaces the standard 2-tx approve pattern with a single signed transaction.',
+    parameters: ['privateKey (or sessionToken)', 'tokenAddress', 'spenderAddress', 'amount', 'deadline (optional unix ts)'],
+    examples: ['Gasless approve USDC for the swap router', 'Submit EIP-2612 permit for token 0x...', 'Sign a permit instead of approve']
+  },
+  defi_deposit: {
+    name: 'defi_deposit',
+    description: 'Supply an ERC20 asset to Aave V3 on Arbitrum Sepolia to earn yield. Returns an aToken representing the deposit.',
+    parameters: ['privateKey (or sessionToken)', 'asset (token address)', 'amount'],
+    examples: ['Deposit 100 USDC into Aave', 'Supply USDC to earn yield', 'Put 50 USDC into Aave V3']
+  },
+  defi_withdraw: {
+    name: 'defi_withdraw',
+    description: 'Withdraw a previously supplied asset from Aave V3. Use amount "max" to withdraw everything.',
+    parameters: ['privateKey (or sessionToken)', 'asset (token address)', 'amount (or "max")'],
+    examples: ['Withdraw my USDC from Aave', 'Pull all my deposits from Aave V3', 'Withdraw 50 USDC from Aave']
+  },
+  get_apy: {
+    name: 'get_apy',
+    description: 'Fetch current supply APY for pools on Aave V3 Arbitrum Sepolia.',
+    parameters: ['assets (optional array of token addresses)'],
+    examples: ['What is the USDC APY on Aave?', 'Show me current DeFi yields', 'What yield can I earn on Aave?']
+  },
+  governance_vote: {
+    name: 'governance_vote',
+    description: 'Cast a vote (for/against/abstain) on a Governor contract proposal.',
+    parameters: ['privateKey (or sessionToken)', 'governorAddress', 'proposalId', 'support (for|against|abstain)', 'reason (optional)'],
+    examples: ['Vote for proposal 42 on governor 0x...', 'Vote against this DAO proposal', 'Abstain on proposal 7']
+  },
+  governance_delegate: {
+    name: 'governance_delegate',
+    description: 'Delegate voting power on an ERC20Votes token to self or another address.',
+    parameters: ['privateKey (or sessionToken)', 'tokenAddress', 'delegatee'],
+    examples: ['Delegate my votes to myself', 'Delegate governance tokens to 0x...', 'Activate my voting power']
+  },
+  governance_propose: {
+    name: 'governance_propose',
+    description: 'Create a new proposal on an OZ Governor-compatible contract.',
+    parameters: ['privateKey (or sessionToken)', 'governorAddress', 'targets[]', 'calldatas[]', 'description', 'values[] (optional)'],
+    examples: ['Create a governance proposal to update the fee', 'Submit a new proposal to the DAO']
+  },
+  upload_to_ipfs: {
+    name: 'upload_to_ipfs',
+    description: 'Pin JSON metadata or a file to IPFS via Pinata. Returns the CID and gateway URL.',
+    parameters: ['json (object) OR base64 (base64 string)', 'mimeType (optional)', 'name (optional)'],
+    examples: ['Upload NFT metadata to IPFS', 'Pin this JSON to IPFS', 'Store metadata on IPFS for my NFT collection']
+  },
+  simulate_tx: {
+    name: 'simulate_tx',
+    description: 'Simulate a transaction via Tenderly (or eth_call fallback) before sending it. Shows expected gas usage, revert reason, and token flows.',
+    parameters: ['from', 'to', 'data (optional)', 'value (optional)', 'abi + functionName + args (alternative to data)'],
+    examples: ['Simulate this transaction before sending', 'What will happen if I call approve on 0x...?', 'Dry run this contract call']
   }
 };
 

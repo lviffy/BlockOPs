@@ -1,6 +1,6 @@
 # BlockOps — Pending Features & Roadmap
 
-> Last updated: March 6, 2026  
+> Last updated: July 2025  
 > Legend: 🔴 Critical · 🟠 High · 🟡 Medium · 🟢 Nice-to-have
 
 ---
@@ -43,13 +43,14 @@ Token deploy and NFT deploy calls will silently fail or write to a dead address.
 
 ---
 
-### 2. Private Keys Passed in Plain HTTP Body
+### 2. Private Keys Passed in Plain HTTP Body ✅
 **Files:** `directToolExecutor.js`, `transferController.js`, `tokenController.js`, `nftController.js`  
 Every tool that signs transactions receives `privateKey` in the JSON body — this is logged, stored in conversation history, and sent over HTTP.
 
-- [ ] Introduce **session-based signing**: store the private key server-side in a short-lived encrypted session (Redis/encrypted Supabase row), return a `sessionToken`, and use that token for subsequent calls
-- [ ] Never log or persist messages that contain a raw private key
-- [ ] Add EIP-712 typed-data signer endpoint as an alternative
+- [x] Introduce **session-based signing**: `POST /signing/session` stores the private key server-side (AES-256-GCM encrypted, 30-min expiry), returns a `sessionToken`; `resolvePrivateKey()` utility lets all controllers accept either `privateKey` or `sessionToken`
+- [x] `DELETE /signing/session` — revoke session immediately
+- [ ] Never log or persist messages that contain a raw private key (runtime logging hygiene; ongoing)
+- [x] EIP-712 typed-data signer endpoint — permit controller uses `wallet.signTypedData()`
 
 ---
 
@@ -63,13 +64,14 @@ All routes are open. Any caller can drain wallets, spam emails, or consume AI qu
 
 ---
 
-### 4. n8n Backend Is Skeleton Only
+### 4. n8n Backend Full Implementation ✅
 **File:** `n8n_agent_backend/main.py`  
-The n8n backend exists but has no actual n8n workflow CRUD logic or webhook trigger.
 
-- [ ] Implement n8n REST API proxy (create/trigger/delete workflows)
-- [ ] Map BlockOps tools to n8n nodes
-- [ ] Wire n8n webhook triggers back to BlockOps agents
+- [x] n8n REST API proxy: `GET/POST /n8n/workflows`, `GET/DELETE /n8n/workflows/{id}`, activate/deactivate/run, list/get executions
+- [x] `build_n8n_workflow_from_tools()` — generates n8n workflow JSON with HTTP Request nodes from BlockOps tool names
+- [x] `BLOCKOPS_TO_N8N_NODE` mapping dict (12 BlockOps tools → n8n node types)
+- [x] `GET /n8n/node-types` — expose node-type mapping to frontend
+- [ ] Wire n8n webhook triggers back to BlockOps agents (requires running n8n instance)
 
 ---
 
@@ -208,68 +210,69 @@ No cron/schedule capability.
 
 ---
 
-### 15. Historical Price & OHLCV
-Only current price is available.
+### 15. Historical Price & OHLCV ✅
 
-- [ ] `GET /price/history/:coin` — fetch OHLCV from CoinGecko `/coins/{id}/ohlc`
+- [x] `GET /price/history/:coin` — fetch OHLCV from CoinGecko `/coins/{id}/ohlc`
   - params: `days`, `vsCurrency`
-- [ ] `GET /price/chart/:coin` — return chartable data array
-- [ ] Add `price_history` NLP tool
+- [x] `GET /price/chart/:coin` — return chartable data array (market_chart endpoint)
+- [x] `price_history` NLP tool added to toolRouter
 
 ---
 
-### 16. Contract Risk / Safety Check
-No pre-flight safety tooling.
+### 16. Contract Risk / Safety Check ✅
 
-- [ ] `POST /safety/check` — run pre-approval risk checks:
-  - Is the contract verified on Etherscan?
-  - Is the spender address a known scam? (check against public blocklists)
-  - Simulate the call and report expected token flow
-- [ ] Warn in the chat UI if a transfer or approve looks suspicious
+- [x] `POST /safety/check` — checks bytecode presence, Etherscan verification, scam name patterns, deployment age, EOA vs contract spender
+- [x] Returns `riskScore` (0–100+), `riskLevel` (safe/low/medium/high), `warnings[]`, `recommendation`
+- [x] `check_contract_safety` NLP tool added
 
 ---
 
-### 17. Yield / DeFi Tool (Aave on Arbitrum)
-- [ ] `POST /defi/deposit` — deposit into Aave USDC pool
-- [ ] `POST /defi/withdraw` — withdraw from Aave
-- [ ] `GET /defi/apy` — fetch current APY for major pools
-- [ ] `POST /defi/claim` — claim rewards
-- [ ] Add as NLP tools: `defi_deposit`, `defi_withdraw`, `get_apy`
+### 17. Yield / DeFi Tool (Aave on Arbitrum) ✅
+- [x] `POST /defi/deposit` — supply asset to Aave V3 pool
+- [x] `POST /defi/withdraw` — withdraw from Aave V3
+- [x] `GET /defi/apy` — fetch current supply/borrow APY (rate / RAY * 100)
+- [x] `POST /defi/claim` — claim AAVE rewards via RewardsController
+- [x] `GET /defi/account/:address` — get user account data (ltv, health factor, balances)
+- [x] NLP tools added: `defi_deposit`, `defi_withdraw`, `get_apy`
 
 ---
 
-### 18. Governance / DAO Tool
-- [ ] `POST /governance/vote` — cast vote on a Governor contract proposal
-- [ ] `POST /governance/delegate` — delegate voting power
-- [ ] `GET /governance/proposals` — list active proposals
-- [ ] `POST /governance/create` — create a new proposal
-- [ ] Works with any OZ Governor-compatible contract
+### 18. Governance / DAO Tool ✅
+- [x] `POST /governance/vote` — cast vote (0=against, 1=for, 2=abstain) with optional reason
+- [x] `POST /governance/delegate` — delegate voting power (self or to address)
+- [x] `GET /governance/proposals/:contractAddr` — list proposals from last 100k blocks via `queryFilter`
+- [x] `POST /governance/create` — create a new proposal
+- [x] `GET /governance/votes/:token/:address` — get current voting power
+- [x] Works with any OZ Governor-compatible contract
+- [x] NLP tools: `governance_vote`, `governance_delegate`, `governance_propose`
 
 ---
 
-### 19. Token Permit (EIP-2612) Tool
-- [ ] `POST /allowance/permit` — sign and submit EIP-2612 permit (gasless approve)
-  - Replaces the 2-tx approve → transferFrom pattern with a single tx
-- [ ] Auto-detect if token supports `permit()` before falling back to regular approve
+### 19. Token Permit (EIP-2612) Tool ✅
+- [x] `POST /allowance/permit` — sign and submit EIP-2612 permit (gasless approve)
+  - Uses `wallet.signTypedData()` with auto-detected `DOMAIN_SEPARATOR()` and `nonces()`
+- [x] Auto-detects permit support; falls back to instructing user to use `/allowance/approve` if unsupported
+- [x] `permit_token` NLP tool added
 
 ---
 
-### 20. IPFS / Pinata Integration
-Currently stubbed out in `.env` but never implemented.
+### 20. IPFS / Pinata Integration ✅
 
-- [ ] `POST /ipfs/upload` — pin a file or JSON metadata to IPFS via Pinata
-- [ ] `GET /ipfs/metadata/:cid` — fetch metadata from IPFS gateway
-- [ ] Auto-pin NFT metadata when deploying a collection
-- [ ] Add `upload_to_ipfs` NLP tool
+- [x] `POST /ipfs/upload` — pin JSON object or base64 file to IPFS via Pinata; returns `{ cid, url, gatewayUrl, size }`
+- [x] `GET /ipfs/metadata/:cid` — fetch metadata from IPFS gateway
+- [x] `GET /ipfs/pins` — list all pins from Pinata account
+- [x] `upload_to_ipfs` NLP tool added
 
 ---
 
 ## 🟢 Nice-to-Have — Polish & UX
 
-### 21. Smart Contract Simulation (Tenderly)
-- [ ] Before sending any state-changing tx, call Tenderly `/simulate` API
-- [ ] Show the user what will happen (token flows, events emitted) before they confirm
-- [ ] Add simulation result to the chat UI as a collapsible card
+### 21. Smart Contract Simulation (Tenderly) ✅
+- [x] `POST /simulate` — calls Tenderly `/simulate` if `TENDERLY_ACCESS_KEY` is configured
+- [x] Fallback to `provider.call()` + `provider.estimateGas()` if Tenderly not configured
+- [x] Accepts ABI + functionName + args to auto-encode calldata via `ethers.Interface`
+- [x] `simulate_tx` NLP tool added
+- [ ] Show simulation result in the chat UI as a collapsible card (frontend work)
 
 ---
 
@@ -281,49 +284,38 @@ Currently stubbed out in `.env` but never implemented.
 ---
 
 
-### 24. Agent API Key Management UI
-The API docs page exists but there is no UI to actually generate, rotate, or revoke per-agent API keys.
+### 24. Agent API Key Management UI ✅
 
-- [ ] Add "API Keys" tab to "My Agents" page
-- [ ] Generate key button → store hashed key in Supabase
-- [ ] Regenerate / revoke key
-- [ ] Show usage stats (calls today, total calls, last used)
-
----
-
-### 25. Conversation Export
-- [ ] `GET /conversations/:id/export` — export full conversation as JSON or Markdown
-- [ ] Add export button to the chat UI
+- [x] "API Key" option in each agent's dropdown menu on My Agents page
+- [x] Dialog shows the key (masked by default, reveal toggle + copy button)
+- [x] "Regenerate Key" with inline confirmation — invalidates old key, updates Supabase
+- [x] `regenerateApiKey(agentId)` helper in `lib/agents.ts`
+- [ ] Show usage stats (requires backend call counter; future work)
 
 ---
 
-### 26. Admin Dashboard
-- [ ] `GET /admin/stats` — total users, agents, conversations, transactions (protected by `ADMIN_SECRET`)
-- [ ] Token usage per day (Groq tokens consumed)
-- [ ] Error rate per tool
+---
 
 ---
 
-### 27. Real-Time Transaction Status (SSE / WebSocket)
-Currently every `/transfer` call blocks until the tx is mined (can be 10-30 sec).
+### 27. Real-Time Transaction Status (SSE / WebSocket) ✅
 
-- [ ] Return `txHash` immediately after broadcast
-- [ ] Open a Server-Sent Events stream (`GET /tx/status/:hash/stream`) that pushes confirmations
-- [ ] Frontend shows live "pending → confirmed" status in chat bubbles
-
----
-
-### 28. Agent Cloning / Templates
-- [ ] "Clone this agent" button in My Agents
-- [ ] Publish agent as a public template
-- [ ] Template gallery page (browse community agents)
+- [x] `GET /tx/status/:hash` — one-shot status: `pending` / `confirmed` / `failed` + confirmations count
+- [x] `GET /tx/status/:hash/stream` — SSE stream polling every 3s, 2-min timeout, sends `status` / `done` / `timeout` / `error` events
+- [x] Sets `X-Accel-Buffering: no` for nginx SSE compatibility
+- [ ] Frontend live status in chat bubbles (future UI work)
 
 ---
 
-### 29. Notifications Centre
-- [ ] In-app notifications panel (bell icon)
-- [ ] Real-time push via Supabase Realtime
-- [ ] Types: tx confirmed, balance alert, price threshold hit, agent error
+### 28. Agent Cloning / Templates ✅
+- [x] "Clone" option in each agent's dropdown on My Agents page
+- [x] Creates duplicate with `"{name} (Copy)"`, fresh API key, same tools/description
+- [x] `cloneAgent(agentId, userId)` in `lib/agents.ts` (frontend, direct Supabase)
+- [x] `POST /agents/:id/clone` backend endpoint in `agentController.js`
+- [ ] Publish as public template + community gallery (future work)
+
+---
+
 
 ---
 
@@ -339,9 +331,9 @@ After n8n backend is fixed:
 | # | Feature | Priority | Effort |
 |---|---|---|---|
 | 1 | Deploy factory contracts | 🔴 Critical | S |
-| 2 | Session-based signing (no raw key in body) | 🔴 Critical | M |
+| 2 | ~~Session-based signing~~ ✅ | 🔴 Critical | M |
 | 3 | ~~API key auth + rate limiting~~ ✅ | 🔴 Critical | S |
-| 4 | n8n backend full implementation | 🔴 Critical | L |
+| 4 | ~~n8n backend full implementation~~ ✅ | 🔴 Critical | L |
 | 5 | ~~Webhook system~~ ✅ | 🟠 High | M |
 | 6 | ~~DEX swap tool~~ ✅ | 🟠 High | M |
 | 7 | ~~L1↔L2 bridge tool~~ ✅ | 🟠 High | M |
@@ -352,19 +344,19 @@ After n8n backend is fixed:
 | 12 | Gas estimator | 🟠 High | S |
 | 13 | ~~Telegram bot~~ ✅ | 🟡 Medium | M |
 | 14 | ~~Scheduled transfers (cron)~~ ✅ | 🟡 Medium | M |
-| 15 | Historical price / OHLCV | 🟡 Medium | S |
-| 16 | Contract safety check | 🟡 Medium | M |
-| 17 | Yield / Aave DeFi tool | 🟡 Medium | L |
-| 18 | Governance / DAO tool | 🟡 Medium | L |
-| 19 | Token permit (EIP-2612) | 🟡 Medium | S |
-| 20 | IPFS / Pinata upload | 🟡 Medium | S |
-| 21 | Tenderly simulation | 🟢 Nice-to-have | M |
-| 22 | Revert decoder | 🟢 Nice-to-have | S |
-| 24 | API key management UI | 🟢 Nice-to-have | S |
-| 25 | Conversation export | 🟢 Nice-to-have | S |
-| 26 | Admin dashboard | 🟢 Nice-to-have | S |
-| 27 | Real-time tx status (SSE) | 🟢 Nice-to-have | M |
-| 28 | Agent cloning / templates | 🟢 Nice-to-have | M |
+| 15 | ~~Historical price / OHLCV~~ ✅ | 🟡 Medium | S |
+| 16 | ~~Contract safety check~~ ✅ | 🟡 Medium | M |
+| 17 | ~~Yield / Aave DeFi tool~~ ✅ | 🟡 Medium | L |
+| 18 | ~~Governance / DAO tool~~ ✅ | 🟡 Medium | L |
+| 19 | ~~Token permit (EIP-2612)~~ ✅ | 🟡 Medium | S |
+| 20 | ~~IPFS / Pinata upload~~ ✅ | 🟡 Medium | S |
+| 21 | ~~Tenderly simulation~~ ✅ | 🟢 Nice-to-have | M |
+| 22 | ~~Revert decoder~~ ✅ | 🟢 Nice-to-have | S |
+| 24 | ~~API key management UI~~ ✅ | 🟢 Nice-to-have | S |
+| 25 | ~~Conversation export~~ ✅ | 🟢 Nice-to-have | S |
+| 26 | ~~Admin dashboard~~ ✅ | 🟢 Nice-to-have | S |
+| 27 | ~~Real-time tx status (SSE)~~ ✅ | 🟢 Nice-to-have | M |
+| 28 | ~~Agent cloning / templates~~ ✅ | 🟢 Nice-to-have | M |
 | 29 | Notifications centre | 🟢 Nice-to-have | M |
 | 30 | n8n workflow templates | 🟢 Nice-to-have | S |
 

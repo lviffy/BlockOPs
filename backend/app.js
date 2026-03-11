@@ -29,6 +29,16 @@ const { reloadJobsFromDB } = require('./controllers/scheduleController');
 const telegramRoutes  = require('./routes/telegramRoutes');
 const agentRoutes     = require('./routes/agentRoutes');
 const { startLongPolling, stopLongPolling } = require('./services/telegramService');
+// New feature routes
+const ipfsRoutes       = require('./routes/ipfsRoutes');
+const safetyRoutes     = require('./routes/safetyRoutes');
+const permitRoutes     = require('./routes/permitRoutes');
+const defiRoutes       = require('./routes/defiRoutes');
+const governanceRoutes = require('./routes/governanceRoutes');
+const signingRoutes    = require('./routes/signingRoutes');
+const simulateRoutes   = require('./routes/simulateRoutes');
+const adminRoutes      = require('./routes/adminRoutes');
+const txStatusRoutes   = require('./routes/txStatusRoutes');
 
 // Initialize Express app
 const app = express();
@@ -102,6 +112,21 @@ app.use('/agents',        ...authGuard, agentRoutes);
 // Telegram: /webhook is public (called by Telegram, no key needed)
 // All other /telegram/* routes require authGuard
 app.use('/telegram', telegramRoutes);
+
+// ── New feature routes ────────────────────────────────────────────────────────
+// Signing session — semi-protected (creates encrypted session, no key required after)
+app.use('/signing',     signingRoutes);
+// Safety check, simulate, tx status — chatLimiter (read-heavy, no tx)
+app.use('/safety',      chatLimiter, apiKeyAuth({ optional: true }), safetyRoutes);
+app.use('/simulate',    chatLimiter, apiKeyAuth({ optional: true }), simulateRoutes);
+app.use('/tx',          chatLimiter, txStatusRoutes);
+// DeFi, governance, IPFS, permit — full authGuard (sign transactions)
+app.use('/defi',        ...authGuard, defiRoutes);
+app.use('/governance',  ...authGuard, governanceRoutes);
+app.use('/ipfs',        ...authGuard, ipfsRoutes);
+app.use('/allowance/permit', ...authGuard, permitRoutes);
+// Admin — unguarded by apiKeyAuth but protected by x-admin-secret header inside controller
+app.use('/admin',       adminRoutes);
 
 // ── Legacy routes (protected) ────────────────────────────────────────────────
 app.post('/deploy-token',          ...authGuard, require('./controllers/tokenController').deployToken);

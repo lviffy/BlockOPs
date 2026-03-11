@@ -1587,6 +1587,282 @@ Response:
         print(f"ERROR in /create-workflow: {error_detail}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# ═══════════════════════════════════════════════════════════════
+# n8n Workflow Proxy — CRUD + Trigger
+# ═══════════════════════════════════════════════════════════════
+
+N8N_BASE_URL = os.getenv("N8N_BASE_URL", "http://localhost:5678")
+N8N_API_KEY  = os.getenv("N8N_API_KEY", "")
+
+# Mapping of BlockOps tool names → n8n node types
+BLOCKOPS_TO_N8N_NODE = {
+    "transfer":      {"type": "n8n-nodes-base.httpRequest", "category": "blockchain"},
+    "get_balance":   {"type": "n8n-nodes-base.httpRequest", "category": "blockchain"},
+    "deploy_erc20":  {"type": "n8n-nodes-base.httpRequest", "category": "blockchain"},
+    "deploy_erc721": {"type": "n8n-nodes-base.httpRequest", "category": "blockchain"},
+    "mint_nft":      {"type": "n8n-nodes-base.httpRequest", "category": "blockchain"},
+    "fetch_price":   {"type": "n8n-nodes-base.httpRequest", "category": "data"},
+    "send_email":    {"type": "n8n-nodes-base.emailSend",   "category": "communication"},
+    "calculate":     {"type": "n8n-nodes-base.code",        "category": "logic"},
+    "get_portfolio": {"type": "n8n-nodes-base.httpRequest", "category": "blockchain"},
+    "swap_tokens":   {"type": "n8n-nodes-base.httpRequest", "category": "defi"},
+    "schedule_transfer": {"type": "n8n-nodes-base.scheduleTrigger", "category": "automation"},
+}
+
+def n8n_headers():
+    headers = {"Accept": "application/json", "Content-Type": "application/json"}
+    if N8N_API_KEY:
+        headers["X-N8N-API-KEY"] = N8N_API_KEY
+    return headers
+
+
+class N8nWorkflowCreate(BaseModel):
+    name: str
+    tools: Optional[List[str]] = None  # BlockOps tool names to pre-populate nodes
+    description: Optional[str] = None
+    nodes: Optional[List[Dict[str, Any]]] = None  # Custom raw nodes override
+
+
+class N8nWebhookTrigger(BaseModel):
+    workflow_id: str
+    payload: Optional[Dict[str, Any]] = {}
+
+
+def build_n8n_workflow_from_tools(name: str, tools: List[str], description: str = "") -> Dict[str, Any]:
+    """
+    Build a minimal n8n workflow JSON pre-populated with HTTP Request nodes
+    for each BlockOps tool, wired sequentially with NoOp connections.
+    """
+    nodes = []
+    x_offset = 250
+
+    # Start node (manual or schedule trigger)
+    nodes.append({
+        "id": "start",
+        "name": "Start",
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [0, 300],
+        "parameters": {}
+    })
+
+    for idx, tool_name in enumerate(tools):
+        node_info = BLOCKOPS_TO_N8N_NODE.get(tool_name, {"type": "n8n-nodes-base.httpRequest"})
+        tool_def  = None
+        # Try to find endpoint info
+        endpoint  = f"{BACKEND_URL}/{tool_name.replace('_', '-')}"
+        method    = "POST"
+
+        node_params: Dict[str, Any] = {}
+        if node_info["type"] == "n8n-nodes-base.httpRequest":
+            node_params = {
+                "url": endpoint,
+                "method": method,
+                "sendBody": True,
+                "bodyContentType": "json",
+                "jsonBody": "={{ $json }}",
+                "options": {}
+            }
+        elif node_info["type"] == "n8n-nodes-base.code":
+            node_params = {
+                "jsCode": "// BlockOps calculate\nconst expr = $input.first().json.expression || '';\nconst vars = $input.first().json.variables || {};\nconst result = Function(...Object.keys(vars), 'return ' + expr)(...Object.values(vars));\nreturn [{json: {result}}];"
+            }
+        elif node_info["type"] == "n8n-nodes-base.emailSend":
+            node_params = {
+                "toEmail": "={{ $json.to }}",
+                "subject": "={{ $json.subject }}",
+                "text": "={{ $json.text }}"
+            }
+
+        nodes.append({
+            "id": f"node_{idx}",
+            "name": tool_name,
+            "type": node_info["type"],
+            "typeVersion": 1,
+            "position": [x_offset * (idx + 1), 300],
+            "parameters": node_params
+        })
+
+    # Build sequential connections
+    connections: Dict[str, Any] = {}
+    all_node_ids = ["start"] + [f"node_{i}" for i in range(len(tools))]
+    for i in range(len(all_node_ids) - 1):
+        src = all_node_ids[i]
+        dst = all_node_ids[i + 1]
+        connections[src] = {"main": [[{"node": dst, "type": "main", "index": 0}]]}
+
+    return {
+        "name": name,
+        "nodes": nodes,
+        "connections": connections,
+        "settings": {"executionOrder": "v1"},
+        "meta": {"description": description or f"BlockOps workflow: {', '.join(tools)}"}
+    }
+
+
+@app.get("/n8n/workflows")
+async def list_n8n_workflows():
+    """List all workflows from n8n."""
+    try:
+        r = requests.get(f"{N8N_BASE_URL}/api/v1/workflows", headers=n8n_headers(), timeout=10)
+        r.raise_for_status()
+        return r.json()
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"n8n unreachable: {str(e)}")
+
+
+@app.get("/n8n/workflows/{workflow_id}")
+async def get_n8n_workflow(workflow_id: str):
+    """Get a specific workflow from n8n."""
+    try:
+        r = requests.get(f"{N8N_BASE_URL}/api/v1/workflows/{workflow_id}", headers=n8n_headers(), timeout=10)
+        r.raise_for_status()
+        return r.json()
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"n8n error: {str(e)}")
+
+
+@app.post("/n8n/workflows")
+async def create_n8n_workflow(body: N8nWorkflowCreate):
+    """
+    Create a new n8n workflow.
+    If `tools` is provided (list of BlockOps tool names), the workflow will be
+    pre-populated with n8n HTTP Request nodes wired sequentially.
+    Pass `nodes` to supply fully-custom n8n node definitions instead.
+    """
+    try:
+        if body.nodes:
+            # Custom node definitions
+            workflow_payload = {
+                "name": body.name,
+                "nodes": body.nodes,
+                "connections": {},
+                "settings": {"executionOrder": "v1"}
+            }
+        elif body.tools:
+            workflow_payload = build_n8n_workflow_from_tools(
+                name=body.name,
+                tools=body.tools,
+                description=body.description or ""
+            )
+        else:
+            # Empty scaffold
+            workflow_payload = {
+                "name": body.name,
+                "nodes": [{"id": "start", "name": "Start", "type": "n8n-nodes-base.manualTrigger",
+                            "typeVersion": 1, "position": [0, 300], "parameters": {}}],
+                "connections": {},
+                "settings": {"executionOrder": "v1"}
+            }
+
+        r = requests.post(
+            f"{N8N_BASE_URL}/api/v1/workflows",
+            headers=n8n_headers(),
+            json=workflow_payload,
+            timeout=15
+        )
+        r.raise_for_status()
+        return r.json()
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"n8n error: {str(e)}")
+
+
+@app.delete("/n8n/workflows/{workflow_id}")
+async def delete_n8n_workflow(workflow_id: str):
+    """Delete a workflow from n8n."""
+    try:
+        r = requests.delete(f"{N8N_BASE_URL}/api/v1/workflows/{workflow_id}",
+                            headers=n8n_headers(), timeout=10)
+        r.raise_for_status()
+        return {"deleted": True, "workflow_id": workflow_id}
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"n8n error: {str(e)}")
+
+
+@app.post("/n8n/workflows/{workflow_id}/activate")
+async def activate_n8n_workflow(workflow_id: str):
+    """Activate a workflow in n8n (enables triggers)."""
+    try:
+        r = requests.post(f"{N8N_BASE_URL}/api/v1/workflows/{workflow_id}/activate",
+                          headers=n8n_headers(), timeout=10)
+        r.raise_for_status()
+        return r.json()
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"n8n error: {str(e)}")
+
+
+@app.post("/n8n/workflows/{workflow_id}/deactivate")
+async def deactivate_n8n_workflow(workflow_id: str):
+    """Deactivate a workflow in n8n."""
+    try:
+        r = requests.post(f"{N8N_BASE_URL}/api/v1/workflows/{workflow_id}/deactivate",
+                          headers=n8n_headers(), timeout=10)
+        r.raise_for_status()
+        return r.json()
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"n8n error: {str(e)}")
+
+
+@app.post("/n8n/workflows/{workflow_id}/run")
+async def trigger_n8n_workflow(workflow_id: str, body: Optional[N8nWebhookTrigger] = None):
+    """
+    Trigger a workflow run via n8n REST API.
+    Optionally pass a payload that will be injected as the start node data.
+    """
+    try:
+        run_payload = {"startNodes": [], "runData": {}}
+        if body and body.payload:
+            run_payload["startNodes"] = []
+            run_payload["runData"] = body.payload
+        r = requests.post(
+            f"{N8N_BASE_URL}/api/v1/workflows/{workflow_id}/run",
+            headers=n8n_headers(),
+            json=run_payload,
+            timeout=30
+        )
+        r.raise_for_status()
+        return r.json()
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"n8n error: {str(e)}")
+
+
+@app.get("/n8n/executions")
+async def list_n8n_executions(workflow_id: Optional[str] = None, limit: int = 20):
+    """List recent workflow executions."""
+    try:
+        params: Dict[str, Any] = {"limit": limit}
+        if workflow_id:
+            params["workflowId"] = workflow_id
+        r = requests.get(f"{N8N_BASE_URL}/api/v1/executions",
+                         headers=n8n_headers(), params=params, timeout=10)
+        r.raise_for_status()
+        return r.json()
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"n8n error: {str(e)}")
+
+
+@app.get("/n8n/executions/{execution_id}")
+async def get_n8n_execution(execution_id: str):
+    """Get details of a specific execution."""
+    try:
+        r = requests.get(f"{N8N_BASE_URL}/api/v1/executions/{execution_id}",
+                         headers=n8n_headers(), timeout=10)
+        r.raise_for_status()
+        return r.json()
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"n8n error: {str(e)}")
+
+
+@app.get("/n8n/node-types")
+async def list_n8n_node_mappings():
+    """Return the BlockOps tool → n8n node type mapping for reference."""
+    return {
+        "mappings": BLOCKOPS_TO_N8N_NODE,
+        "n8n_base_url": N8N_BASE_URL,
+        "n8n_configured": bool(N8N_API_KEY)
+    }
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -1595,10 +1871,12 @@ async def health_check():
         "service": "AI Agent Builder",
         "blockchain": "Arbitrum Sepolia",
         "ai_providers": {
-            "primary": "Groq (moonshotai/kimi-k2-instruct-0905)" if GROQ_API_KEY else "Not configured",
+            "primary": "Groq (moonshotai/kimi-k2-instruct-0905)" if GROQ_API_KEYS else "Not configured",
             "fallback": "Google Gemini 2.0 Flash" if GEMINI_API_KEY else "Not configured"
         },
-        "backend_url": BACKEND_URL
+        "backend_url": BACKEND_URL,
+        "n8n_url": N8N_BASE_URL,
+        "n8n_configured": bool(N8N_API_KEY)
     }
 
 @app.get("/tools")

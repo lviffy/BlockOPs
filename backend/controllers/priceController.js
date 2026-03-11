@@ -230,6 +230,86 @@ const getTokenPrice = async (req, res) => {
   }
 };
 
+/**
+ * GET /price/history/:coin — OHLCV data from CoinGecko
+ * Params: days (1|7|14|30|90|180|365|max), vsCurrency (usd)
+ */
+const getPriceHistory = async (req, res) => {
+  try {
+    const { coin } = req.params;
+    const { days = '30', vsCurrency = 'usd' } = req.query;
+
+    if (!coin) return res.status(400).json({ success: false, error: 'coin param is required' });
+
+    // Resolve coin symbol to CoinGecko ID
+    const coinId = CRYPTO_MAPPINGS[coin.toLowerCase()] || coin.toLowerCase();
+
+    const { data } = await axios.get(`${COINGECKO_API_BASE}/coins/${coinId}/ohlc`, {
+      params: { vs_currency: vsCurrency, days },
+      timeout: 15000
+    });
+
+    // CoinGecko OHLC returns [[timestamp, o, h, l, c], ...]
+    const ohlcv = data.map(([ts, open, high, low, close]) => ({
+      timestamp: ts,
+      date: new Date(ts).toISOString(),
+      open, high, low, close
+    }));
+
+    return res.json({
+      success: true,
+      coin: coinId,
+      vsCurrency,
+      days,
+      ohlcv,
+      source: 'CoinGecko API',
+      count: ohlcv.length
+    });
+  } catch (error) {
+    console.error('Price history error:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Failed to fetch price history' });
+  }
+};
+
+/**
+ * GET /price/chart/:coin — chartable close-price series
+ * Params: days, vsCurrency
+ */
+const getPriceChart = async (req, res) => {
+  try {
+    const { coin } = req.params;
+    const { days = '30', vsCurrency = 'usd' } = req.query;
+
+    const coinId = CRYPTO_MAPPINGS[coin.toLowerCase()] || coin.toLowerCase();
+
+    const { data } = await axios.get(`${COINGECKO_API_BASE}/coins/${coinId}/market_chart`, {
+      params: { vs_currency: vsCurrency, days, interval: days > 90 ? 'daily' : undefined },
+      timeout: 15000
+    });
+
+    const series = (data.prices || []).map(([ts, price]) => ({
+      timestamp: ts,
+      date: new Date(ts).toISOString(),
+      price
+    }));
+
+    return res.json({
+      success: true,
+      coin: coinId,
+      vsCurrency,
+      days,
+      series,
+      source: 'CoinGecko API',
+      count: series.length
+    });
+  } catch (error) {
+    console.error('Price chart error:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Failed to fetch price chart' });
+  }
+};
+
 module.exports = {
-  getTokenPrice
+  getTokenPrice,
+  getPriceHistory,
+  getPriceChart
 };

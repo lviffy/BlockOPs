@@ -705,13 +705,87 @@ async function runCleanup(req, res) {
   }
 }
 
+/**
+ * Export a conversation as JSON or Markdown
+ * GET /api/conversations/:conversationId/export?format=json|markdown
+ */
+async function exportConversation(req, res) {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Conversation service not available. Supabase not configured.' });
+  }
+
+  try {
+    const { conversationId } = req.params;
+    const { format = 'json' } = req.query;
+
+    const { data: conversation, error: convError } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('id', conversationId)
+      .single();
+
+    if (convError || !conversation) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    const { data: messages, error: msgError } = await supabase
+      .from('conversation_messages')
+      .select('role, content, created_at')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true });
+
+    if (msgError) throw msgError;
+
+    if (format === 'markdown') {
+      const title = conversation.title || `Conversation ${conversationId}`;
+      let md = `# ${title}\n\n`;
+      md += `**Agent:** ${conversation.agent_id}  \n`;
+      md += `**Started:** ${new Date(conversation.created_at).toLocaleString()}  \n`;
+      md += `**Messages:** ${messages.length}\n\n---\n\n`;
+
+      for (const msg of messages) {
+        const roleLabel = msg.role === 'user' ? '**You**' : '**Assistant**';
+        md += `${roleLabel} *(${new Date(msg.created_at).toLocaleTimeString()})*\n\n`;
+        md += `${msg.content}\n\n---\n\n`;
+      }
+
+      res.setHeader('Content-Type', 'text/markdown');
+      res.setHeader('Content-Disposition', `attachment; filename="conversation-${conversationId}.md"`);
+      return res.send(md);
+    }
+
+    // Default: JSON
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="conversation-${conversationId}.json"`);
+    return res.json({
+      conversation: {
+        id: conversation.id,
+        title: conversation.title,
+        agentId: conversation.agent_id,
+        userId: conversation.user_id,
+        createdAt: conversation.created_at
+      },
+      messages: messages.map(m => ({
+        role: m.role,
+        content: m.content,
+        timestamp: m.created_at
+      })),
+      exportedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[Export Conversation] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+}
+
 module.exports = {
   chat,
   listConversations,
   getMessages,
   getConversation,
- deleteConversation,
+  deleteConversation,
   updateConversation,
   getStats,
-  runCleanup
+  runCleanup,
+  exportConversation
 };

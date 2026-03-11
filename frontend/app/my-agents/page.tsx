@@ -25,9 +25,14 @@ import {
   Wrench,
   Terminal,
   Code2,
+  Key,
+  Eye,
+  EyeOff,
+  RefreshCw,
+  Files,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth"
-import { getAgentsByUserId, deleteAgent } from "@/lib/agents"
+import { getAgentsByUserId, deleteAgent, regenerateApiKey, cloneAgent } from "@/lib/agents"
 import type { Agent } from "@/lib/supabase"
 import { AgentWalletModal } from "@/components/agent-wallet"
 import { UserProfile } from "@/components/user-profile"
@@ -69,6 +74,11 @@ export default function MyAgents() {
   const [selectedAgentForExport, setSelectedAgentForExport] = useState<Agent | null>(null)
   const [copiedItem, setCopiedItem] = useState<string | null>(null)
   const [walletModalOpen, setWalletModalOpen] = useState(false)
+  const [apiKeyDialogAgent, setApiKeyDialogAgent] = useState<Agent | null>(null)
+  const [apiKeyRevealed, setApiKeyRevealed] = useState(false)
+  const [isRegeneratingKey, setIsRegeneratingKey] = useState(false)
+  const [confirmRegen, setConfirmRegen] = useState(false)
+  const [isCloningAgentId, setIsCloningAgentId] = useState<string | null>(null)
 
   useEffect(() => {
     if (ready && !authenticated) {
@@ -114,6 +124,40 @@ export default function MyAgents() {
 
   const handleAgentClick = (agentId: string) => {
     router.push(`/agent-builder?agent=${agentId}`)
+  }
+
+  const handleRegenerateKey = async () => {
+    if (!apiKeyDialogAgent) return
+    setIsRegeneratingKey(true)
+    try {
+      const newKey = await regenerateApiKey(apiKeyDialogAgent.id)
+      const updated = { ...apiKeyDialogAgent, api_key: newKey }
+      setApiKeyDialogAgent(updated)
+      setAgents(agents.map(a => a.id === apiKeyDialogAgent.id ? updated : a))
+      setApiKeyRevealed(true)
+      setConfirmRegen(false)
+      toast({ title: "API key regenerated", description: "Your old key is now invalid. Copy the new one." })
+    } catch (error) {
+      console.error("Error regenerating key:", error)
+      toast({ title: "Error", description: "Failed to regenerate API key.", variant: "destructive" })
+    } finally {
+      setIsRegeneratingKey(false)
+    }
+  }
+
+  const handleCloneAgent = async (agentId: string) => {
+    if (!user?.id) return
+    setIsCloningAgentId(agentId)
+    try {
+      const cloned = await cloneAgent(agentId, user.id)
+      setAgents([cloned, ...agents])
+      toast({ title: "Agent cloned", description: `"${cloned.name}" created successfully.` })
+    } catch (error) {
+      console.error("Error cloning agent:", error)
+      toast({ title: "Error", description: "Failed to clone agent.", variant: "destructive" })
+    } finally {
+      setIsCloningAgentId(null)
+    }
   }
 
   const copyToClipboard = (text: string, label: string) => {
@@ -270,6 +314,19 @@ export default function MyAgents() {
                         <DropdownMenuItem onClick={() => handleAgentClick(agent.id)}>
                           <Pencil className="mr-2 h-3.5 w-3.5" />
                           Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setApiKeyDialogAgent(agent); setApiKeyRevealed(false); setConfirmRegen(false) }}>
+                          <Key className="mr-2 h-3.5 w-3.5" />
+                          API Key
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleCloneAgent(agent.id)}
+                          disabled={isCloningAgentId === agent.id}
+                        >
+                          {isCloningAgentId === agent.id
+                            ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                            : <Files className="mr-2 h-3.5 w-3.5" />}
+                          Clone
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -504,6 +561,93 @@ console.log(data);`}
                   Never expose your API key in client-side code. Store it in environment variables and rotate if compromised.
                 </p>
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* API Key Dialog */}
+        <Dialog open={!!apiKeyDialogAgent} onOpenChange={(open) => { if (!open) { setApiKeyDialogAgent(null); setConfirmRegen(false) } }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-base font-semibold flex items-center gap-2">
+                <Key className="h-4 w-4" />
+                API Key
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                {apiKeyDialogAgent?.name} — use this key in the <code className="font-mono">x-api-key</code> header.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 pt-1">
+              {/* Key display */}
+              <div className="space-y-1.5">
+                <div className="relative flex items-center rounded-md border border-border bg-muted/30 px-3 py-2.5 pr-16">
+                  <code className="text-xs font-mono text-foreground break-all">
+                    {apiKeyRevealed
+                      ? apiKeyDialogAgent?.api_key
+                      : `${apiKeyDialogAgent?.api_key?.slice(0, 8)}${'•'.repeat(20)}`}
+                  </code>
+                  <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => setApiKeyRevealed(!apiKeyRevealed)}
+                    >
+                      {apiKeyRevealed ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => apiKeyDialogAgent?.api_key && copyToClipboard(apiKeyDialogAgent.api_key, `apikey-${apiKeyDialogAgent.id}`)}
+                    >
+                      {copiedItem === `apikey-${apiKeyDialogAgent?.id}` ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Regenerate section */}
+              {!confirmRegen ? (
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">Rotate to invalidate the current key.</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1.5"
+                    onClick={() => setConfirmRegen(true)}
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    Regenerate
+                  </Button>
+                </div>
+              ) : (
+                <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 space-y-3">
+                  <p className="text-xs text-destructive font-medium">This will invalidate the current key immediately.</p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs flex-1"
+                      onClick={() => setConfirmRegen(false)}
+                      disabled={isRegeneratingKey}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs flex-1 bg-destructive text-white hover:bg-destructive/90"
+                      onClick={handleRegenerateKey}
+                      disabled={isRegeneratingKey}
+                    >
+                      {isRegeneratingKey ? <Loader2 className="h-3 w-3 animate-spin" /> : "Confirm"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>

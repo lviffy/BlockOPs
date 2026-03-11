@@ -7,7 +7,8 @@ const {
   deleteConversation,
   updateConversation,
   getStats,
-  runCleanup
+  runCleanup,
+  exportConversation
 } = require('../controllers/conversationController');
 
 const router = express.Router();
@@ -76,5 +77,11 @@ router.get('/admin/stats', getStats);
  * Requires: Authorization: Bearer <ADMIN_SECRET>
  */
 router.post('/admin/cleanup', runCleanup);
+
+/**
+ * Export a conversation as JSON or Markdown
+ * GET /api/conversations/:conversationId/export?format=json|markdown
+ */
+router.get('/conversations/:conversationId/export', exportConversation);
 
 module.exports = router;

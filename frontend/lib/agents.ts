@@ -106,6 +106,52 @@ export async function deleteAgent(agentId: string): Promise<void> {
   }
 }
 
+export async function cloneAgent(agentId: string, userId: string): Promise<Agent> {
+  const newKey = generateApiKey()
+
+  const { data: source, error: fetchErr } = await supabase
+    .from('agents')
+    .select('*')
+    .eq('id', agentId)
+    .single()
+
+  if (fetchErr || !source) {
+    throw new Error('Agent not found')
+  }
+
+  const { data, error } = await supabase
+    .from('agents')
+    .insert({
+      user_id: userId,
+      name: `${source.name} (Copy)`,
+      description: source.description,
+      api_key: newKey,
+      tools: source.tools,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error(`Failed to clone agent: ${error.message}`)
+  }
+
+  return data
+}
+
+export async function regenerateApiKey(agentId: string): Promise<string> {
+  const newKey = generateApiKey()
+  const { error } = await supabase
+    .from('agents')
+    .update({ api_key: newKey, updated_at: new Date().toISOString() })
+    .eq('id', agentId)
+
+  if (error) {
+    throw new Error(`Failed to regenerate API key: ${error.message}`)
+  }
+
+  return newKey
+}
+
 function generateApiKey(): string {
   // Generate a random 32-character API key
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'

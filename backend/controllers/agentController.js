@@ -398,6 +398,75 @@ async function deleteAgent(req, res) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /agents/:id/clone — Clone an agent
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function cloneAgent(req, res) {
+  try {
+    const { id } = req.params;
+    const { userId } = req.body;
+
+    const { data: source, error: fetchErr } = await supabase
+      .from('agents')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !source) {
+      return res.status(404).json({ success: false, error: 'Agent not found' });
+    }
+
+    if (userId && source.user_id !== userId && !source.is_public) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    const apiKey = generateApiKey();
+    const apiKeyHash = await bcrypt.hash(apiKey, 12);
+    const apiKeyPrefix = apiKey.slice(0, 12) + '...';
+
+    const { data: clone, error: insertErr } = await supabase
+      .from('agents')
+      .insert({
+        user_id: userId || source.user_id,
+        name: `${source.name} (Copy)`,
+        description: source.description,
+        system_prompt: source.system_prompt,
+        enabled_tools: source.enabled_tools,
+        wallet_address: null,         // don't clone private wallet
+        api_key_hash: apiKeyHash,
+        api_key_prefix: apiKeyPrefix,
+        avatar_url: source.avatar_url,
+        is_public: false
+      })
+      .select()
+      .single();
+
+    if (insertErr) {
+      console.error('[Agent] Clone error:', insertErr);
+      return res.status(500).json({ success: false, error: insertErr.message });
+    }
+
+    return res.status(201).json({
+      success: true,
+      agent: {
+        id: clone.id,
+        name: clone.name,
+        description: clone.description,
+        apiKey,
+        apiKeyPrefix: clone.api_key_prefix,
+        enabledTools: clone.enabled_tools,
+        createdAt: clone.created_at
+      },
+      warning: 'Save this API key now. You won\'t be able to see it again.'
+    });
+
+  } catch (err) {
+    console.error('[Agent] Clone error:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Helper: Get agent by ID (internal, used by telegramService)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -448,6 +517,7 @@ module.exports = {
   getAgent,
   updateAgent,
   regenerateApiKey,
+  cloneAgent,
   deleteAgent,
   getAgentById,
   verifyApiKey

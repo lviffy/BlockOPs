@@ -13,6 +13,7 @@ const {
   getAgent,
   updateAgent,
   regenerateApiKey,
+  cloneAgent,
   deleteAgent
 } = require('../controllers/agentController');
 
@@ -62,6 +63,15 @@ router.patch('/:id', updateAgent);
  * Response: { success, apiKey, apiKeyPrefix, warning }
  */
 router.post('/:id/regenerate-key', regenerateApiKey);
+
+/**
+ * POST /agents/:id/clone
+ * Clone an existing agent (new key + name suffixed with " (Copy)")
+ * 
+ * Body: { userId }
+ * Response: { success, agent: { id, name, apiKey, ... }, warning }
+ */
+router.post('/:id/clone', cloneAgent);
 
 /**
  * DELETE /agents/:id?userId=xxx
