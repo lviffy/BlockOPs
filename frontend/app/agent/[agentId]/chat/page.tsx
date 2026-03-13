@@ -145,6 +145,7 @@ export default function AgentChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isNavigatingBack, setIsNavigatingBack] = useState(false)
   const [conversationId, setConversationId] = useState<string | undefined>(undefined)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -319,9 +320,18 @@ export default function AgentChatPage() {
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7"
-                    onClick={() => router.push("/my-agents")}
+                    onClick={() => {
+                      if (isNavigatingBack) return
+                      setIsNavigatingBack(true)
+                      router.push("/my-agents")
+                    }}
+                    disabled={isNavigatingBack}
                   >
-                    <ArrowLeft className="h-3.5 w-3.5" />
+                    {isNavigatingBack ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <ArrowLeft className="h-3.5 w-3.5" />
+                    )}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom"><p>Back</p></TooltipContent>

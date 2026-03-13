@@ -1,7 +1,8 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { ArrowLeft, User, Wallet, LogOut } from "lucide-react"
+import { useState } from "react"
+import { ArrowLeft, User, Wallet, LogOut, Loader2 } from "lucide-react"
 import { ContractInteraction } from "@/components/contract-interaction"
 import { useAuth } from "@/lib/auth"
 import { Separator } from "@/components/ui/separator"
@@ -18,6 +19,7 @@ import {
 export default function ContractExplorerPage() {
   const router = useRouter()
   const { logout, dbUser, privyWalletAddress, isWalletLogin, authenticated } = useAuth()
+  const [isNavigatingBack, setIsNavigatingBack] = useState(false)
 
   const walletAddress = dbUser?.wallet_address || (isWalletLogin ? privyWalletAddress : null)
   const truncatedAddress = walletAddress
@@ -33,10 +35,19 @@ export default function ContractExplorerPage() {
             <div className="space-y-1">
               <div className="flex items-center gap-2.5">
                 <button
-                  onClick={() => router.push("/my-agents")}
+                  onClick={() => {
+                    if (isNavigatingBack) return
+                    setIsNavigatingBack(true)
+                    router.push("/my-agents")
+                  }}
+                  disabled={isNavigatingBack}
                   className="text-muted-foreground hover:text-foreground transition-colors -ml-1"
                 >
-                  <ArrowLeft className="size-4" />
+                  {isNavigatingBack ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <ArrowLeft className="size-4" />
+                  )}
                 </button>
                 <h1 className="text-2xl font-semibold tracking-tight">
                   Contract Explorer

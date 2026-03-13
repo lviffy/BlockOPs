@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useState, useRef, useEffect } from "react"
-import { Send, Bot, User, CheckCircle } from "lucide-react"
+import { Send, Bot, User, CheckCircle, Loader2 } from "lucide-react"
 import { usePrivy } from "@privy-io/react-auth"
 import {
   Dialog,
@@ -291,7 +291,11 @@ export function AIChatModal({ open, onOpenChange, onApplyWorkflow }: AIChatModal
               size="icon"
               className="h-[60px] w-[60px] shrink-0"
             >
-              <Send className="h-4 w-4" />
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
             </Button>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">

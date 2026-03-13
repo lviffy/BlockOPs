@@ -22,7 +22,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css"
 import { toast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
-import { Save, ArrowLeft } from "lucide-react"
+import { Save, ArrowLeft, Loader2 } from "lucide-react"
 import NodeLibrary from "./node-library"
 import NodeConfigPanel from "./node-config-panel"
 import CustomEdge from "./custom-edge"
@@ -138,6 +138,9 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
   const [loadingAgent, setLoadingAgent] = useState(false)
   const [saving, setSaving] = useState(false)
   const [showNodeLibrary, setShowNodeLibrary] = useState(false)
+  const [isNavigatingBack, setIsNavigatingBack] = useState(false)
+  const [isOpeningAIModal, setIsOpeningAIModal] = useState(false)
+  const [isOpeningSaveDialog, setIsOpeningSaveDialog] = useState(false)
 
   // Wrapper for onNodesChange to prevent agent node deletion
   const handleNodesChange = useCallback(
@@ -252,9 +255,12 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
   )
 
   const handleSaveClick = () => {
+    setIsOpeningSaveDialog(true)
+
     // Check if there are any tool nodes (excluding agent node)
     const toolNodes = nodes.filter((node) => node.id !== AGENT_NODE_ID)
     if (toolNodes.length === 0) {
+      setIsOpeningSaveDialog(false)
       toast({
         title: "Nothing to save",
         description: "Add some tools to your workflow first",
@@ -264,6 +270,7 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
     }
 
     if (!authenticated || !user?.id) {
+      setIsOpeningSaveDialog(false)
       toast({
         title: "Not authenticated",
         description: "Please log in to save your workflow",
@@ -275,6 +282,18 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
     // Show the save dialog
     setShowSaveDialog(true)
   }
+
+  useEffect(() => {
+    if (showSaveDialog) {
+      setIsOpeningSaveDialog(false)
+    }
+  }, [showSaveDialog])
+
+  useEffect(() => {
+    if (isAIChatOpen) {
+      setIsOpeningAIModal(false)
+    }
+  }, [isAIChatOpen])
 
   const saveWorkflow = async () => {
     if (!agentName.trim()) {
@@ -345,12 +364,14 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
     if (hasUnsavedChanges) {
       setShowExitDialog(true)
     } else {
+      setIsNavigatingBack(true)
       router.push("/my-agents")
     }
   }
 
   const handleConfirmExit = () => {
     setShowExitDialog(false)
+    setIsNavigatingBack(true)
     router.push("/my-agents")
   }
 
@@ -483,17 +504,27 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
                     onClick={handleBackClick}
                     size="sm"
                     variant="outline"
+                    disabled={isNavigatingBack}
                     className="font-medium"
                   >
-                    <ArrowLeft className="h-4 w-4 sm:mr-2" />
+                    {isNavigatingBack ? (
+                      <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" />
+                    ) : (
+                      <ArrowLeft className="h-4 w-4 sm:mr-2" />
+                    )}
                     <span className="hidden sm:inline">Back</span>
                   </Button>
                   <Button
-                    onClick={() => setIsAIChatOpen(true)}
+                    onClick={() => {
+                      setIsOpeningAIModal(true)
+                      setIsAIChatOpen(true)
+                    }}
                     size="sm"
                     variant="default"
+                    disabled={isOpeningAIModal}
                     className="bg-foreground text-background hover:bg-foreground/90 shadow-lg font-semibold text-xs sm:text-sm"
                   >
+                    {isOpeningAIModal && <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" />}
                     <span className="hidden sm:inline">Create with AI</span>
                     <span className="sm:hidden">AI</span>
                   </Button>
@@ -513,7 +544,11 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
               <Panel position="top-right">
                 <div className="flex gap-2 items-center">
                   <Button onClick={handleSaveClick} size="sm" variant="outline" disabled={loadingAgent} className="text-xs sm:text-sm">
-                    <Save className="h-4 w-4 sm:mr-2" />
+                    {isOpeningSaveDialog ? (
+                      <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4 sm:mr-2" />
+                    )}
                     <span className="hidden sm:inline">{agentId ? "Update Agent" : "Save Agent"}</span>
                   </Button>
                   <UserProfile onLogout={() => {
@@ -661,6 +696,7 @@ export default function WorkflowBuilder({ agentId }: WorkflowBuilderProps) {
               Cancel
             </Button>
             <Button onClick={saveWorkflow} disabled={saving || !agentName.trim()}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {saving ? "Saving..." : agentId ? "Update Agent" : "Create Agent"}
             </Button>
           </DialogFooter>

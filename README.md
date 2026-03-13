@@ -4,21 +4,20 @@
 
 **BlockOps** is a no-code AI-powered platform that enables users to build, deploy, and interact with blockchain agents on Arbitrum Sepolia. The platform combines a visual drag-and-drop workflow builder with AI-powered natural language processing, allowing users to create sophisticated blockchain automation workflows without writing any code.
 
-The platform supports blockchain operations including **ERC-20 token deployment, ERC-721 NFT collection deployment, token transfers, and more**. All operations are powered by Arbitrum Stylus smart contracts and integrated with Gemini 2.0 Flash AI for intelligent agent interactions.
+The platform supports blockchain operations including **ERC-20 token deployment, ERC-721 NFT collection deployment, token transfers, and more**. All operations are powered by Arbitrum Stylus smart contracts and integrated with AI for intelligent agent interactions. Newer capabilities add Telegram bot control, n8n automation, DeFi/governance tooling, Orbit L3 planning, contract intelligence, and event webhooks.
 
 > **Note:** This is a complete full-stack application including frontend (Next.js), backend API (Express.js), AI agent services (FastAPI), and smart contracts (Rust/Stylus).
 
 ## Resources
 
-* **Live Demo**: [https://blockops.vercel.app/](https://blockops.vercel.app/)
-* **Demo Video**: [Watch on Google Drive](https://drive.google.com/drive/folders/137-DEv4MkspcmfuAN-ETsxpGMqzmZeZl?usp=sharing)
+* **Live Demo**: [https://blockops.in/](https://blockops.in/)
 * **Payment Contract**: [View on Arbiscan](https://sepolia.arbiscan.io/address/0x185eba222e50dedae23a411bbbe5197ed9097381)
 
 ### Key Technologies
 
 - **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS, React Flow
 - **Backend**: Express.js, ethers.js v6
-- **AI Services**: FastAPI, Google Gemini 2.0 Flash
+- **AI Services**: FastAPI, llama 70b
 - **Blockchain**: Arbitrum Sepolia, Stylus (Rust WASM contracts)
 - **Authentication**: Privy Auth
 - **Database**: Supabase (PostgreSQL)
@@ -29,7 +28,7 @@ The platform supports blockchain operations including **ERC-20 token deployment,
 
 Getting started with BlockOps is simple! Follow these steps:
 
-1. **Visit** [https://blockops.vercel.app/](https://blockops.vercel.app/)
+1. **Visit** [https://blockops.in/](https://blockops.in/)
 2. **Sign In** with Web3 wallet using Privy authentication
 3. **Create or Import Agent Wallet** 
    - Create a new agent wallet (automatically generated)
@@ -48,7 +47,7 @@ Getting started with BlockOps is simple! Follow these steps:
    - Configure parameters for each tool
    - Use React Flow for visual workflow management
 
-5. **Save Your Agent** to your Supabase database
+5. **Save Your Agent** to your database
 
 6. **Interact with Your Agent**:
    - **UI Chat Interface**: Chat with your agent using natural language
@@ -65,15 +64,21 @@ That's it! You've created your first BlockOps agent without writing a single lin
 
 1. [Platform Architecture](#platform-architecture)
 2. [System Components](#system-components)
-   - [Frontend](#frontend)
-   - [Backend API](#backend-api)
-   - [AI Agent Service](#ai-agent-service)
-   - [Workflow Generator](#workflow-generator)
-3. [Available Blockchain Tools](#available-blockchain-tools)
-4. [Smart Contract Implementations](#smart-contract-implementations)
-5. [Setup & Installation](#setup--installation)
-6. [Environment Configuration](#environment-configuration)
-7. [API Documentation](#api-documentation)
+  - [Frontend](#frontend)
+  - [Backend API](#backend-api)
+  - [AI & Automation Services](#ai--automation-services)
+3. [Feature Highlights](#feature-highlights)
+4. [Available Blockchain & AI Tools](#available-blockchain--ai-tools)
+5. [Smart Contract Implementations](#smart-contract-implementations)
+6. [Setup & Installation](#setup--installation)
+7. [Environment Configuration](#environment-configuration)
+8. [API Documentation](#api-documentation)
+9. [Docker Support](#docker-support)
+10. [Project Structure](#project-structure)
+11. [Contributing](#contributing)
+12. [License](#license)
+13. [Support](#support)
+14. [Acknowledgments](#acknowledgments)
 
 ---
 
@@ -84,8 +89,9 @@ That's it! You've created your first BlockOps agent without writing a single lin
 ```mermaid
 graph TB
     subgraph "User Layer"
-        U[👤 User Browser]
-        UI[🖥️ Next.js Frontend<br/>Port: 3000]
+  U[👤 User Browser]
+  UI[🖥️ Next.js Frontend<br/>Port: 3000]
+  TG[🤝 Telegram Bot]
     end
     
     subgraph "Authentication & Database"
@@ -94,9 +100,15 @@ graph TB
     end
     
     subgraph "Backend Services"
-        AI[🤖 AI Agent Backend<br/>FastAPI - Port 8000]
+        AI[🤖 AI Agent Backend<br/>FastAPI]
         BK[⚙️ Blockchain Backend<br/>Express - Port 3000]
         WF[🔄 Workflow Generator<br/>FastAPI - Port 8001]
+        N8N[⚡ N8n Agent Backend<br/>FastAPI]
+        WBK[📣 Webhook Dispatcher]
+    end
+
+    subgraph "L3 Builder"
+        ORB[🪐 Orbit Config Engine<br/>FastAPI]
     end
     
     subgraph "Blockchain Layer"
@@ -115,11 +127,15 @@ graph TB
     UI <-->|Data Storage| SUPA
     UI -->|AI Chat/Generate| AI
     UI -->|Workflow Build| WF
+    UI -->|Automation| N8N
+    TG -->|Bot Commands| BK
     AI -->|Tool Execution| BK
+    BK -->|Event Webhooks| WBK
     BK -->|Deploy/Transfer| ARB
     ARB -->|Token Deploy| TF
     ARB -->|NFT Deploy| NF
     ARB -->|Payments| PE
+    ORB -->|L3 Config| BK
     PE -->|USDC Escrow| USDC
 ```
 
@@ -196,152 +212,93 @@ sequenceDiagram
 
 **Key Responsibilities:**
 - Blockchain interaction via ethers.js
-- Smart contract deployment and interaction
-- Token/NFT creation via Stylus factory contracts
-- Transaction signing and broadcasting
-- Contract ABI management
+- Token/NFT deploy + mint (Stylus factories)
+- Wallet ops: transfers, approvals, permit, balance checks
+- DeFi suite: Aave v3 deposit/withdraw/claim/APY
+- DEX swaps (Uniswap v3), bridging (L1↔L2 retryables), gas estimation/simulation
+- Governance tools: proposals, voting, delegation
+- Batch + scheduled transfers, session-based signing, portfolio analytics
+- Contract intelligence: ABI fetch, NL executor, contract chat, safety checks
+- Webhook dispatcher (HMAC-signed) and event logs
 
-**Main Endpoints:**
-- `/health` - Health check
-- `/token/*` - ERC-20 token operations
-- `/nft/*` - ERC-721 NFT operations
-- `/transfer` - Token transfer operations
-- `/price` - Token price fetching
+**Main Endpoint Families:**
+- `/token/*`, `/nft/*`, `/transfer/*`, `/allowance/*`, `/permit`
+- `/batch/*`, `/schedule/*`, `/signing/*`
+- `/defi/*` (Aave), `/swap/*`, `/bridge/*`, `/price/*`
+- `/governance/*`, `/portfolio/*`, `/ens/*`, `/gas/*`, `/chain/*`
+- `/nl-executor/*`, `/contract-chat/*`, `/safety/*`, `/webhooks/*`
 
 **Port:** 3000 (default)
 
-### AI Agent Service
+### AI & Automation Services
 
-**Technology Stack:**
-- FastAPI (Python)
-- Google Gemini 2.0 Flash
-- httpx for async HTTP requests
-
-**Key Features:**
-- Natural language to blockchain action conversion
-- Dynamic tool configuration based on workflow
-- Function calling with Gemini AI
-- Context-aware tool selection
-- Sequential execution support
-
-**Main Endpoints:**
-- `POST /agent/chat` - Process natural language messages
-- `GET /tools` - List available tools
-- `GET /health` - Health check
-
-**Port:** 8000 (default)
-
-### Workflow Generator
-
-**Technology Stack:**
-- FastAPI (Python)
-- Google Gemini 2.0 Flash
-
-**Key Features:**
-- Natural language to workflow conversion
-- Structured JSON output with tool connections
-- Tool validation and suggestion
-- Sequential execution planning
-
-**Main Endpoints:**
-- `POST /create-workflow` - Generate workflow from description
-- `GET /available-tools` - List available tools
-- `GET /health` - Health check
-
-**Port:** 8001 (default)
+- **AI Agent + Workflow Backend (FastAPI, 8001)** — Natural-language to tool execution and workflow generation in one service: `POST /agent/chat`, `GET /tools`, `POST /create-workflow`, `GET /available-tools`.
+- **N8n Agent Backend (FastAPI, 8000)** — Builds and manages n8n workflows (`/n8n/workflows`, activate/deactivate, tool→node mapper) so BlockOps workflows can run in n8n. Configurable via `PORT`.
+- **Orbit AI Backend (FastAPI)** — Multi-turn L3 config assistant (`/api/orbit-ai/chat`, `/api/orbit-ai/presets`) used by Orbit chain builder.
+- **Webhook Dispatcher** — HMAC-SHA256 signed delivery with retry/backoff; event types include tx status, balance thresholds, agent chat, mint/deploy.
+- **Telegram Bot Service** — Agent linking + chat commands (`/connect`, `/disconnect`, `/agent`, `/switch`), with Supabase-backed `linked_agent_id` and API key hashing.
 
 ---
 
-## Available Blockchain Tools
+## Feature Highlights
 
-### 1. ERC-20 Token Deployment
+- **Agent management** — Full CRUD with clone/update/regenerate API keys, avatars, public/private visibility, and Telegram linkage tracking.
+- **Telegram bot** — Connect/disconnect agents, chat through Telegram, and route free-text to linked agents (see [TELEGRAM_AGENT_LINKING.md](TELEGRAM_AGENT_LINKING.md)).
+- **Automation** — Batch transfers/mints/approvals, cron-based scheduled transfers, and session-based signing with encrypted keys.
+- **n8n workflow bridge** — Auto-generate n8n JSON workflows from BlockOps tools and manage/activate them through the FastAPI proxy.
+- **Webhooks** — HMAC-signed event notifications (tx sent/confirmed/failed, price and balance thresholds, agent chat, mint/deploy) with retry/backoff and delivery logs.
+- **DeFi + DEX** — Aave v3 deposit/withdraw/claim/APY plus Uniswap v3 swap/quote with slippage controls.
+- **Governance** — OZ Governor-compatible proposal creation, voting, delegation, and proposal listing.
+- **Cross-chain** — Arbitrum bridge deposit/withdraw/retryable status plus chain queries, gas estimation, and full calldata/revert decoding.
+- **Contract intelligence** — Natural-language executor (ABI discovery + NL → function calls), contract chat Q&A, contract safety scoring, and Etherscan ABI handling.
+- **Data & wallets** — Portfolio analytics (tokens, NFTs, USD values), ENS/ARBID resolve + reverse, price history/OHLCV, and advanced gas simulation/history.
+- **Orbit L3 builder** — AI-guided L3 configuration presets and deployment status checks.
 
-**Description:** Deploy custom ERC-20 tokens on Arbitrum Sepolia using Stylus contracts written in Rust.
+## Available Blockchain & AI Tools
 
-**Endpoint:** `POST /token/deploy`
+### Core Deploy & Transfer
+- Deploy ERC-20 via Stylus TokenFactory: `POST /token/deploy`
+- Deploy ERC-721 collections: `POST /nft/deploy-collection`
+- Transfer ETH/ERC-20: `POST /transfer`
+- Batch transfer/mint/approve: `/batch/*`
+- Scheduled transfers with cron + Supabase persistence: `/schedule/*`
 
-**Parameters:**
-- `name` - Token name (e.g., "MyToken")
-- `symbol` - Token symbol (e.g., "MTK")
-- `decimals` - Number of decimals (typically 18)
-- `initialSupply` - Initial token supply
-- `privateKey` - Deployer's private key
+### Contract Intelligence
+- Natural-language executor (ABI discovery + NL → call): `/nl-executor/*`
+- Contract chat Q&A: `POST /contract-chat/ask`
+- Safety/risk scoring: `POST /safety/check`
+- ABI/tx decoding and revert decoding: `/chain/decode/*`
 
-**Implementation:**
-- Uses TokenFactory Stylus contract
-- Deploys optimized WASM bytecode
-- Automatically initializes token
-- Returns token address and transaction hash
+### Automation & Signing
+- Session-based signing with encrypted keys: `/signing/session`
+- Permit (EIP-2612) support: `POST /permit`
+- Allowance approve/revoke/check: `/allowance/*`
 
-**Example Response:**
-```json
-{
-  "success": true,
-  "tokenAddress": "0x...",
-  "transactionHash": "0x...",
-  "explorerUrl": "https://sepolia.arbiscan.io/tx/0x..."
-}
-```
+### DeFi, DEX, and Markets
+- Aave v3: deposit, withdraw, claim, APY, account info: `/defi/*`
+- Uniswap v3 swaps + quotes with slippage: `/swap/*`
+- Price and OHLCV history: `/price/history/:coin`, `/price/chart/:coin`
 
-### 2. ERC-721 NFT Collection Deployment
+### Governance
+- Create proposals, vote, delegate, and list proposals: `/governance/*`
 
-**Description:** Create NFT collections with customizable metadata and automatic IPFS integration.
+### Cross-Chain & Network
+- Arbitrum bridge deposit/withdraw/retryable + status: `/bridge/*`
+- Gas estimate/simulate/history: `/gas/*`
+- Chain data: tx/receipt/block lookups, event queries, address tx history: `/chain/*`
 
-**Endpoint:** `POST /nft/deploy-collection`
+### Wallet, Identity, and Data
+- Portfolio analytics (ETH, ERC20, ERC721, USD valuation): `GET /portfolio/:address`
+- ENS/ARBID resolve + reverse + batch: `/ens/*`
+- Price alerts + balance threshold webhooks via `/webhooks/*`
 
-**Parameters:**
-- `name` - Collection name
-- `symbol` - Collection symbol
-- `baseUri` - Base URI for metadata
-- `privateKey` - Deployer's private key
+### AI & Workflow
+- AI agent chat + tool execution: `POST /agent/chat`
+- Workflow generation: `POST /create-workflow`
+- n8n workflow builder/proxy: `/n8n/workflows` CRUD + activate
 
-**Implementation:**
-- Uses NFTFactory Stylus contract
-- Supports batch minting
-- IPFS metadata storage via Pinata
-- Built with Rust for gas efficiency
-
-**Example Response:**
-```json
-{
-  "success": true,
-  "collectionAddress": "0x...",
-  "transactionHash": "0x...",
-  "explorerUrl": "https://sepolia.arbiscan.io/address/0x..."
-}
-```
-
-### 3. Token Transfer
-
-**Description:** Transfer native ETH or ERC-20 tokens between addresses.
-
-**Endpoint:** `POST /transfer`
-
-**Parameters:**
-- `privateKey` - Sender's private key
-- `to` - Recipient address
-- `amount` - Amount to transfer
-- `tokenAddress` - (Optional) ERC-20 token address
-
-**Implementation:**
-- Native transfers use direct wallet transactions
-- ERC-20 transfers use token contract's `transfer()` function
-- Automatic gas estimation
-- Transaction confirmation waiting
-
-### 4. Token Price Fetching
-
-**Description:** Fetch real-time cryptocurrency prices using AI-powered search.
-
-**Endpoint:** `POST /price`
-
-**Parameters:**
-- `query` - Token symbol or natural language query
-
-**Implementation:**
-- Uses Gemini 2.0 with search capabilities
-- Returns current price and market data
-- Supports multiple cryptocurrencies
+### Payments
+- x402 protocol USDC escrow via PaymentEscrow contract; backend authorization + automatic refunds.
 
 ---
 
@@ -506,29 +463,41 @@ npm run dev
 
 Backend will run on `http://localhost:3000`
 
-### AI Agent Backend Setup
+### AI Agent / Workflow Backend (FastAPI) Setup
 
 ```bash
 cd AI_workflow_backend
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env with your Gemini API key
-uvicorn main:app --reload --port 8000
+# Edit .env with your Gemini/Groq keys
+uvicorn main:app --reload --port 8001
 ```
 
-AI Agent service will run on `http://localhost:8000`
+Service will run on `http://localhost:8001`
 
-### Workflow Generator Setup
+### N8n Agent Backend (FastAPI) Setup
 
 ```bash
 cd n8n_agent_backend
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env with your Gemini API key
-uvicorn main:app --reload --port 8001
+# Configure GROQ_API_KEY* or GEMINI_API_KEY and BACKEND_URL
+uvicorn main:app --reload --port 8000
 ```
 
-Workflow Generator will run on `http://localhost:8001`
+Service will run on `http://localhost:8000` (set `PORT` to change)
+
+### Orbit AI Backend Setup
+
+```bash
+cd orbit_ai_backend
+pip install -r requirements.txt
+cp .env.example .env
+# Configure L3 presets and backend URL
+PORT=8002 uvicorn main:app --reload --port 8002
+```
+
+Service will run on `http://localhost:8002` (configurable via `PORT`)
 
 ### Smart Contract Deployment
 
@@ -577,8 +546,10 @@ NEXT_PUBLIC_USDC_ADDRESS=your_usdc_token_address
 
 # Backend URLs
 NEXT_PUBLIC_BACKEND_URL=http://localhost:3000
-NEXT_PUBLIC_AI_BACKEND_URL=http://localhost:8000
+NEXT_PUBLIC_AI_BACKEND_URL=http://localhost:8001
 NEXT_PUBLIC_WORKFLOW_BACKEND_URL=http://localhost:8001
+NEXT_PUBLIC_N8N_BACKEND_URL=http://localhost:8000
+NEXT_PUBLIC_ORBIT_BACKEND_URL=http://localhost:8002
 
 # Payment Backend
 PAYMENT_BACKEND_PRIVATE_KEY=your_backend_private_key
@@ -610,8 +581,34 @@ PINATA_SECRET_KEY=your_pinata_secret_key
 # Gemini AI
 GEMINI_API_KEY=your_gemini_api_key
 
+# Optional Groq
+GROQ_API_KEY=your_groq_key
+
 # Backend URL
 BACKEND_URL=http://localhost:3000
+```
+
+### N8n Agent Backend (.env)
+
+```env
+# LLMs
+GROQ_API_KEY1=your_primary_groq_key
+GROQ_API_KEY2=optional_secondary_key
+GEMINI_API_KEY=optional_fallback_key
+
+# Target backend (Express API)
+BACKEND_URL=http://localhost:3000
+
+# Service port (optional)
+PORT=8000
+```
+
+### Orbit AI Backend (.env)
+
+```env
+PORT=8002
+BACKEND_URL=http://localhost:3000
+LOG_LEVEL=info
 ```
 
 ---
@@ -768,8 +765,9 @@ docker-compose up -d
 This will start:
 - Frontend (Next.js) on port 3000
 - Backend (Express) on port 3000
-- AI Agent Backend (FastAPI) on port 8000
-- Workflow Generator (FastAPI) on port 8001
+- AI Agent / Workflow Backend (FastAPI) on port 8001
+- N8n Agent Backend (FastAPI) on port 8000
+- Orbit AI Backend (FastAPI) on port 8002
 
 ### Individual Services
 
@@ -782,6 +780,9 @@ docker-compose up backend
 
 # AI services
 docker-compose up ai-agent workflow-generator
+
+# Automation services (see docker-compose.yml for service names)
+docker-compose up <service-name>
 ```
 
 ---
@@ -789,7 +790,7 @@ docker-compose up ai-agent workflow-generator
 ## Project Structure
 
 ```
-n8nrollup/
+BlockOPs/
 ├── frontend/                 # Next.js frontend application
 │   ├── app/                 # Next.js app directory
 │   │   ├── agent-builder/  # Visual workflow builder
@@ -812,7 +813,11 @@ n8nrollup/
 │   ├── main.py             # Main FastAPI application
 │   └── requirements.txt
 │
-├── n8n_agent_backend/       # FastAPI workflow generator
+├── n8n_agent_backend/       # FastAPI n8n workflow builder/proxy
+│   ├── main.py             # Main FastAPI application
+│   └── requirements.txt
+│
+├── orbit_ai_backend/        # FastAPI Orbit L3 config assistant
 │   ├── main.py             # Main FastAPI application
 │   └── requirements.txt
 │
@@ -830,40 +835,38 @@ n8nrollup/
 
 ## Key Features
 
-### 🤖 AI-Powered Workflow Generation
-- Describe your blockchain workflow in natural language
-- Gemini 2.0 Flash automatically generates the complete workflow
-- Intelligent tool selection and parameter configuration
+### 🤖 AI & Workflow
+- Natural-language chat → tool execution with Gemini/Groq
+- Workflow generator + React Flow builder
+- n8n workflow auto-builder and activation controls
 
-### 🎨 Visual Workflow Builder
-- Drag-and-drop interface powered by React Flow
-- Connect blockchain tools visually
-- Real-time workflow validation
-- Save and load workflows
+### 🧩 Agent Management
+- CRUD agents, clone/update, regenerate API keys (hashed), avatars
+- Public/private agents with Telegram linkage metadata
 
-### 🔗 Blockchain Integration
-- Native support for Arbitrum Sepolia
-- Gas-optimized Stylus smart contracts (Rust → WASM)
-- ERC-20 and ERC-721 token deployment
-- Transaction signing and broadcasting
+### ⚡ Automation
+- Batch transfers/mints/approvals and cron-based scheduled transfers
+- Session-based signing with encrypted keys and expirations
 
-### 💰 Payment System
-- x402 protocol integration
-- USDC escrow for premium features
-- Automatic refunds on transaction failure
-- Pay-per-use pricing model
+### 📣 Integrations
+- Telegram bot connect/disconnect/agent switching
+- HMAC-signed webhooks with retries, delivery logs, and rich event types
 
-### 🔐 Security
-- Privy authentication (Web3 + Web2)
-- Encrypted private key storage in Supabase
-- Backend authorization for payment execution
-- Transaction verification before payment release
+### 💸 DeFi, DEX, Payments
+- Aave v3 deposit/withdraw/claim/APY, Uniswap v3 swaps/quotes
+- x402 USDC escrow with backend authorization and refunds
 
-### 📊 Agent Management
-- Create multiple agents with different workflows
-- API key generation for programmatic access
-- Chat interface for natural language interaction
-- Transaction history and analytics
+### 🗳️ Governance & Bridge
+- OZ Governor-compatible proposal lifecycle (create, list, vote, delegate)
+- Arbitrum bridge deposit/withdraw/retryable status + cross-chain queries
+
+### 🔍 Contract Intelligence
+- NL contract executor, contract chat Q&A, ABI fetch, calldata/revert decode
+- Contract safety scoring and risk-level reporting
+
+### 📊 Data & Identity
+- Portfolio analytics (tokens + NFTs + USD), ENS/ARBID resolve/reverse
+- Gas estimate/simulate/history, price history/OHLCV charts
 
 ---
 

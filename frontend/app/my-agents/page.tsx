@@ -79,6 +79,7 @@ export default function MyAgents() {
   const [isRegeneratingKey, setIsRegeneratingKey] = useState(false)
   const [confirmRegen, setConfirmRegen] = useState(false)
   const [isCloningAgentId, setIsCloningAgentId] = useState<string | null>(null)
+  const [navigatingTo, setNavigatingTo] = useState<string | null>(null)
 
   useEffect(() => {
     if (ready && !authenticated) {
@@ -124,6 +125,12 @@ export default function MyAgents() {
 
   const handleAgentClick = (agentId: string) => {
     router.push(`/agent-builder?agent=${agentId}`)
+  }
+
+  const handleTopNavClick = (path: string) => {
+    if (navigatingTo) return
+    setNavigatingTo(path)
+    router.push(path)
   }
 
   const handleRegenerateKey = async () => {
@@ -202,24 +209,47 @@ export default function MyAgents() {
 
           {/* Navigation */}
           <div className="mt-6 flex items-center gap-2">
-            <Button asChild variant="outline" size="sm" className="h-8 text-xs font-medium">
-              <Link href="/orbit-builder">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs font-medium"
+              onClick={() => handleTopNavClick("/orbit-builder")}
+              disabled={Boolean(navigatingTo)}
+            >
+              {navigatingTo === "/orbit-builder" ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
                 <Layers className="mr-1.5 h-3.5 w-3.5" />
-                Orbit L3 Builder
-              </Link>
+              )}
+              Orbit L3 Builder
             </Button>
-            <Button asChild variant="outline" size="sm" className="h-8 text-xs font-medium">
-              <Link href="/contract-explorer">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs font-medium"
+              onClick={() => handleTopNavClick("/contract-explorer")}
+              disabled={Boolean(navigatingTo)}
+            >
+              {navigatingTo === "/contract-explorer" ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
                 <FileCode className="mr-1.5 h-3.5 w-3.5" />
-                Contract Explorer
-              </Link>
+              )}
+              Contract Explorer
             </Button>
             <div className="flex-1" />
-            <Button asChild size="sm" className="h-8 bg-foreground text-background hover:bg-foreground/90 text-xs font-medium">
-              <Link href="/agent-builder">
+            <Button
+              size="sm"
+              className="h-8 bg-foreground text-background hover:bg-foreground/90 text-xs font-medium"
+              onClick={() => handleTopNavClick("/agent-builder")}
+              disabled={Boolean(navigatingTo)}
+            >
+              {navigatingTo === "/agent-builder" ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
                 <Plus className="mr-1.5 h-3.5 w-3.5" />
-                Create Agent
-              </Link>
+              )}
+              Create Agent
             </Button>
           </div>
 

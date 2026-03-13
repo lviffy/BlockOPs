@@ -101,3 +101,4 @@ Cargo.lock
 # Rust build artifacts
 *.wasm
 *.wat
+state.txt
